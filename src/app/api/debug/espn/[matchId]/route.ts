@@ -22,14 +22,30 @@ export async function GET(
   if (!res.ok) return NextResponse.json({ error: 'espn error', status: res.status }, { status: 502 });
   const data = await res.json();
 
-  // Return first 3 items so we can inspect field names without huge payload
   const comm = data?.commentary;
-  const items = comm?.items?.slice(0, 3) ?? [];
+  const items: unknown[] = comm?.items ?? [];
+
+  // Find first dismissal ball to inspect dismissal.text structure
+  const dismissalBalls = (items as Array<Record<string,unknown>>)
+    .filter((i: Record<string,unknown>) => (i.dismissal as Record<string,unknown>)?.dismissal === true)
+    .slice(0, 3);
+
+  // Also show raw summary stats for first batter to find all dismissal fields
+  const summaryRes = await fetch(
+    `https://site.api.espn.com/apis/site/v2/sports/cricket/8048/summary?event=${espnId}`,
+    { next: { revalidate: 0 } }
+  );
+  const summary = await summaryRes.json();
+  const rosters = (summary?.rosters ?? []) as Array<{roster: Array<{athlete:{displayName:string}; linescores?: unknown[]}>}>;
+  const firstRoster = rosters[0]?.roster ?? [];
+  // Find a player who batted (has linescores)
+  const battedPlayer = firstRoster.find((p) => (p.linescores as unknown[] | undefined)?.length);
+  const rawStats = battedPlayer ? { name: battedPlayer.athlete.displayName, linescores: battedPlayer.linescores } : null;
+
   return NextResponse.json({
     pageCount: comm?.pageCount,
-    itemCount: comm?.items?.length,
-    topLevelKeys: Object.keys(data ?? {}),
-    commKeys: Object.keys(comm ?? {}),
-    firstItems: items,
+    itemCount: items.length,
+    dismissalBalls,
+    summaryBatterSample: rawStats,
   });
 }
