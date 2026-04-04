@@ -342,7 +342,14 @@ function SidePanel({
 // innings 1 occupies 0–19.6, innings 2 occupies 20–39.6.
 interface HistoryPoint { seq: number; lads: number; gils: number; events?: string[] }
 
-function ProgressChart({ history, onRegenerate }: { history: HistoryPoint[]; onRegenerate: () => void }) {
+function ProgressChart({ history, onRegenerate, canonicalLads, canonicalGils }: {
+  history: HistoryPoint[];
+  onRegenerate: () => void;
+  // When the match is complete, pass the authoritative totals from autoResultFromLive so the
+  // chart header shows the same number as the Results tab and Dashboard.
+  canonicalLads?: number;
+  canonicalGils?: number;
+}) {
   if (history.length < 1) return null;
 
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
@@ -450,11 +457,11 @@ function ProgressChart({ history, onRegenerate }: { history: HistoryPoint[]; onR
           <div style={{ display: 'flex', gap: 18 }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 13, fontWeight: 700, color: '#fbbf24' }}>
               <span style={{ width: 9, height: 9, borderRadius: '50%', background: '#f59e0b', display: 'inline-block', flexShrink: 0 }} />
-              Lads {fmtPts(Math.round(last.lads))}
+              Lads {fmtPts(canonicalLads ?? Math.round(last.lads))}
             </span>
             <span style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 13, fontWeight: 700, color: '#a78bfa' }}>
               <span style={{ width: 9, height: 9, borderRadius: '50%', background: '#7c3aed', display: 'inline-block', flexShrink: 0 }} />
-              Gils {fmtPts(Math.round(last.gils))}
+              Gils {fmtPts(canonicalGils ?? Math.round(last.gils))}
             </span>
           </div>
         </div>
@@ -716,11 +723,17 @@ export default function LiveScorecard({
   const ladsBreakdown = (ladsAgg.breakdown.some(b => b.pts !== 0) ? ladsAgg.breakdown : null) ?? savedLadsBreakdown ?? ladsAgg.breakdown;
   const gilsBreakdown = (gilsAgg.breakdown.some(b => b.pts !== 0) ? gilsAgg.breakdown : null) ?? savedGilsBreakdown ?? gilsAgg.breakdown;
 
-  // When live innings data is absent (ESPN returns "Scheduled" for completed matches),
-  // fall back to the final point in chart history for the headline totals.
+  // Fallback chain for side-panel headline totals:
+  //   1. Live ESPN stats (most up-to-date during the match)
+  //   2. Stored totals from autoResultFromLive (authoritative once match is complete)
+  //   3. Last chart history point (last resort)
   const lastHistoryPt = history.length > 0 ? history[history.length - 1] : null;
-  const ladsDisplayTotal = ladsAgg.rawTotal !== 0 ? Math.round(ladsAgg.rawTotal) : (lastHistoryPt?.lads ?? 0);
-  const gilsDisplayTotal = gilsAgg.rawTotal !== 0 ? Math.round(gilsAgg.rawTotal) : (lastHistoryPt?.gils ?? 0);
+  const ladsDisplayTotal = ladsAgg.rawTotal !== 0
+    ? Math.round(ladsAgg.rawTotal)
+    : (storedLadsTotal ?? lastHistoryPt?.lads ?? 0);
+  const gilsDisplayTotal = gilsAgg.rawTotal !== 0
+    ? Math.round(gilsAgg.rawTotal)
+    : (storedGilsTotal ?? lastHistoryPt?.gils ?? 0);
 
   // Append a history point whenever liveData updates, keyed by commentary sequence (ball number).
   // Saves to both localStorage (instant) and Supabase (durable, cross-session).
@@ -858,6 +871,8 @@ export default function LiveScorecard({
             <ProgressChart
               history={history}
               onRegenerate={handleRegenerate}
+              canonicalLads={storedLadsTotal}
+              canonicalGils={storedGilsTotal}
             />
           )}
           {regenerating && (
