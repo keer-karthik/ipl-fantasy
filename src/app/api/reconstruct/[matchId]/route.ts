@@ -106,37 +106,22 @@ export async function GET(
     espnData.playingEleven,
   );
 
-  // ── Merge with existing Supabase chart history ─────────────────────────────
-  // Reconstruction is the authoritative source (computed fresh from full playbyplay
-  // with the latest algorithm including fielding). Existing points only fill any
-  // gaps not covered by reconstruction; they do NOT override reconstructed totals.
+  // ── Store reconstruction directly — no merge with stale Supabase data ────────
+  // This endpoint is called on-demand (mount + manual Regenerate). It always uses
+  // the freshly computed reconstruction as the authoritative result. Merging with
+  // existing Supabase data risks propagating stale chart history from old algorithm
+  // runs or changed picks. The cron job handles incremental merging for live matches.
+  // If reconstruction returned nothing (match not started / no play-by-play yet),
+  // clear the stored chart so stale data doesn't persist.
   const existingCh = (state.chartHistory as Record<string, ChartPoint[]> | undefined) ?? {};
-  const existingPts: ChartPoint[] = existingCh[String(numId)] ?? [];
+  const toStore = reconstructed.length > 0 ? reconstructed : [];
 
-  // Prune stale future points: only keep existing data up to the latest reconstructed
-  // over so live matches don't accumulate stale chart data from previous runs.
-  // If reconstruction returned nothing (match not started yet), return existing data unchanged.
-  if (reconstructed.length === 0) {
-    return NextResponse.json(existingPts);
-  }
-  const maxReconSeq = Math.max(...reconstructed.map(p => p.seq));
-  const seqMap = new Map<number, ChartPoint>();
-  for (const p of existingPts) {
-    if (p.seq <= maxReconSeq) seqMap.set(p.seq, p);  // drop stale future points
-  }
-  for (const p of reconstructed) {                    // reconstruction always wins
-    const existing = seqMap.get(p.seq);
-    seqMap.set(p.seq, { ...p, events: p.events ?? existing?.events });
-  }
-  const merged = Array.from(seqMap.values()).sort((a, b) => a.seq - b.seq);
-
-  // ── Persist merged history to Supabase ───────────────────────────────────────
   await upsertSeasonState({
     ...state,
-    chartHistory: { ...existingCh, [String(numId)]: merged },
+    chartHistory: { ...existingCh, [String(numId)]: toStore },
   });
 
-  return NextResponse.json(merged);
+  return NextResponse.json(toStore);
 }
 
 // ── Fetch all pages of ESPN playbyplay ───────────────────────────────────────
