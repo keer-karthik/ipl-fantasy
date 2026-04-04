@@ -1,5 +1,5 @@
 'use client';
-import { use, useState, useEffect, useRef } from 'react';
+import { use, useState, useEffect, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useSeasonState, emptyMatch } from '@/lib/store';
 import { getFixture, teams, formatDate, getMatchStartIST } from '@/lib/data';
@@ -365,11 +365,9 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
     setInitialized(true);
   }, [loaded, initialized, matchId, state.matches]);
 
-  // Auto-save when ESPN reports match complete
-  useEffect(() => {
+  // Finalise results from live ESPN data
+  const finaliseFromLive = useCallback(() => {
     if (!liveData?.status.isComplete) return;
-    const match = state.matches[matchId] ?? emptyMatch(matchId);
-    if (match.isComplete) return; // already saved
     if (ladsPicks.length === 0 || gilsPicks.length === 0) return;
 
     const actualWinner = liveData.actualWinner as TeamName | null;
@@ -393,7 +391,15 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
       gils: { ...m.gils, picks: gilsPicks, stats: [], results: gilsResults, total: gilsTotal, predictedWinner: gilsPrediction as TeamName || null, allInUsed: gilsAllin },
     }));
     setActiveTab('result');
-  }, [liveData?.status.isComplete, liveData?.actualWinner]);
+  }, [liveData, ladsPicks, gilsPicks, ladsPrediction, gilsPrediction, matchId, updateMatch]);
+
+  // Auto-save when ESPN reports match complete
+  useEffect(() => {
+    const match = state.matches[matchId] ?? emptyMatch(matchId);
+    if (match.isComplete) return; // already saved
+    finaliseFromLive();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveData?.status.isComplete, liveData?.actualWinner, ladsPicks.length, gilsPicks.length]);
 
   // Clock for countdown — stops ticking once match has started
   useEffect(() => {
@@ -588,6 +594,16 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
       {/* Live Tab */}
       {activeTab === 'live' && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+          {liveData?.status.isComplete && !match.isComplete && ladsPicks.length > 0 && gilsPicks.length > 0 && (
+            <div style={{ textAlign: 'center', padding: '12px' }}>
+              <button
+                onClick={finaliseFromLive}
+                style={{ background: 'var(--ipl-navy)', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 24px', fontWeight: 700, cursor: 'pointer', fontSize: 14 }}
+              >
+                Finalise Results
+              </button>
+            </div>
+          )}
           <LiveScorecard
             matchId={matchId}
             ladsPicks={ladsPicks}
