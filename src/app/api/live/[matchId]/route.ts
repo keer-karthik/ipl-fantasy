@@ -92,7 +92,15 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ mat
           if (!stats) continue;
 
           if (stats.batted === '1') {
-            // Batting record — rename dismissalCard → dismissal for liveScoring.ts
+            // Pick the most descriptive dismissal text ESPN provides
+            const dismissalCandidates = [
+              stats.dismissalText, stats.dismissalLong, stats.dismissalCard,
+              stats.dismissalShortText, stats.dismissalShort, stats.dismissal,
+            ].filter(Boolean) as string[];
+            const dismissalBest = dismissalCandidates.reduce<string>(
+              (a, b) => b.length > a.length ? b : a,
+              dismissalCandidates[0] ?? 'not out'
+            );
             teamBatters[teamName].push({
               playerName,
               runs: stats.runs ?? '0',
@@ -100,7 +108,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ mat
               fours: stats.fours ?? '0',
               sixes: stats.sixes ?? '0',
               strikeRate: stats.strikeRate ?? '0',
-              dismissal: stats.dismissalCard ?? 'not out',
+              dismissal: dismissalBest,
               battingPosition: stats.battingPosition ?? '1',
             });
           } else if (stats.bowled === '1') {

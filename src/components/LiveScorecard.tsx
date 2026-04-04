@@ -5,6 +5,20 @@ import type { PlayerPick, Multiplier } from '@/lib/types';
 import type { LiveData } from '@/hooks/useLiveScore';
 import { multiplierBadge } from '@/lib/scoring';
 
+// ─── Dismissal formatting ─────────────────────────────────────────────────────
+function formatDismissal(raw: string): string {
+  if (!raw || raw === 'not out') return 'not out';
+  const r = raw.trim();
+  // Already descriptive (length > 3 means it's more than a code)
+  if (r.length > 3) return r;
+  // Short codes → readable
+  const codes: Record<string, string> = {
+    c: 'caught', b: 'bowled', lbw: 'lbw', st: 'stumped',
+    ro: 'run out', 'c&b': 'c&b', ret: 'retired', 'hit wicket': 'hit wicket',
+  };
+  return codes[r.toLowerCase()] ?? r;
+}
+
 // ─── Name normalisation ───────────────────────────────────────────────────────
 function norm(s: string) { return s.toLowerCase().replace(/[^a-z]/g, ''); }
 function matchName(a: string, b: string) {
@@ -203,9 +217,31 @@ export default function LiveScorecard({
         )}
       </div>
 
-      {/* Mobile totals */}
+      {/* Fixed side panels — float in viewport margins at 2xl (1536px+) */}
       {showSidePanels && (
-        <div className="flex gap-3 lg:hidden">
+        <>
+          <div className="fixed left-3 top-32 w-52 hidden 2xl:block z-30">
+            <SidePanel
+              label="LADS" total={Math.round(ladsAgg.rawTotal)}
+              breakdown={ladsAgg.breakdown}
+              color="#d97706" textColor={ladsAgg.rawTotal >= 0 ? 'text-green-600' : 'text-red-500'}
+              borderColor="border-amber-200" bgColor="bg-amber-50"
+            />
+          </div>
+          <div className="fixed right-3 top-32 w-52 hidden 2xl:block z-30">
+            <SidePanel
+              label="GILS" total={Math.round(gilsAgg.rawTotal)}
+              breakdown={gilsAgg.breakdown}
+              color="#7c3aed" textColor={gilsAgg.rawTotal >= 0 ? 'text-green-600' : 'text-red-500'}
+              borderColor="border-violet-200" bgColor="bg-violet-50"
+            />
+          </div>
+        </>
+      )}
+
+      {/* Mini totals bar — shown below 2xl where fixed panels aren't visible */}
+      {showSidePanels && (
+        <div className="flex gap-3 2xl:hidden">
           <div className="flex-1 rounded-xl border-2 border-amber-200 bg-amber-50 p-3 text-center">
             <div className="text-[10px] font-black uppercase tracking-widest text-amber-600">Lads</div>
             <motion.div key={ladsAgg.rawTotal} initial={{ scale: 1.1 }} animate={{ scale: 1 }}
@@ -223,23 +259,8 @@ export default function LiveScorecard({
         </div>
       )}
 
-      {/* 3-column layout on desktop */}
-      <div className="flex gap-4 items-start">
-
-        {/* LEFT — Lads panel */}
-        {showSidePanels && (
-          <div className="hidden lg:block w-52 shrink-0 sticky top-20">
-            <SidePanel
-              label="LADS" total={Math.round(ladsAgg.rawTotal)}
-              breakdown={ladsAgg.breakdown}
-              color="#d97706" textColor={ladsAgg.rawTotal >= 0 ? 'text-green-600' : 'text-red-500'}
-              borderColor="border-amber-200" bgColor="bg-amber-50"
-            />
-          </div>
-        )}
-
-        {/* MIDDLE — Innings scorecards + commentary */}
-        <div className="flex-1 min-w-0 space-y-4">
+      {/* Full-width scorecard + commentary */}
+      <div className="space-y-4">
           {Object.entries(innings).map(([teamName, inning]) => {
             const batsmen = calcLiveBatsmen(inning.batting, allPicks);
             const bowlers = calcLiveBowlers(inning.bowling, allPicks);
@@ -295,8 +316,8 @@ export default function LiveScorecard({
                                     <OwnerDots lads={inLads} gils={inGils} />
                                     <div>
                                       <div className="font-semibold text-gray-800 text-sm">{b.playerName}</div>
-                                      <div className="text-xs text-gray-400">
-                                        {b.isOut ? b.dismissal : <span className="text-green-600 font-medium">batting*</span>}
+                                      <div className="text-xs text-gray-400 max-w-[160px] truncate" title={b.dismissal}>
+                                        {b.isOut ? formatDismissal(b.dismissal) : <span className="text-green-600 font-medium">batting*</span>}
                                       </div>
                                     </div>
                                     {inLads && ladsM && <MultiBadge m={ladsM} owner="lads" />}
@@ -438,19 +459,6 @@ export default function LiveScorecard({
             </div>
           )}
         </div>
-
-        {/* RIGHT — Gils panel */}
-        {showSidePanels && (
-          <div className="hidden lg:block w-52 shrink-0 sticky top-20">
-            <SidePanel
-              label="GILS" total={Math.round(gilsAgg.rawTotal)}
-              breakdown={gilsAgg.breakdown}
-              color="#7c3aed" textColor={gilsAgg.rawTotal >= 0 ? 'text-green-600' : 'text-red-500'}
-              borderColor="border-violet-200" bgColor="bg-violet-50"
-            />
-          </div>
-        )}
-      </div>
 
       {/* Legend */}
       {showSidePanels && (
