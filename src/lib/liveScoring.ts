@@ -11,6 +11,7 @@ export interface LiveBatsman {
   strikeRate: number;
   isOut: boolean;
   dismissal: string;
+  dismissalFielder: string; // ESPN-provided fielder name for catches/stumpings/run-outs
   fantasyPoints: number;
   multiplier: Multiplier | null;
   finalPoints: number;
@@ -110,6 +111,7 @@ export function calcLiveBatsmen(
       strikeRate: Math.round(sr * 10) / 10,
       isOut,
       dismissal: p.dismissal ?? '',
+      dismissalFielder: p.dismissalFielder ?? '',
       fantasyPoints,
       multiplier,
       finalPoints,
@@ -150,12 +152,9 @@ export function calcLiveBowlers(
   });
 }
 
-// Parse fielding credits (catches, stumpings, run-outs) from dismissal text.
-// ESPN includes the fielder name in the dismissal string, e.g.:
-//   "c Bumrah b Ngidi"          → catch credit to Bumrah
-//   "st Iyer b Kuldeep"         → stumping credit to Iyer
-//   "run out (Bumrah/Bosch)"    → run-out credit to Bumrah (first named)
-// Returns a map of normalized dismissal name → fielding points.
+// Build fielding credits map using ESPN's structured outDetails.fielders data.
+// dismissalFielder is set by the live route from outDetails.fielders[0].athlete.displayName,
+// which covers catches, stumpings, and run-outs. Falls back to parsing dismissal text.
 function buildFieldingMap(allBatsmen: LiveBatsman[]): Map<string, number> {
   const map = new Map<string, number>();
   const add = (name: string) => {
@@ -163,15 +162,19 @@ function buildFieldingMap(allBatsmen: LiveBatsman[]): Map<string, number> {
     if (k.length >= 3) map.set(k, (map.get(k) ?? 0) + 10);
   };
   for (const b of allBatsmen) {
+    if (!b.isOut) continue;
+    // Use ESPN's explicit fielder field (most reliable)
+    if (b.dismissalFielder) {
+      add(b.dismissalFielder);
+      continue;
+    }
+    // Fallback: parse dismissal text (e.g. "c Bumrah b Ngidi")
     const d = (b.dismissal ?? '').trim();
-    if (!d || d === 'not out' || d.toLowerCase().startsWith('batting')) continue;
-    // catch: "c Fielder b Bowler" (not "c & b")
-    const catchM = d.match(/^c\s+(?!&)(.+?)\s+b\s+/i);
+    if (!d || d === 'not out') continue;
+    const catchM = d.match(/^c\s+(?![&†])([^b]+?)\s+b\s+/i);
     if (catchM) { add(catchM[1].trim()); continue; }
-    // stumping: "st Keeper b Bowler"
-    const stM = d.match(/^st\s+(.+?)\s+b\s+/i);
+    const stM = d.match(/^st\s+([^b]+?)\s+b\s+/i);
     if (stM) { add(stM[1].trim()); continue; }
-    // run out: "run out (Name)" or "run out (Name1/Name2)"
     const roM = d.match(/run out\s*\(([^)]+)\)/i);
     if (roM) { add(roM[1].split('/')[0].trim()); continue; }
   }
@@ -246,6 +249,15 @@ export function autoResultFromLive(
   const allBatting = Object.values(innings).flatMap(inning => inning.batting);
   const allBowling = Object.values(innings).flatMap(inning => inning.bowling);
 
+  // Build fielding credit map from dismissalFielder on each batting record
+  const fieldingMap = new Map<string, number>();
+  for (const b of allBatting) {
+    const fielder = b.dismissalFielder ?? '';
+    if (!fielder) continue;
+    const k = normalizeName(fielder);
+    if (k.length >= 3) fieldingMap.set(k, (fieldingMap.get(k) ?? 0) + 10);
+  }
+
   return picks.map(pick => {
     // Use substitute only if main player is absent from the playing eleven entirely.
     const mainInXI = playingEleven.length === 0 || isInPlayingEleven(pick.playerName, playingEleven);
@@ -274,11 +286,15 @@ export function autoResultFromLive(
     const wickets = didBowl ? (parseInt(bowler!.wickets ?? '0') || 0) : 0;
     const maidens = didBowl ? (parseInt(bowler!.maidens ?? '0') || 0) : 0;
 
-    // Fielding — not available per-player from ESPN
+    // Fielding — look up fielding credits from dismissalFielder map
     const catches = 0;
     const stumpings = 0;
     const runOuts = 0;
-    const fieldingPoints = 0;
+    const normActive = normalizeName(activeName);
+    let fieldingPoints = 0;
+    for (const [k, v] of fieldingMap) {
+      if (normActive.includes(k) || k.includes(normActive)) fieldingPoints += v;
+    }
 
     const isMOM = false;
     const momPoints = 0;
@@ -286,7 +302,7 @@ export function autoResultFromLive(
 
     const battingPoints = calcBattingPoints(runs, balls, dismissed, battingPosition);
     const bowlingPoints = calcBowlingPoints(wickets, overs, runsConceded, maidens);
-    const rawTotal = battingPoints + bowlingPoints;
+    const rawTotal = battingPoints + bowlingPoints + fieldingPoints;
     const finalTotal = applyMultiplier(rawTotal, pick.multiplier) + predPoints;
 
     return {

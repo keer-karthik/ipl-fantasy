@@ -94,19 +94,36 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ mat
         const inningsLinescores = player.linescores ?? [];
 
         for (const inningsLs of inningsLinescores) {
-          const stats = extractStats(inningsLs.linescores ?? []);
+          const innerLinescores = (inningsLs.linescores ?? []) as Array<{
+            order: number;
+            statistics?: {
+              categories?: Array<{ stats?: Array<{ name: string; displayValue: string }> }>;
+              batting?: {
+                outDetails?: {
+                  shortText?: string;
+                  dismissalCard?: string;
+                  fielders?: Array<{ athlete?: { displayName?: string }; isKeeper?: number }>;
+                };
+              };
+            };
+          }>;
+          const stats = extractStats(innerLinescores);
           if (!stats) continue;
 
           if (stats.batted === '1') {
-            // Pick the most descriptive dismissal text ESPN provides
-            const dismissalCandidates = [
-              stats.dismissalText, stats.dismissalLong, stats.dismissalCard,
-              stats.dismissalShortText, stats.dismissalShort, stats.dismissal,
-            ].filter(Boolean) as string[];
-            const dismissalBest = dismissalCandidates.reduce<string>(
-              (a, b) => b.length > a.length ? b : a,
-              dismissalCandidates[0] ?? 'not out'
-            );
+            // Get outDetails from the nested statistics.batting for dismissal info
+            const mainLs = innerLinescores.find(l => l.order > 0);
+            const outDetails = mainLs?.statistics?.batting?.outDetails ?? null;
+
+            // outDetails.shortText = "c †Rickelton b Chahar" or "run out (Bumrah)"
+            const dismissalShort = outDetails?.shortText
+              ? outDetails.shortText.replace(/&dagger;/g, '†').replace(/&amp;/g, '&')
+              : null;
+            // Fielder who took the catch/stumping/run-out
+            const dismissalFielder = outDetails?.fielders?.[0]?.athlete?.displayName ?? '';
+
+            const dismissal = dismissalShort ?? (stats.dismissal === '1' ? 'out' : 'not out');
+
             teamBatters[teamName].push({
               playerName,
               runs: stats.runs ?? '0',
@@ -114,7 +131,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ mat
               fours: stats.fours ?? '0',
               sixes: stats.sixes ?? '0',
               strikeRate: stats.strikeRate ?? '0',
-              dismissal: dismissalBest,
+              dismissal,
+              dismissalFielder,
               battingPosition: stats.battingPosition ?? '1',
             });
           } else if (stats.bowled === '1') {
