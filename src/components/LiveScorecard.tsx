@@ -14,14 +14,14 @@ const _n = (s: string) => s.toLowerCase().replace(/[^a-z]/g, '');
 function iplImageUrl(name: string): string | undefined {
   const n = _n(name);
   for (const [k, id] of Object.entries(_iplIds)) {
-    if (_n(k) === n) return `https://documents.iplt20.com/ipl/IPLHeadshot2026/${id}.png`;
+    if (_n(k) === n) return `/api/player-image/${id}`;
   }
   // Fuzzy: last-name-only match
   const lastName = name.trim().split(' ').pop()?.toLowerCase().replace(/[^a-z]/g, '') ?? '';
   if (lastName.length >= 4) {
     for (const [k, id] of Object.entries(_iplIds)) {
-      if ((_n(k).split('').length > 0) && k.trim().split(' ').pop()?.toLowerCase().replace(/[^a-z]/g, '') === lastName) {
-        return `https://documents.iplt20.com/ipl/IPLHeadshot2026/${id}.png`;
+      if (k.trim().split(' ').pop()?.toLowerCase().replace(/[^a-z]/g, '') === lastName) {
+        return `/api/player-image/${id}`;
       }
     }
   }
