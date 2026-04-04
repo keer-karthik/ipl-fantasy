@@ -542,7 +542,7 @@ function ProgressChart({ history, onRegenerate }: { history: HistoryPoint[]; onR
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function LiveScorecard({
   matchId, ladsPicks, gilsPicks, liveData, loading, lastUpdated,
-  savedLadsBreakdown, savedGilsBreakdown,
+  savedLadsBreakdown, savedGilsBreakdown, storedLadsTotal, storedGilsTotal,
 }: {
   matchId: number;
   ladsPicks: PlayerPick[];
@@ -552,6 +552,8 @@ export default function LiveScorecard({
   lastUpdated: Date | null;
   savedLadsBreakdown?: Array<{ name: string; activeName: string; pts: number; batPts: number; bowlPts: number; fieldPts: number; multiplier: import('@/lib/types').Multiplier | null; isSubstituted: boolean }>;
   savedGilsBreakdown?: Array<{ name: string; activeName: string; pts: number; batPts: number; bowlPts: number; fieldPts: number; multiplier: import('@/lib/types').Multiplier | null; isSubstituted: boolean }>;
+  storedLadsTotal?: number;
+  storedGilsTotal?: number;
 }) {
   const historyKey = `ipl-chart-${matchId}`;
 
@@ -569,49 +571,73 @@ export default function LiveScorecard({
     } catch { return []; }
   });
 
+  const [regenerating, setRegenerating] = useState(false);
+  const autoRegenTriggered = useRef(false);
+
+  function applyRemote(remote: HistoryPoint[], replaceAll = false) {
+    const valid = remote.filter(p => isValidSeq(p.seq));
+    if (valid.length === 0) return;
+    if (replaceAll) {
+      const sorted = [...valid].sort((a, b) => a.seq - b.seq);
+      setHistory(sorted);
+      try { localStorage.setItem(historyKey, JSON.stringify(sorted)); } catch { /* quota */ }
+      return;
+    }
+    setHistory(prev => {
+      const validPrev = prev.filter(p => isValidSeq(p.seq));
+      // Reconstruction always wins — local cache only fills in events that remote lacks
+      const seqMap = new Map(validPrev.map(p => [p.seq, p]));
+      for (const p of valid) {
+        const prev_ = seqMap.get(p.seq);
+        seqMap.set(p.seq, { ...p, events: p.events ?? prev_?.events });
+      }
+      const merged = Array.from(seqMap.values()).sort((a, b) => a.seq - b.seq);
+      try { localStorage.setItem(historyKey, JSON.stringify(merged)); } catch { /* quota */ }
+      return merged;
+    });
+  }
+
   // On mount: trigger reconstruction from ESPN data (works for past AND live games).
-  // The reconstruct endpoint fetches ESPN, rebuilds the full chart using commentary,
-  // merges with any existing Supabase snapshots, saves, and returns the merged result.
-  // This means opening ANY match page — even days later — auto-populates the chart.
   useEffect(() => {
     fetch(`/api/reconstruct/${matchId}`)
       .then(r => r.ok ? r.json() : null)
       .then((remote: HistoryPoint[] | null) => {
         if (!Array.isArray(remote) || remote.length === 0) return;
-        setHistory(prev => {
-          // Discard any old-format points before merging
-          const validRemote = remote.filter(p => isValidSeq(p.seq));
-          const validPrev   = prev.filter(p => isValidSeq(p.seq));
-          if (validRemote.length === 0) return validPrev;
-          // Merge: real-time snapshots win at their seq; reconstruction fills the gaps.
-          // Always keep events from remote (old localStorage entries won't have them).
-          const seqMap = new Map(validRemote.map(p => [p.seq, p]));
-          for (const p of validPrev) {
-            const rec = seqMap.get(p.seq);
-            seqMap.set(p.seq, { ...p, events: p.events ?? rec?.events });
-          }
-          const merged = Array.from(seqMap.values()).sort((a, b) => a.seq - b.seq);
-          try { localStorage.setItem(historyKey, JSON.stringify(merged)); } catch { /* quota */ }
-          return merged;
-        });
+        applyRemote(remote);
       })
       .catch(() => { /* network error — use localStorage */ });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [matchId]);
 
-  const [regenerating, setRegenerating] = useState(false);
+  // Auto-regenerate: if stored match totals diverge from chart's final point by
+  // more than 5 pts, the chart is stale — trigger a silent regenerate once.
+  useEffect(() => {
+    if (autoRegenTriggered.current) return;
+    if (history.length === 0) return;
+    if (!storedLadsTotal && !storedGilsTotal) return;
+    const last = history[history.length - 1];
+    const ladsDiff = storedLadsTotal ? Math.abs(last.lads - storedLadsTotal) : 0;
+    const gilsDiff = storedGilsTotal ? Math.abs(last.gils - storedGilsTotal) : 0;
+    if (ladsDiff > 5 || gilsDiff > 5) {
+      autoRegenTriggered.current = true;
+      setRegenerating(true);
+      fetch(`/api/reconstruct/${matchId}`)
+        .then(r => r.ok ? r.json() : null)
+        .then((remote: HistoryPoint[] | null) => {
+          if (Array.isArray(remote) && remote.length > 0) applyRemote(remote, true);
+        })
+        .catch(() => {})
+        .finally(() => setRegenerating(false));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [history, storedLadsTotal, storedGilsTotal]);
 
   function handleRegenerate() {
     setRegenerating(true);
     fetch(`/api/reconstruct/${matchId}`)
       .then(r => r.ok ? r.json() : null)
       .then((remote: HistoryPoint[] | null) => {
-        if (!Array.isArray(remote) || remote.length === 0) return;
-        const valid = remote.filter(p => isValidSeq(p.seq));
-        if (valid.length === 0) return;
-        const sorted = [...valid].sort((a, b) => a.seq - b.seq);
-        setHistory(sorted);
-        try { localStorage.setItem(historyKey, JSON.stringify(sorted)); } catch { /* quota */ }
+        if (Array.isArray(remote) && remote.length > 0) applyRemote(remote, true);
       })
       .catch(() => {})
       .finally(() => setRegenerating(false));

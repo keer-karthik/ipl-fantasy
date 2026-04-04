@@ -385,7 +385,9 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
     setInitialized(true);
   }, [loaded, initialized, matchId, state.matches]);
 
-  // Finalise results from live ESPN data
+  // Finalise / refresh results from live ESPN data.
+  // Always re-runs when ESPN data arrives so stored totals stay in sync with any
+  // scoring algorithm changes. Only switches to Result tab on first completion.
   const finaliseFromLive = useCallback(() => {
     if (!liveData?.status.isComplete) return;
     if (ladsPicks.length === 0 || gilsPicks.length === 0) return;
@@ -402,6 +404,8 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
     const ladsAllin = ladsPicks.some(p => p.multiplier === 'allin');
     const gilsAllin = gilsPicks.some(p => p.multiplier === 'allin');
 
+    const wasAlreadyComplete = (state.matches[matchId] ?? emptyMatch(matchId)).isComplete;
+
     updateMatch(matchId, m => ({
       ...m,
       isComplete: true,
@@ -410,13 +414,13 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
       lads: { ...m.lads, picks: ladsPicks, stats: [], results: ladsResults, total: ladsTotal, predictedWinner: ladsPrediction as TeamName || null, allInUsed: ladsAllin },
       gils: { ...m.gils, picks: gilsPicks, stats: [], results: gilsResults, total: gilsTotal, predictedWinner: gilsPrediction as TeamName || null, allInUsed: gilsAllin },
     }));
-    switchTab('result');
-  }, [liveData, ladsPicks, gilsPicks, ladsPrediction, gilsPrediction, matchId, updateMatch]);
 
-  // Auto-save when ESPN reports match complete
+    if (!wasAlreadyComplete) switchTab('result');
+  }, [liveData, ladsPicks, gilsPicks, ladsPrediction, gilsPrediction, matchId, updateMatch, state.matches]);
+
+  // Always refresh results when ESPN confirms completion — no isComplete guard so
+  // stale localStorage totals are corrected whenever the match page is visited.
   useEffect(() => {
-    const match = state.matches[matchId] ?? emptyMatch(matchId);
-    if (match.isComplete) return; // already saved
     finaliseFromLive();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [liveData?.status.isComplete, liveData?.actualWinner, ladsPicks.length, gilsPicks.length]);
@@ -701,6 +705,8 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
             lastUpdated={lastUpdated}
             savedLadsBreakdown={savedLadsBreakdown}
             savedGilsBreakdown={savedGilsBreakdown}
+            storedLadsTotal={match.lads.total}
+            storedGilsTotal={match.gils.total}
           />
         </motion.div>
       )}
