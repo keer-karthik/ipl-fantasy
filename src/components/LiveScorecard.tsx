@@ -542,38 +542,37 @@ function ProgressChart({ history, onRegenerate }: { history: HistoryPoint[]; onR
           <div style={{
             position: 'absolute', top: 8, zIndex: 20, pointerEvents: 'none',
             [tipLeft ? 'left' : 'right']: `${tipLeft ? mouseX + 14 : containerWidth - mouseX + 14}px`,
-            background: 'rgba(10, 15, 30, 0.93)',
-            backdropFilter: 'blur(10px)',
-            borderRadius: 10, padding: '10px 14px', minWidth: 175,
-            boxShadow: '0 8px 28px rgba(0,0,0,0.28)',
-            border: '1px solid rgba(255,255,255,0.07)',
+            background: 'white',
+            borderRadius: 12, padding: '12px 16px', minWidth: 190,
+            boxShadow: '0 4px 24px rgba(0,0,0,0.14), 0 1px 4px rgba(0,0,0,0.08)',
+            border: '1px solid #e2e8f0',
           }}>
-            <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 1.8, color: '#64748b', marginBottom: 9, fontFamily: 'ui-monospace, monospace' }}>
+            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1.5, color: '#94a3b8', marginBottom: 10, fontFamily: 'ui-monospace, monospace' }}>
               Inn {hpOver.inn} · Over {hpOver.ov}
             </div>
-            <div style={{ display: 'flex', gap: 18, marginBottom: hp.events?.length ? 10 : 0 }}>
+            <div style={{ display: 'flex', gap: 20, marginBottom: hp.events?.length ? 12 : 0 }}>
               <div>
-                <div style={{ fontSize: 22, fontWeight: 900, color: hp.lads >= 0 ? '#fbbf24' : '#f87171', lineHeight: 1, fontFamily: 'ui-monospace, monospace' }}>
+                <div style={{ fontSize: 26, fontWeight: 900, color: hp.lads >= 0 ? '#d97706' : '#ef4444', lineHeight: 1, fontFamily: 'ui-monospace, monospace' }}>
                   {fmtPts(hp.lads)}
                 </div>
-                <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 3 }}>
-                  Lads{prevHp && <span style={{ color: '#64748b' }}> ({fmtPts(hp.lads - prevHp.lads)} ov)</span>}
+                <div style={{ fontSize: 12, fontWeight: 600, color: '#64748b', marginTop: 5 }}>
+                  Lads{prevHp && <span style={{ fontWeight: 400, color: '#94a3b8' }}> ({fmtPts(hp.lads - prevHp.lads)} ov)</span>}
                 </div>
               </div>
               <div>
-                <div style={{ fontSize: 22, fontWeight: 900, color: hp.gils >= 0 ? '#a78bfa' : '#f87171', lineHeight: 1, fontFamily: 'ui-monospace, monospace' }}>
+                <div style={{ fontSize: 26, fontWeight: 900, color: hp.gils >= 0 ? '#7c3aed' : '#ef4444', lineHeight: 1, fontFamily: 'ui-monospace, monospace' }}>
                   {fmtPts(hp.gils)}
                 </div>
-                <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 3 }}>
-                  Gils{prevHp && <span style={{ color: '#64748b' }}> ({fmtPts(hp.gils - prevHp.gils)} ov)</span>}
+                <div style={{ fontSize: 12, fontWeight: 600, color: '#64748b', marginTop: 5 }}>
+                  Gils{prevHp && <span style={{ fontWeight: 400, color: '#94a3b8' }}> ({fmtPts(hp.gils - prevHp.gils)} ov)</span>}
                 </div>
               </div>
             </div>
             {hp.events && hp.events.length > 0 && (
-              <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: 10, display: 'flex', flexDirection: 'column', gap: 5 }}>
                 {hp.events.map((ev, i) => (
-                  <div key={i} style={{ fontSize: 10, color: '#cbd5e1', display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ color: '#64748b', fontSize: 12 }}>·</span>{ev}
+                  <div key={i} style={{ fontSize: 11, color: '#475569', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ color: '#cbd5e1', fontSize: 14 }}>·</span>{ev}
                   </div>
                 ))}
               </div>
