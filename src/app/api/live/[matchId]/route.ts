@@ -1,6 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import espnIds from '../../../../../data/espn_ids.json';
 
+// Extract flat stat map from ESPN linescore categories
+function extractStats(linescores: Array<{ order: number; statistics?: { categories?: Array<{ stats?: Array<{ name: string; displayValue: string }> }> } }>): Record<string, string> | null {
+  // Find the linescore entry with actual data (order > 0)
+  const ls = linescores.find(l => l.order > 0);
+  if (!ls) return null;
+  const stats: Record<string, string> = {};
+  for (const cat of ls.statistics?.categories ?? []) {
+    for (const s of cat.stats ?? []) {
+      stats[s.name] = s.displayValue;
+    }
+  }
+  return Object.keys(stats).length > 0 ? stats : null;
+}
+
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ matchId: string }> }) {
   const { matchId } = await params;
   const espnId = espnIds[matchId as keyof typeof espnIds];
@@ -22,58 +36,134 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ mat
     const summary = await summaryRes.json();
     const scoreboard = await scoreboardRes.json();
 
-    // Find this event in scoreboard
-    const event = scoreboard.events?.find((e: { id: string }) => e.id === espnId);
-    const competition = event?.competitions?.[0] ?? {};
+    // ── Status ────────────────────────────────────────────────────────────────
+    const sbEvent = scoreboard.events?.find((e: { id: string }) => e.id === espnId);
+    const competition = sbEvent?.competitions?.[0] ?? {};
     const status = competition.status ?? {};
 
-    // Parse matchcards for batting (typeID 11) and bowling (typeID 12)
-    const matchcards: Array<{
-      typeID: number;
-      teamName: string;
+    // ── Scoreboard linescores (which team is batting per period) ──────────────
+    const competitors: Array<{
+      team: { displayName: string };
+      linescores?: Array<{ period: number; isBatting: boolean; runs: number; wickets: number; overs: number; isCurrent?: number }>;
+    }> = competition.competitors ?? [];
+
+    // Build a map: period → { battingTeam, bowlingTeam, runs, wickets, overs }
+    const periodInfo: Record<number, { battingTeam: string; bowlingTeam: string; runs: number; wickets: number; overs: number }> = {};
+    for (const comp of competitors) {
+      for (const ls of comp.linescores ?? []) {
+        if (ls.isBatting) {
+          const bowler = competitors.find(c => c.team.displayName !== comp.team.displayName);
+          periodInfo[ls.period] = {
+            battingTeam: comp.team.displayName,
+            bowlingTeam: bowler?.team.displayName ?? '',
+            runs: ls.runs ?? 0,
+            wickets: ls.wickets ?? 0,
+            overs: ls.overs ?? 0,
+          };
+        }
+      }
+    }
+
+    // ── Parse rosters for batting/bowling stats ───────────────────────────────
+    // rosters: [{team, roster: [{athlete, linescores, ...}]}]
+    const rosters: Array<{
+      team: { displayName: string };
+      roster: Array<{
+        athlete: { displayName: string };
+        linescores?: Array<{ linescores?: Array<{ order: number; statistics?: { categories?: Array<{ stats?: Array<{ name: string; displayValue: string }> }> } }> }>;
+      }>;
+    }> = summary.rosters ?? [];
+
+    // Per team, collect batting and bowling records
+    const teamBatters: Record<string, Array<Record<string, string>>> = {};
+    const teamBowlers: Record<string, Array<Record<string, string>>> = {};
+
+    for (const roster of rosters) {
+      const teamName = roster.team.displayName;
+      teamBatters[teamName] = [];
+      teamBowlers[teamName] = [];
+
+      for (const player of roster.roster ?? []) {
+        const playerName = player.athlete?.displayName ?? 'Unknown';
+        const inningsLinescores = player.linescores ?? [];
+
+        for (const inningsLs of inningsLinescores) {
+          const stats = extractStats(inningsLs.linescores ?? []);
+          if (!stats) continue;
+
+          if (stats.batted === '1') {
+            // Batting record — rename dismissalCard → dismissal for liveScoring.ts
+            teamBatters[teamName].push({
+              playerName,
+              runs: stats.runs ?? '0',
+              ballsFaced: stats.ballsFaced ?? '0',
+              fours: stats.fours ?? '0',
+              sixes: stats.sixes ?? '0',
+              strikeRate: stats.strikeRate ?? '0',
+              dismissal: stats.dismissalCard ?? 'not out',
+              battingPosition: stats.battingPosition ?? '1',
+            });
+          } else if (stats.bowled === '1') {
+            // Bowling record
+            teamBowlers[teamName].push({
+              playerName,
+              overs: stats.overs ?? '0',
+              conceded: stats.conceded ?? '0',
+              wickets: stats.wickets ?? '0',
+              maidens: stats.maidens ?? '0',
+              economyRate: stats.economyRate ?? '0',
+              bowlingPosition: stats.bowlingPosition ?? '1',
+            });
+          }
+        }
+      }
+
+      // Sort batters by position, bowlers by position
+      teamBatters[teamName].sort((a, b) => parseInt(a.battingPosition) - parseInt(b.battingPosition));
+      teamBowlers[teamName].sort((a, b) => parseInt(a.bowlingPosition) - parseInt(b.bowlingPosition));
+    }
+
+    // ── Build innings grouped by batting team ─────────────────────────────────
+    const innings: Record<string, {
+      batting: Array<Record<string, string>>;
+      bowling: Array<Record<string, string>>;
       total: string;
-      runs: string;
-      extras: string;
-      playerDetails: Array<Record<string, string>>;
-    }> = summary.matchcards ?? [];
+    }> = {};
 
-    const innings = matchcards
-      .filter(c => c.typeID === 11 || c.typeID === 12)
-      .reduce((acc: Record<string, { batting: Array<Record<string, string>>; bowling: Array<Record<string, string>>; total: string; runs: string }>, card) => {
-        const key = card.teamName;
-        if (!acc[key]) acc[key] = { batting: [], bowling: [], total: '', runs: '' };
-        if (card.typeID === 11) {
-          acc[key].batting = card.playerDetails ?? [];
-          acc[key].total = card.total ?? '';
-          acc[key].runs = card.runs ?? '';
-        }
-        if (card.typeID === 12) {
-          acc[key].bowling = card.playerDetails ?? [];
-        }
-        return acc;
-      }, {});
+    for (const [period, info] of Object.entries(periodInfo)) {
+      const { battingTeam, bowlingTeam, runs, wickets, overs } = info;
+      const oversDisplay = overs % 1 === 0 ? `${overs}` : `${Math.floor(overs)}.${Math.round((overs % 1) * 10)}`;
+      innings[battingTeam] = {
+        batting: teamBatters[battingTeam] ?? [],
+        bowling: teamBowlers[bowlingTeam] ?? [],
+        total: `${runs}/${wickets} (${oversDisplay} ov)`,
+      };
+    }
 
-    // Commentary (latest 10)
-    const commentaries = competition.commentaries?.slice(0, 10) ?? [];
+    // ── Commentary ────────────────────────────────────────────────────────────
+    const headerComp = summary.header?.competitions?.[0] ?? {};
+    const commentaries = (headerComp.commentaries ?? []).slice(0, 10).map(
+      (c: { over?: string | number; text?: string; description?: string }) => ({
+        over: c.over ?? '',
+        text: c.text ?? c.description ?? '',
+      })
+    );
 
     return NextResponse.json({
       matchId,
       espnId,
       status: {
         state: status.type?.state ?? 'pre',
-        description: status.type?.description ?? 'Scheduled',
+        description: status.type?.description ?? status.summary ?? 'Scheduled',
         isLive: status.type?.state === 'in',
         isComplete: status.type?.state === 'post',
       },
-      teams: (competition.competitors ?? []).map((c: { homeAway: string; team: { displayName: string; abbreviation: string }; score: string }) => ({
-        homeAway: c.homeAway,
+      teams: competitors.map(c => ({
         name: c.team?.displayName,
-        abbr: c.team?.abbreviation,
-        score: c.score,
+        linescores: c.linescores,
       })),
       innings,
       commentaries,
-      headline: competition.description ?? '',
     });
   } catch (e) {
     return NextResponse.json({ error: 'Failed to fetch live data', detail: String(e) }, { status: 500 });
