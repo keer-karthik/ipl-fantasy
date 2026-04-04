@@ -10,6 +10,42 @@ import type { Multiplier, PlayerPick, PlayerStats, TeamName } from '@/lib/types'
 
 const MULTIPLIERS: Multiplier[] = ['yellow', 'green', 'purple', 'allin'];
 
+// IPL burst decoration (miniature version for match header)
+function BurstDecoration({ flip = false, size = 160 }: { flip?: boolean; size?: number }) {
+  const rays = [
+    { angle: 0,   color: '#FFD700', len: 60, dot: 5 },
+    { angle: 30,  color: '#FF6B00', len: 45, dot: 3.5 },
+    { angle: 60,  color: '#00C853', len: 55, dot: 4.5 },
+    { angle: 90,  color: '#FF1493', len: 40, dot: 3.5 },
+    { angle: 120, color: '#00B4D8', len: 58, dot: 5 },
+    { angle: 150, color: '#9C27B0', len: 43, dot: 3.5 },
+    { angle: 180, color: '#FFD700', len: 62, dot: 5 },
+    { angle: 210, color: '#FF4444', len: 44, dot: 3.5 },
+    { angle: 240, color: '#00C853', len: 56, dot: 4.5 },
+    { angle: 270, color: '#FF6B00', len: 42, dot: 3.5 },
+    { angle: 300, color: '#00B4D8', len: 60, dot: 5 },
+    { angle: 330, color: '#FF1493', len: 44, dot: 3.5 },
+  ];
+  return (
+    <svg viewBox="0 0 200 200" width={size} height={size}
+      style={{ transform: flip ? 'scaleX(-1)' : undefined }}>
+      {rays.map((r, i) => {
+        const rad = (r.angle * Math.PI) / 180;
+        const x1 = 100 + 25 * Math.cos(rad);
+        const y1 = 100 + 25 * Math.sin(rad);
+        const x2 = 100 + r.len * Math.cos(rad);
+        const y2 = 100 + r.len * Math.sin(rad);
+        return (
+          <g key={i}>
+            <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={r.color} strokeWidth="2.5" strokeLinecap="round" opacity="0.8" />
+            <circle cx={x2} cy={y2} r={r.dot} fill={r.color} opacity="0.9" />
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
 function emptyStats(name: string): PlayerStats {
   return {
     playerName: name, didBat: false, runs: 0, balls: 0, dismissed: false, battingPosition: 1,
@@ -371,28 +407,61 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
 
   return (
     <div className="space-y-6 pb-12">
-      {/* Header */}
+      {/* Header — IPL style */}
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
-        className="rounded-2xl overflow-hidden shadow-md"
-        style={{ background: 'linear-gradient(135deg, var(--ipl-navy) 0%, #0a4fa8 100%)' }}>
-        <div className="px-6 py-6 flex flex-col items-center gap-4">
-          <div className="text-xs text-blue-300 font-bold uppercase tracking-widest">
-            Match {fixture.match} · {fixture.venue}
+        className="rounded-2xl overflow-hidden shadow-lg relative"
+        style={{ background: 'linear-gradient(135deg, #001f6b 0%, var(--ipl-navy) 60%, #0a4fa8 100%)' }}>
+
+        {/* Burst decorations */}
+        <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/3 opacity-75 pointer-events-none select-none">
+          <BurstDecoration size={160} />
+        </div>
+        <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/3 opacity-75 pointer-events-none select-none">
+          <BurstDecoration size={160} flip />
+        </div>
+
+        <div className="relative z-10 px-6 py-6 flex flex-col items-center gap-3">
+          {/* Match badge */}
+          <div className="bg-white text-blue-900 text-xs font-black uppercase tracking-widest px-4 py-1 rounded-sm">
+            MATCH {fixture.match}
           </div>
-          <div className="flex items-center gap-6">
-            <div className="flex flex-col items-center gap-2">
-              <TeamLogo team={fixture.home} size={56} />
-              <span className="text-white font-bold text-sm">{fixture.home.split(' ').pop()}</span>
+
+          {/* Teams */}
+          <div className="flex items-center gap-8 w-full justify-center">
+            <div className="flex flex-col items-center gap-2 flex-1 max-w-[140px]">
+              <div className="w-16 h-16 rounded-full bg-white shadow-lg flex items-center justify-center p-1">
+                <TeamLogo team={fixture.home} size={56} />
+              </div>
+              <span className="text-white font-extrabold text-base tracking-wide">
+                {fixture.home.split(' ').map(w => w[0]).join('')}
+              </span>
+              <span className="text-blue-300 text-xs hidden sm:block text-center">{fixture.home}</span>
             </div>
-            <div className="text-center">
-              <div className="text-2xl font-black text-white">VS</div>
-              <div className="text-xs text-blue-300 mt-1">{formatDate(fixture.date)}</div>
-              <div className="text-xs text-blue-300">{fixture.time} IST</div>
+
+            <div className="flex flex-col items-center gap-1 shrink-0">
+              <div className="w-10 h-10 rounded-full border-2 border-white/30 flex items-center justify-center">
+                <span className="text-white font-black text-sm">vs</span>
+              </div>
+              <div className="text-xs text-blue-300 mt-2 text-center">
+                <div className="font-semibold">{formatDate(fixture.date)}</div>
+                <div>{fixture.time} IST</div>
+              </div>
             </div>
-            <div className="flex flex-col items-center gap-2">
-              <TeamLogo team={fixture.away} size={56} />
-              <span className="text-white font-bold text-sm">{fixture.away.split(' ').pop()}</span>
+
+            <div className="flex flex-col items-center gap-2 flex-1 max-w-[140px]">
+              <div className="w-16 h-16 rounded-full bg-white shadow-lg flex items-center justify-center p-1">
+                <TeamLogo team={fixture.away} size={56} />
+              </div>
+              <span className="text-white font-extrabold text-base tracking-wide">
+                {fixture.away.split(' ').map(w => w[0]).join('')}
+              </span>
+              <span className="text-blue-300 text-xs hidden sm:block text-center">{fixture.away}</span>
             </div>
+          </div>
+
+          {/* Venue */}
+          <div className="text-xs text-blue-300 text-center">
+            {fixture.venue}
           </div>
         </div>
       </motion.div>

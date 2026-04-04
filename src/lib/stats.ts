@@ -52,10 +52,13 @@ export function computeSideStats(state: SeasonState, side: 'lads' | 'gils'): Sid
     else      { losses++; form.push('L'); streak = 0; }
     if (streak > longestStreak) longestStreak = streak;
 
-    // Purple hits
+    // Purple hits: 3x player had the highest base points among all 5 picks (before multipliers)
     const purplePick = sideData.picks.find(p => p.multiplier === 'purple');
     const purpleResult = sideData.results.find(r => r.playerName === purplePick?.playerName);
-    if (purpleResult && purpleResult.rawTotal > 0) purpleHits++;
+    if (purpleResult && sideData.results.length > 0) {
+      const maxRaw = Math.max(...sideData.results.map(r => r.rawTotal));
+      if (purpleResult.rawTotal === maxRaw && maxRaw > 0) purpleHits++;
+    }
 
     // Runs / wickets per player
     for (const r of sideData.results) {
