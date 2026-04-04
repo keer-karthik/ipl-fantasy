@@ -63,26 +63,52 @@ export async function GET(
     return NextResponse.json([]);
   }
 
+  // ── Augment playbyplay with fielder info from summary ────────────────────────
+  // ESPN's playbyplay may not populate dismissal.fielder. Cross-reference with
+  // the summary's outDetails.fielders (which the live route reliably reads) so
+  // the chart reconstruction can correctly award fielding pts (+10 each).
+  function normN(s: string) { return s.toLowerCase().replace(/[^a-z]/g, ''); }
+  const batsmanToFielder = new Map<string, string>();
+  for (const inn of Object.values(espnData.innings)) {
+    for (const b of inn.batting) {
+      if (b.dismissalFielder && b.playerName) {
+        batsmanToFielder.set(normN(b.playerName), b.dismissalFielder);
+      }
+    }
+  }
+  const augmentedPlaybyplay = playbyplay.map(ball => {
+    if (!ball.isDismissal || ball.fielderName) return ball;
+    const n = normN(ball.batsmanName);
+    let fielder: string | undefined;
+    for (const [k, v] of batsmanToFielder) {
+      if (k === n || k.includes(n.slice(0, 6)) || n.includes(k.slice(0, 6))) {
+        fielder = v; break;
+      }
+    }
+    return fielder ? { ...ball, fielderName: fielder } : ball;
+  });
+
   // ── Run reconstruction ───────────────────────────────────────────────────────
   const reconstructed = reconstructChartHistory(
-    playbyplay,
+    augmentedPlaybyplay,
     espnData.innings,
     ladsPicks,
     gilsPicks,
     espnData.playingEleven,
   );
 
-  // ── Merge with existing Supabase chart history (real-time snapshots win) ─────
+  // ── Merge with existing Supabase chart history ─────────────────────────────
+  // Reconstruction is the authoritative source (computed fresh from full playbyplay
+  // with the latest algorithm including fielding). Existing points only fill any
+  // gaps not covered by reconstruction; they do NOT override reconstructed totals.
   const existingCh = (state.chartHistory as Record<string, ChartPoint[]> | undefined) ?? {};
   const existingPts: ChartPoint[] = existingCh[String(numId)] ?? [];
 
-  // Build merged: reconstructed provides coverage; real snapshots override totals at their seq,
-  // but always keep events from reconstructed (old snapshots won't have them).
   const seqMap = new Map<number, ChartPoint>();
-  for (const p of reconstructed) seqMap.set(p.seq, p);
-  for (const p of existingPts) {
-    const rec = seqMap.get(p.seq);
-    seqMap.set(p.seq, { ...p, events: p.events ?? rec?.events });
+  for (const p of existingPts) seqMap.set(p.seq, p);   // existing as baseline
+  for (const p of reconstructed) {                       // reconstruction always wins
+    const existing = seqMap.get(p.seq);
+    seqMap.set(p.seq, { ...p, events: p.events ?? existing?.events });
   }
   const merged = Array.from(seqMap.values()).sort((a, b) => a.seq - b.seq);
 
@@ -174,17 +200,27 @@ function parseEspnSummary(summary: Record<string, unknown>) {
     for (const player of roster.roster ?? []) {
       const playerName = player.athlete?.displayName ?? 'Unknown';
       for (const inn of (player.linescores ?? []) as Array<{ linescores?: Array<unknown> }>) {
-        type LS = { order: number; statistics?: { categories?: Array<{ stats?: Array<{ name: string; displayValue: string }> }> } };
-        const stats = extractStats((inn.linescores ?? []) as LS[]);
+        type LS = {
+          order: number;
+          statistics?: {
+            categories?: Array<{ stats?: Array<{ name: string; displayValue: string }> }>;
+            batting?: { outDetails?: { fielders?: Array<{ athlete?: { displayName?: string } }> } };
+          };
+        };
+        const innerLs = (inn.linescores ?? []) as LS[];
+        const stats = extractStats(innerLs);
         if (!stats) continue;
         if (stats.batted === '1') {
           const dc = [stats.dismissalText, stats.dismissalLong, stats.dismissalCard,
             stats.dismissalShortText, stats.dismissalShort, stats.dismissal].filter(Boolean) as string[];
           const dismissal = dc.reduce<string>((a, b) => b.length > a.length ? b : a, dc[0] ?? 'not out');
+          // Extract fielder from outDetails (same source as live route)
+          const mainLs = innerLs.find(l => l.order > 0);
+          const dismissalFielder = mainLs?.statistics?.batting?.outDetails?.fielders?.[0]?.athlete?.displayName ?? '';
           teamBatters[teamName].push({
             playerName, runs: stats.runs ?? '0', ballsFaced: stats.ballsFaced ?? '0',
             fours: stats.fours ?? '0', sixes: stats.sixes ?? '0',
-            dismissal, battingPosition: stats.battingPosition ?? '1',
+            dismissal, battingPosition: stats.battingPosition ?? '1', dismissalFielder,
           });
         } else if (stats.bowled === '1') {
           teamBowlers[teamName].push({

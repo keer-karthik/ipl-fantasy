@@ -83,9 +83,30 @@ export async function GET(req: NextRequest) {
       const playbyplay = await fetchAllPlaybyplay(espnId);
       if (playbyplay.length === 0) { results[matchId] = 'no playbyplay'; continue; }
 
+      // Augment playbyplay dismissal balls with fielder from summary (reliable fallback)
+      function normN(s: string) { return s.toLowerCase().replace(/[^a-z]/g, ''); }
+      const batsmanToFielder = new Map<string, string>();
+      for (const inn of Object.values(innings)) {
+        for (const b of inn.batting) {
+          if (b.dismissalFielder && b.playerName)
+            batsmanToFielder.set(normN(b.playerName), b.dismissalFielder);
+        }
+      }
+      const augmentedPlaybyplay = playbyplay.map(ball => {
+        if (!ball.isDismissal || ball.fielderName) return ball;
+        const n = normN(ball.batsmanName);
+        let fielder: string | undefined;
+        for (const [k, v] of batsmanToFielder) {
+          if (k === n || k.includes(n.slice(0, 6)) || n.includes(k.slice(0, 6))) {
+            fielder = v; break;
+          }
+        }
+        return fielder ? { ...ball, fielderName: fielder } : ball;
+      });
+
       // Build chart via reconstruction (works for both live and completed)
       const reconstructed = reconstructChartHistory(
-        playbyplay,
+        augmentedPlaybyplay,
         innings,
         picks.ladsPicks,
         picks.gilsPicks,
@@ -93,13 +114,14 @@ export async function GET(req: NextRequest) {
       );
       if (reconstructed.length === 0) { results[matchId] = 'no data points'; continue; }
 
-      // Merge with existing snapshots (real-time snapshots override totals; keep events from reconstructed)
+      // Merge: reconstruction always wins (fresh algorithm with fielding);
+      // existing points only fill gaps not covered by reconstruction.
       const existingCh = (state.chartHistory as Record<string, typeof reconstructed> | undefined) ?? {};
       const existing = existingCh[String(matchId)] ?? [];
-      const seqMap = new Map(reconstructed.map(p => [p.seq, p]));
-      for (const p of existing) {
-        const rec = seqMap.get(p.seq);
-        seqMap.set(p.seq, { ...p, events: p.events ?? rec?.events });
+      const seqMap = new Map(existing.map(p => [p.seq, p]));
+      for (const p of reconstructed) {
+        const prev = seqMap.get(p.seq);
+        seqMap.set(p.seq, { ...p, events: p.events ?? prev?.events });
       }
       const merged = Array.from(seqMap.values()).sort((a, b) => a.seq - b.seq);
 
@@ -213,16 +235,25 @@ function parseEspnSummary(summary: Record<string, unknown>) {
     for (const player of roster.roster ?? []) {
       const playerName = player.athlete?.displayName ?? 'Unknown';
       for (const inn of (player.linescores ?? []) as Array<{ linescores?: Array<unknown> }>) {
-        type LS = { order: number; statistics?: { categories?: Array<{ stats?: Array<{ name: string; displayValue: string }> }> } };
-        const stats = extractStats((inn.linescores ?? []) as LS[]);
+        type LS = {
+          order: number;
+          statistics?: {
+            categories?: Array<{ stats?: Array<{ name: string; displayValue: string }> }>;
+            batting?: { outDetails?: { fielders?: Array<{ athlete?: { displayName?: string } }> } };
+          };
+        };
+        const innerLs = (inn.linescores ?? []) as LS[];
+        const stats = extractStats(innerLs);
         if (!stats) continue;
         if (stats.batted === '1') {
           const dc = [stats.dismissalText, stats.dismissalLong, stats.dismissalCard,
             stats.dismissalShort, stats.dismissal].filter(Boolean) as string[];
           const dismissal = dc.reduce<string>((a, b) => b.length > a.length ? b : a, dc[0] ?? 'not out');
+          const mainLs = innerLs.find(l => l.order > 0);
+          const dismissalFielder = mainLs?.statistics?.batting?.outDetails?.fielders?.[0]?.athlete?.displayName ?? '';
           innings[teamName].batting.push({
             playerName, runs: stats.runs ?? '0', ballsFaced: stats.ballsFaced ?? '0',
-            dismissal, battingPosition: stats.battingPosition ?? '1',
+            dismissal, battingPosition: stats.battingPosition ?? '1', dismissalFielder,
           });
         } else if (stats.bowled === '1') {
           innings[teamName].bowling.push({
