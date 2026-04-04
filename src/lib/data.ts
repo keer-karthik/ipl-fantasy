@@ -55,3 +55,24 @@ export function isToday(dateStr: string): boolean {
     d.getMonth() === today.getMonth() &&
     d.getFullYear() === today.getFullYear();
 }
+
+const IST_MONTHS: Record<string, string> = {
+  JAN: '01', FEB: '02', MAR: '03', APR: '04', MAY: '05', JUN: '06',
+  JUL: '07', AUG: '08', SEP: '09', OCT: '10', NOV: '11', DEC: '12',
+};
+
+export function getMatchStartIST(fixture: Fixture): Date {
+  const [day, mon, yr] = fixture.date.split('-');
+  const [time, period] = fixture.time.split(' ');
+  const [h, m] = time.split(':').map(Number);
+  let hours = h;
+  if (period === 'PM' && h !== 12) hours += 12;
+  if (period === 'AM' && h === 12) hours = 0;
+  return new Date(
+    `20${yr}-${IST_MONTHS[mon]}-${day.padStart(2, '0')}T${String(hours).padStart(2, '0')}:${String(m).padStart(2, '0')}:00+05:30`
+  );
+}
+
+export function hasMatchStarted(fixture: Fixture): boolean {
+  return new Date() >= getMatchStartIST(fixture);
+}

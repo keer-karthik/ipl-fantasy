@@ -250,7 +250,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
   const { id } = use(params);
   const matchId = parseInt(id);
   const fixture = getFixture(matchId);
-  const { state, updateMatch, loaded } = useSeasonState();
+  const { state, updateMatch, loaded, side } = useSeasonState();
 
   // ALL hooks must be declared before any conditional return
   const [activeTab, setActiveTab] = useState<'studio' | 'live' | 'result'>('studio');
@@ -311,8 +311,12 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
   function savePicks() {
     updateMatch(matchId, m => ({
       ...m,
-      lads: { ...m.lads, picks: ladsPicks, predictedWinner: (ladsPrediction as TeamName) || null },
-      gils: { ...m.gils, picks: gilsPicks, predictedWinner: (gilsPrediction as TeamName) || null },
+      lads: side === 'lads'
+        ? { ...m.lads, picks: ladsPicks, predictedWinner: (ladsPrediction as TeamName) || null }
+        : m.lads,
+      gils: side === 'gils'
+        ? { ...m.gils, picks: gilsPicks, predictedWinner: (gilsPrediction as TeamName) || null }
+        : m.gils,
     }));
     setActiveTab('live');
   }
@@ -403,47 +407,61 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
       {/* Studio Tab */}
       {activeTab === 'studio' && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-          <div className="grid md:grid-cols-2 gap-6">
+          {/* Show only the logged-in user's picks editor */}
+          {side === 'lads' && (
             <div className="bg-blue-50/60 rounded-2xl p-4 border border-blue-100">
               <PicksEditor picks={ladsPicks} onChange={setLadsPicks} fixture={fixture}
                 sideLabel="Lads" allInUsedSeason={state.ladsAllInUsed} />
             </div>
+          )}
+          {side === 'gils' && (
             <div className="bg-pink-50/60 rounded-2xl p-4 border border-pink-100">
               <PicksEditor picks={gilsPicks} onChange={setGilsPicks} fixture={fixture}
                 sideLabel="Gils" allInUsedSeason={state.gilsAllInUsed} />
             </div>
-          </div>
+          )}
 
-          {/* Winner predictions */}
+          {/* Winner prediction — only for current side */}
           <div className="bg-white border border-gray-200 rounded-2xl p-4 space-y-3 shadow-sm">
             <h3 className="font-bold text-gray-700 text-sm">Winner Prediction <span className="text-amber-500 font-semibold">(+50 pts if correct)</span></h3>
-            <div className="grid grid-cols-2 gap-4">
-              {(['Lads', 'Gils'] as const).map(side => {
-                const pred = side === 'Lads' ? ladsPrediction : gilsPrediction;
-                const setPred = side === 'Lads' ? setLadsPrediction : setGilsPrediction;
-                return (
-                  <label key={side}>
-                    <span className={`block text-xs font-semibold mb-1.5 ${side === 'Lads' ? 'text-blue-600' : 'text-pink-600'}`}>{side}</span>
-                    <select value={pred} onChange={e => setPred(e.target.value as TeamName | '')}
-                      className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500/30">
-                      <option value="">— No prediction —</option>
-                      <option value={fixture.home}>{fixture.home}</option>
-                      <option value={fixture.away}>{fixture.away}</option>
-                    </select>
-                  </label>
-                );
-              })}
-            </div>
+            {side === 'lads' && (
+              <label className="block">
+                <span className="block text-xs font-semibold mb-1.5 text-blue-600">Lads</span>
+                <select value={ladsPrediction} onChange={e => setLadsPrediction(e.target.value as TeamName | '')}
+                  className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500/30">
+                  <option value="">— No prediction —</option>
+                  <option value={fixture.home}>{fixture.home}</option>
+                  <option value={fixture.away}>{fixture.away}</option>
+                </select>
+              </label>
+            )}
+            {side === 'gils' && (
+              <label className="block">
+                <span className="block text-xs font-semibold mb-1.5 text-pink-600">Gils</span>
+                <select value={gilsPrediction} onChange={e => setGilsPrediction(e.target.value as TeamName | '')}
+                  className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500/30">
+                  <option value="">— No prediction —</option>
+                  <option value={fixture.home}>{fixture.home}</option>
+                  <option value={fixture.away}>{fixture.away}</option>
+                </select>
+              </label>
+            )}
           </div>
 
-          <button
-            onClick={savePicks}
-            disabled={ladsPicks.length !== 5 || gilsPicks.length !== 5}
-            className="w-full py-3 rounded-xl font-bold text-gray-900 transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
-            style={{ background: ladsPicks.length === 5 && gilsPicks.length === 5 ? 'var(--ipl-orange)' : '#f0a060', color: 'white' }}
-          >
-            Lock Picks →
-          </button>
+          {(() => {
+            const myPicks = side === 'lads' ? ladsPicks : gilsPicks;
+            const ready = myPicks.length === 5;
+            return (
+              <button
+                onClick={savePicks}
+                disabled={!ready}
+                className="w-full py-3 rounded-xl font-bold text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
+                style={{ background: ready ? 'var(--ipl-orange)' : '#f0a060' }}
+              >
+                Lock Picks →
+              </button>
+            );
+          })()}
         </motion.div>
       )}
 
