@@ -151,74 +151,77 @@ function SidePanel({
     <div className={`flex-1 rounded-2xl border-2 ${borderColor} ${bgColor} flex flex-col overflow-hidden`}>
 
       {/* ── TOP: label + big number ── */}
-      <div className="px-4 pt-4 pb-3">
+      <div className="px-5 pt-5 pb-4">
         <div className={`text-[10px] font-black uppercase tracking-[0.25em] mb-2 ${accentText}`}>{label}</div>
         <motion.div
           key={total}
-          initial={{ scale: 1.1, opacity: 0.5 }}
+          initial={{ scale: 1.06, opacity: 0.6 }}
           animate={{ scale: 1, opacity: 1 }}
           className={`font-black leading-none ${textColor}`}
-          style={{ fontSize: 'clamp(3rem, 5vw, 5.5rem)' }}
+          style={{ fontSize: 'clamp(3.5rem, 5vw, 6rem)' }}
         >
           {total > 0 ? `+${total}` : total}
         </motion.div>
-        <div className="text-[10px] text-gray-400 mt-1 font-medium tracking-wide">pts this game</div>
+        <div className="text-[10px] text-gray-400 mt-1 font-medium tracking-wide uppercase">pts this game</div>
       </div>
 
-      {/* ── Column headers ── */}
-      <div className={`border-t ${accentBorder} px-3 py-1.5 grid grid-cols-[1fr_auto_auto_auto_auto] gap-x-2 items-center`}>
-        <span className="text-[9px] font-black uppercase tracking-widest text-gray-400">Player</span>
-        <span className="text-[9px] font-black uppercase tracking-widest text-blue-400   w-7 text-right">Bat</span>
-        <span className="text-[9px] font-black uppercase tracking-widest text-orange-400 w-7 text-right">Bowl</span>
-        <span className="text-[9px] font-black uppercase tracking-widest text-green-500  w-7 text-right">Field</span>
-        <span className="text-[9px] font-black uppercase tracking-widest text-gray-500   w-10 text-right">Total</span>
-      </div>
+      {/* ── Picks: one card per player ── */}
+      <div className={`flex-1 overflow-y-auto border-t ${accentBorder} px-3 py-2 space-y-2`}>
+        {breakdown.map(b => {
+          const hasStats = b.batPts !== 0 || b.bowlPts !== 0 || b.fieldPts !== 0;
+          return (
+            <div key={b.name}
+              className="bg-white/60 rounded-xl px-3 py-2.5 border border-white shadow-sm">
 
-      {/* ── Picks list ── */}
-      <div className="flex-1 overflow-y-auto divide-y divide-gray-100">
-        {breakdown.map(b => (
-          <div key={b.name} className="px-3 py-2 grid grid-cols-[1fr_auto_auto_auto_auto] gap-x-2 items-center">
-
-            {/* Name + sub indicator */}
-            <div className="min-w-0">
-              <div className="text-[12px] font-bold text-gray-800 truncate leading-tight">
-                {shortName(b.activeName)}
-              </div>
-              {b.isSubstituted && (
-                <div className="text-[9px] text-gray-400 leading-tight truncate">
-                  ↑ sub {shortName(b.name)}
+              {/* Row 1: name + multiplier badge + total */}
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-[13px] font-extrabold text-gray-900 truncate leading-tight">
+                    {shortName(b.activeName)}
+                  </span>
+                  {b.multiplier && (
+                    <span className={`shrink-0 text-[10px] font-black px-1.5 py-0.5 rounded-md border ${accentBadge}`}>
+                      {multiplierBadge(b.multiplier)}
+                    </span>
+                  )}
                 </div>
-              )}
-              {b.multiplier && (
-                <span className={`inline-block text-[9px] font-black px-1 py-0 rounded border mt-0.5 ${accentBadge}`}>
-                  {multiplierBadge(b.multiplier)}
-                </span>
-              )}
+                <motion.span key={b.pts}
+                  initial={{ scale: 1.2, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+                  className={`text-[17px] font-black shrink-0 ${ptsColor(b.pts)}`}>
+                  {ptsStr(b.pts)}
+                </motion.span>
+              </div>
+
+              {/* Row 2: sub label + stat chips */}
+              <div className="flex items-center gap-2 mt-1 flex-wrap">
+                {b.isSubstituted && (
+                  <span className="text-[9px] text-gray-400 font-semibold">↑ sub {shortName(b.name)}</span>
+                )}
+                {hasStats ? (
+                  <>
+                    {b.batPts !== 0 && (
+                      <span className="text-[10px] font-bold text-blue-500">
+                        Bat <span className={ptsColor(b.batPts)}>{ptsStr(b.batPts)}</span>
+                      </span>
+                    )}
+                    {b.bowlPts !== 0 && (
+                      <span className="text-[10px] font-bold text-orange-500">
+                        Bowl <span className={ptsColor(b.bowlPts)}>{ptsStr(b.bowlPts)}</span>
+                      </span>
+                    )}
+                    {b.fieldPts !== 0 && (
+                      <span className="text-[10px] font-bold text-green-600">
+                        Field <span className={ptsColor(b.fieldPts)}>{ptsStr(b.fieldPts)}</span>
+                      </span>
+                    )}
+                  </>
+                ) : (
+                  <span className="text-[10px] text-gray-300 font-medium">—</span>
+                )}
+              </div>
             </div>
-
-            {/* Batting pts */}
-            <span className={`text-[11px] font-bold w-7 text-right ${ptsColor(b.batPts)}`}>
-              {ptsStr(b.batPts)}
-            </span>
-
-            {/* Bowling pts */}
-            <span className={`text-[11px] font-bold w-7 text-right ${ptsColor(b.bowlPts)}`}>
-              {ptsStr(b.bowlPts)}
-            </span>
-
-            {/* Fielding pts (catches/stumpings/run-outs — always 0 from ESPN live) */}
-            <span className={`text-[11px] font-bold w-7 text-right ${ptsColor(b.fieldPts)}`}>
-              {ptsStr(b.fieldPts)}
-            </span>
-
-            {/* Final total (after multiplier) */}
-            <motion.span key={b.pts}
-              initial={{ scale: 1.2, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-              className={`text-[13px] font-black w-10 text-right ${ptsColor(b.pts)}`}>
-              {ptsStr(b.pts)}
-            </motion.span>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
