@@ -1,9 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useSession } from './session';
 import type { MatchEntry, SeasonState, SideEntry } from './types';
-
-const STORAGE_KEY = 'ipl-fantasy-2026';
 
 function emptySide(): SideEntry {
   return {
@@ -28,35 +27,46 @@ export function emptyMatch(matchId: number): MatchEntry {
   };
 }
 
-export function loadState(): SeasonState {
-  if (typeof window === 'undefined') return { matches: {}, ladsAllInUsed: 0, gilsAllInUsed: 0 };
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { matches: {}, ladsAllInUsed: 0, gilsAllInUsed: 0 };
-    return JSON.parse(raw) as SeasonState;
-  } catch {
-    return { matches: {}, ladsAllInUsed: 0, gilsAllInUsed: 0 };
-  }
-}
-
-export function saveState(state: SeasonState): void {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+function emptyState(): SeasonState {
+  return { matches: {}, ladsAllInUsed: 0, gilsAllInUsed: 0 };
 }
 
 export function useSeasonState() {
-  const [state, setStateRaw] = useState<SeasonState>({ matches: {}, ladsAllInUsed: 0, gilsAllInUsed: 0 });
+  const [state, setStateRaw] = useState<SeasonState>(emptyState());
   const [loaded, setLoaded] = useState(false);
+  const { side, setSide } = useSession();
 
   useEffect(() => {
-    setStateRaw(loadState());
-    setLoaded(true);
+    fetch('/api/state')
+      .then(r => {
+        if (r.status === 401) {
+          window.location.href = '/login';
+          return null;
+        }
+        return r.json();
+      })
+      .then(data => {
+        if (!data) return;
+        setStateRaw(data.state ?? emptyState());
+        setSide(data.side ?? null);
+        setLoaded(true);
+      })
+      .catch(() => {
+        // Network error — stay on loading state
+      });
   }, []);
 
   function setState(updater: (prev: SeasonState) => SeasonState) {
     setStateRaw(prev => {
       const next = updater(prev);
-      saveState(next);
+      // Optimistic update locally; persist in background
+      fetch('/api/state', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ state: next }),
+      }).catch(() => {
+        // Silent fail — state already updated locally
+      });
       return next;
     });
   }
@@ -75,5 +85,5 @@ export function useSeasonState() {
     }));
   }
 
-  return { state, setState, getMatch, updateMatch, loaded };
+  return { state, setState, getMatch, updateMatch, loaded, side };
 }

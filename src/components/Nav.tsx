@@ -1,6 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useSession } from '@/lib/session';
 
 const links = [
   { href: '/', label: 'Dashboard' },
@@ -11,6 +12,8 @@ const links = [
 
 export default function Nav() {
   const path = usePathname();
+  const { side } = useSession();
+
   return (
     <nav className="sticky top-0 z-50 shadow-md" style={{ background: 'var(--ipl-navy)' }}>
       <div className="max-w-5xl mx-auto px-4 flex items-center gap-1 h-14">
@@ -33,8 +36,24 @@ export default function Nav() {
             </Link>
           ))}
         </div>
-        <div className="ml-auto">
-          <span className="text-xs text-blue-300 font-medium">TATA IPL 2026</span>
+        <div className="ml-auto flex items-center gap-3">
+          {side && (
+            <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+              side === 'lads'
+                ? 'bg-blue-500/30 text-blue-200'
+                : 'bg-pink-500/30 text-pink-200'
+            }`}>
+              {side === 'lads' ? 'Lads' : 'Gils'}
+            </span>
+          )}
+          <form action="/api/auth/logout" method="POST">
+            <button
+              type="submit"
+              className="text-xs text-blue-300 hover:text-white transition-colors font-medium"
+            >
+              Sign out
+            </button>
+          </form>
         </div>
       </div>
     </nav>
