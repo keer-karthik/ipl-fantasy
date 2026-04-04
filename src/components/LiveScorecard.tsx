@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { calcLiveBatsmen, calcLiveBowlers, calcLiveFantasyTotal } from '@/lib/liveScoring';
 import type { PlayerPick, Multiplier } from '@/lib/types';
@@ -251,10 +251,10 @@ function ProgressChart({ history }: { history: HistoryPoint[] }) {
   const minV = rawMin - vPad, maxV = rawMax + vPad;
   const range = maxV - minV || 1;
 
-  // Fixed x-domain: always span the full 20 overs (seq 0 → 19.6).
-  // This prevents x-axis collapsing to "20 ov / 20 ov" when only 1-2 snapshots exist.
+  // Fixed x-domain: always span the full 40 overs (both innings, seq 0 → 39.6).
+  // 1st innings: seq 0–19.6. 2nd innings: seq 20–39.6 (offset applied on append).
   const SEQ_START = 0;
-  const SEQ_END = 19.6; // last ball of over 20 in ESPN seq notation
+  const SEQ_END = 39.6;
 
   // Map a seq value to an X pixel position
   const toX = (seq: number) => PAD.l + ((seq - SEQ_START) / (SEQ_END - SEQ_START)) * inner.w;
@@ -270,15 +270,20 @@ function ProgressChart({ history }: { history: HistoryPoint[] }) {
   const gilsLast = last.gils;
   const ticks = [rawMin, 0, rawMax].filter((v, i, a) => a.indexOf(v) === i && Math.abs(v) > 5);
 
-  // Fixed over labels: 0, 5, 10, 15, 20 overs
-  // seq = over-1 (0-indexed), so over 5 = seq 4, over 10 = seq 9, etc.
+  // Fixed over labels across both innings (seq = over-1, 0-indexed per innings, +20 for 2nd)
   const xLabels = [
-    { seq: 0,    label: '1 ov' },
-    { seq: 4,    label: '5 ov' },
-    { seq: 9,    label: '10 ov' },
-    { seq: 14,   label: '15 ov' },
-    { seq: 19,   label: '20 ov' },
+    { seq: 0,  label: '1' },
+    { seq: 4,  label: '5' },
+    { seq: 9,  label: '10' },
+    { seq: 14, label: '15' },
+    { seq: 19, label: '20' },
+    { seq: 24, label: '25' },
+    { seq: 29, label: '30' },
+    { seq: 34, label: '35' },
+    { seq: 39, label: '40' },
   ];
+  // Innings divider at seq=20 (boundary between 1st and 2nd innings)
+  const inningsDividerX = toX(20);
 
   return (
     <div className="rounded-2xl bg-white border border-gray-200 overflow-hidden shadow-sm">
@@ -328,6 +333,11 @@ function ProgressChart({ history }: { history: HistoryPoint[] }) {
           {/* End dots */}
           <circle cx={toX(last.seq)} cy={toY(ladsLast)} r="4" fill="#f59e0b" />
           <circle cx={toX(last.seq)} cy={toY(gilsLast)} r="4" fill="#7c3aed" />
+          {/* Innings divider */}
+          <line x1={inningsDividerX} y1={PAD.t} x2={inningsDividerX} y2={H - PAD.b}
+            stroke="#cbd5e1" strokeWidth="1" strokeDasharray="3,3" />
+          <text x={inningsDividerX} y={PAD.t - 1} textAnchor="middle"
+            className="fill-slate-400" style={{ fontSize: 7 }}>INN 2</text>
           {/* X-axis over labels */}
           {xLabels.map(({ seq, label }) => (
             <text key={seq} x={toX(seq)} y={H - 4} textAnchor="middle"
@@ -353,6 +363,10 @@ export default function LiveScorecard({
   lastUpdated: Date | null;
 }) {
   const historyKey = `ipl-chart-${matchId}`;
+  // Track innings offset: when the 2nd innings starts, seq resets to ~0.
+  // We add 20 to all 2nd-innings seq values so the chart spans 0→40 overs.
+  const inningsOffsetRef = useRef(0);
+  const lastMaxSeqRef = useRef(0);
 
   // Seed from localStorage first (instant, no flash), then merge Supabase history on mount.
   const [history, setHistory] = useState<HistoryPoint[]>(() => {
@@ -409,12 +423,21 @@ export default function LiveScorecard({
       return s > m ? s : m;
     }, 0);
     if (maxSeq === 0) return; // no commentary yet, skip
+
+    // Detect innings change: seq dropped back near 0 after being well into the match.
+    // When this happens, offset all future seqs by 20 (full T20 innings length).
+    if (maxSeq < 2 && lastMaxSeqRef.current > 10) {
+      inningsOffsetRef.current = 20;
+    }
+    lastMaxSeqRef.current = Math.max(lastMaxSeqRef.current, maxSeq);
+    const adjustedSeq = maxSeq + inningsOffsetRef.current;
+
     setHistory(prev => {
       const last = prev[prev.length - 1];
       // Skip if same ball AND same totals (duplicate poll)
-      if (last && last.seq === maxSeq && last.lads === ladsT && last.gils === gilsT) return prev;
-      const point = { seq: maxSeq, lads: ladsT, gils: gilsT };
-      const next = [...prev.filter(p => p.seq !== maxSeq), point];
+      if (last && last.seq === adjustedSeq && last.lads === ladsT && last.gils === gilsT) return prev;
+      const point = { seq: adjustedSeq, lads: ladsT, gils: gilsT };
+      const next = [...prev.filter(p => p.seq !== adjustedSeq), point];
       next.sort((a, b) => a.seq - b.seq);
       // Save locally for instant restore
       try { localStorage.setItem(historyKey, JSON.stringify(next)); } catch { /* quota */ }
@@ -422,7 +445,7 @@ export default function LiveScorecard({
       fetch(`/api/snapshots/${matchId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(point),
+        body: JSON.stringify({ seq: adjustedSeq, lads: ladsT, gils: gilsT }),
       }).catch(() => { /* non-critical */ });
       return next;
     });
