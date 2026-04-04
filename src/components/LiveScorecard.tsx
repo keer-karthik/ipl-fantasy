@@ -116,7 +116,7 @@ function PtsChip({ pts }: { pts: number }) {
   );
 }
 
-// ─── Side panel (full-height fill) ───────────────────────────────────────────
+// ─── Side panel (full-height, number at top) ─────────────────────────────────
 function SidePanel({
   label, total, breakdown, color, textColor, borderColor, bgColor,
 }: {
@@ -127,34 +127,47 @@ function SidePanel({
   const isLads = label === 'LADS';
   return (
     <div className={`flex-1 rounded-2xl border-2 ${borderColor} ${bgColor} flex flex-col overflow-hidden`}>
-      {/* Header */}
-      <div className="px-4 pt-5 pb-2">
-        <div className="text-xs font-black uppercase tracking-widest" style={{ color }}>{label}</div>
-      </div>
-      {/* Big total — centered in remaining space */}
-      <div className="flex-1 flex flex-col items-center justify-center px-4 py-4">
-        <motion.div key={total} initial={{ scale: 1.15, opacity: 0.6 }} animate={{ scale: 1, opacity: 1 }}
-          className={`font-black ${textColor} leading-none text-center`}
-          style={{ fontSize: 'clamp(3rem, 5vw, 5rem)' }}>
+
+      {/* ── TOP: label + big number ── */}
+      <div className="px-5 pt-5 pb-5">
+        <div className="text-[11px] font-black uppercase tracking-[0.25em] mb-3" style={{ color }}>
+          {label}
+        </div>
+        <motion.div
+          key={total}
+          initial={{ scale: 1.1, opacity: 0.5 }}
+          animate={{ scale: 1, opacity: 1 }}
+          className={`font-black leading-none ${textColor}`}
+          style={{ fontSize: 'clamp(3.5rem, 5.5vw, 6.5rem)' }}
+        >
           {total > 0 ? `+${total}` : total}
         </motion.div>
-        <div className="text-xs font-medium text-gray-400 mt-2">pts this game</div>
+        <div className="text-xs text-gray-400 mt-2 font-medium tracking-wide">pts this game</div>
       </div>
-      {/* Per-pick breakdown */}
-      <div className="border-t border-gray-200 px-4 py-4 space-y-2.5">
+
+      {/* ── BOTTOM: picks list (fills remaining height, scrollable) ── */}
+      <div className="flex-1 border-t border-gray-200/80 px-4 py-4 space-y-0 overflow-y-auto flex flex-col justify-between">
         {breakdown.map(b => (
-          <div key={b.name} className="flex items-center gap-2">
-            <div className="text-sm text-gray-700 truncate flex-1 font-medium">
-              {b.name.split(' ').pop()}
+          <div key={b.name} className="flex items-center gap-2 py-2 border-b border-gray-100 last:border-0">
+            <div className="text-sm font-semibold text-gray-700 truncate flex-1 min-w-0">
+              {/* Show last name + first initial */}
+              {(() => {
+                const parts = b.name.trim().split(' ');
+                return parts.length > 1
+                  ? `${parts[parts.length - 1]}, ${parts[0][0]}.`
+                  : b.name;
+              })()}
             </div>
             {b.multiplier && (
-              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border shrink-0 ${
-                isLads ? 'bg-amber-100 text-amber-700 border-amber-200' : 'bg-violet-100 text-violet-700 border-violet-200'
+              <span className={`text-xs font-bold px-1.5 py-0.5 rounded border shrink-0 ${
+                isLads
+                  ? 'bg-amber-100 text-amber-700 border-amber-200'
+                  : 'bg-violet-100 text-violet-700 border-violet-200'
               }`}>
                 {multiplierBadge(b.multiplier)}
               </span>
             )}
-            <span className={`text-sm font-bold w-10 text-right shrink-0 ${
+            <span className={`text-sm font-bold w-12 text-right shrink-0 ${
               b.pts > 0 ? 'text-green-600' : b.pts < 0 ? 'text-red-500' : 'text-gray-400'
             }`}>
               {b.pts > 0 ? `+${b.pts}` : b.pts}
