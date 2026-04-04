@@ -1,0 +1,67 @@
+{
+  "batting": {
+    "runsPerRun": 1,
+    "milestones": [
+      { "runs": 25, "bonus": 5 },
+      { "runs": 40, "bonus": 15 },
+      { "runs": 70, "bonus": 25 },
+      { "runs": 90, "bonus": 35 }
+    ],
+    "strikeRate": [
+      { "min": 300, "minBalls": 25, "bonus": 50 },
+      { "min": 250, "minBalls": 20, "bonus": 25 },
+      { "min": 200, "minBalls": 10, "bonus": 10 },
+      { "max": 100, "minBalls": 10, "penalty": -20 }
+    ],
+    "duck": -30,
+    "lowScore": { "maxRuns": 10, "penalty": -20 },
+    "notes": [
+      "Players batting at position 7 or lower get no batting rules unless they score 10+ runs",
+      "Score <= 10 runs rule applies only to positions 1-6",
+      "If injured before 10 runs, player can be replaced and their stats don't count"
+    ]
+  },
+  "bowling": {
+    "wicket": 25,
+    "maiden": 40,
+    "economy": [
+      { "max": 4.0, "minOvers": 3, "bonus": 80 },
+      { "max": 6.0, "minOvers": 3, "bonus": 60 },
+      { "max": 8.0, "minOvers": 3, "bonus": 30 },
+      { "min": 10.0, "minOvers": 3, "penalty": -20 },
+      { "min": 12.0, "minOvers": 3, "penalty": -30 },
+      { "min": 14.0, "minOvers": 3, "penalty": -40 }
+    ],
+    "wicketless": { "minOvers": 2, "penalty": -20 },
+    "wicketBonuses": [
+      { "minWickets": 3, "bonus": 20 },
+      { "minWickets": 5, "bonus": 35 }
+    ],
+    "notes": [
+      "Economy rate rules only apply after 3 overs bowled",
+      "Wicketless penalty applies only after 2+ overs bowled",
+      "If injured before finishing 1 over, player can be replaced and their stats don't count"
+    ]
+  },
+  "fielding": {
+    "catch": 10,
+    "stumping": 10,
+    "runOut": 10
+  },
+  "mom": 10,
+  "winnersChoice": 50,
+  "multipliers": {
+    "yellow": { "label": "Yellow", "gainMultiplier": 1, "lossMultiplier": 1 },
+    "green":  { "label": "Green",  "gainMultiplier": 2, "lossMultiplier": 1 },
+    "purple": { "label": "Purple", "gainMultiplier": 3, "lossMultiplier": 1.5 },
+    "allin":  { "label": "All-in", "gainMultiplier": 5, "lossMultiplier": 2.5, "maxUsesPerSeason": 4 }
+  },
+  "endOfSeasonPrizes": {
+    "orangeCap":           { "description": "Most runs scored by fantasy players",       "points": 350 },
+    "purpleCap":           { "description": "Most wickets taken by fantasy players",      "points": 350 },
+    "longestWinStreak":    { "description": "Longest consecutive win streak",             "points": 350 },
+    "mostPurpleHits":      { "description": "Most times Purple player scored > 0 points", "points": 350 },
+    "mostWins":            { "description": "Most match wins across the season",           "points": 700 }
+  },
+  "purpleHit": "A Purple Hit is counted only when the Purple (3x) player earns positive points (> 0)"
+}
