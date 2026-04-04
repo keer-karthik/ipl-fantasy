@@ -1,6 +1,26 @@
 @import "tailwindcss";
 
-body {
-  background: #030712;
-  color: #f1f5f9;
+:root {
+  --ipl-navy: #003087;
+  --ipl-orange: #e84611;
+  --ipl-light: #eef2f8;
+  --ipl-card: #ffffff;
 }
+
+body {
+  background: var(--ipl-light);
+  color: #1a1a2e;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+@keyframes pulse-live {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+.live-dot { animation: pulse-live 1.2s ease-in-out infinite; }
+
+@keyframes count-up {
+  from { transform: translateY(4px); opacity: 0; }
+  to   { transform: translateY(0);   opacity: 1; }
+}
+.count-animate { animation: count-up 0.3s ease-out; }
