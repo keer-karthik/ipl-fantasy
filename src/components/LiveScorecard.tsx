@@ -261,7 +261,7 @@ function PlayerTradingCard({ b, isLads }: { b: BreakdownItem; isLads: boolean })
         <div className="shrink-0 px-2.5 py-1.5 bg-white border-t-2 border-gray-100">
           <div
             className="uppercase leading-tight truncate text-gray-900"
-            style={{ ...PLAYER_FONT, fontSize: '15px' }}
+            style={{ ...PLAYER_FONT, fontSize: b.activeName.length > 14 ? '12px' : '14px' }}
           >
             {b.activeName}
           </div>
@@ -351,7 +351,10 @@ export function SidePanel({
 
       {/* ── Header: label + total ── */}
       <div className="px-5 pt-5 pb-4">
-        <div className={`text-[11px] mb-1.5 uppercase ${accentText}`} style={HEADER_FONT}>{label}</div>
+        <div className={`uppercase ${accentText}`}
+          style={{ ...HEADER_FONT, fontSize: '22px', letterSpacing: '0.22em', marginBottom: '2px' }}>
+          {label}
+        </div>
         <motion.div
           key={total}
           initial={{ scale: 1.06, opacity: 0.6 }}
@@ -361,7 +364,10 @@ export function SidePanel({
         >
           {total > 0 ? `+${total}` : total}
         </motion.div>
-        <div className="text-[10px] text-gray-400 mt-1 font-medium tracking-wide uppercase">pts this game</div>
+        <div className="text-[13px] text-gray-400 mt-1 font-semibold tracking-widest uppercase"
+          style={{ fontFamily: 'var(--font-barlow-condensed), system-ui, sans-serif' }}>
+          pts this game
+        </div>
       </div>
 
       {/* ── Player cards — flex column so all 5 share available height equally ── */}
