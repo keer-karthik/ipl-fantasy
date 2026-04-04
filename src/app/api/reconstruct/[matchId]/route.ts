@@ -64,16 +64,25 @@ export async function GET(
   }
 
   // ── Augment playbyplay with fielder info from summary ────────────────────────
-  // ESPN's playbyplay may not populate dismissal.fielder. Cross-reference with
-  // the summary's outDetails.fielders (which the live route reliably reads) so
-  // the chart reconstruction can correctly award fielding pts (+10 each).
+  // ESPN's playbyplay often omits dismissal.fielder. Build a batsman→fielder map
+  // from the innings summary. Primary: outDetails.fielders (structured). Fallback:
+  // parse the dismissal text ("c Archer b Khan") just like liveScoring does.
   function normN(s: string) { return s.toLowerCase().replace(/[^a-z]/g, ''); }
+  function extractFielderFromText(dismissal: string): string {
+    const catchM = dismissal.match(/^c\s+(?![&†])([^b]+?)\s+b\s+/i);
+    if (catchM) return catchM[1].trim();
+    const stM = dismissal.match(/^st\s+([^b]+?)\s+b\s+/i);
+    if (stM) return stM[1].trim();
+    const roM = dismissal.match(/run out\s*\(([^)]+)\)/i);
+    if (roM) return roM[1].split('/')[0].trim();
+    return '';
+  }
   const batsmanToFielder = new Map<string, string>();
   for (const inn of Object.values(espnData.innings)) {
     for (const b of inn.batting) {
-      if (b.dismissalFielder && b.playerName) {
-        batsmanToFielder.set(normN(b.playerName), b.dismissalFielder);
-      }
+      if (!b.playerName) continue;
+      const fielder = b.dismissalFielder || extractFielderFromText(b.dismissal ?? '');
+      if (fielder) batsmanToFielder.set(normN(b.playerName), fielder);
     }
   }
   const augmentedPlaybyplay = playbyplay.map(ball => {

@@ -85,10 +85,26 @@ export function reconstructChartHistory(
   // Sort all balls by sequence
   const sorted = [...playbyplay].sort((a, b) => a.sequence - b.sequence);
 
-  // Resolve active name for each pick (sub logic)
+  // Check if a player actually has batting or bowling records in the innings data.
+  // More reliable than checking the squad list — a player can be "in XI" on the
+  // squad roster without playing (e.g., rested, injured last-minute, impact sub).
+  function didPlayInInnings(name: string): boolean {
+    for (const inn of Object.values(innings)) {
+      if (inn.batting.some(b => nameMatches(b.playerName ?? '', name))) return true;
+      if (inn.bowling.some(b => nameMatches(b.playerName ?? '', name))) return true;
+    }
+    return false;
+  }
+
+  // Resolve active name for each pick: use substitute when the primary player
+  // has no batting/bowling records in this match.
   function activeName(pick: PlayerPick): string {
+    if (!pick.substituteName) return pick.playerName;
+    const mainPlayed = didPlayInInnings(pick.playerName);
+    if (!mainPlayed && didPlayInInnings(pick.substituteName)) return pick.substituteName!;
+    // Fallback to squad-list check (e.g. early in a live match before innings data is full)
     const mainInXI = isInXI(pick.playerName, playingEleven);
-    const subInXI = !!pick.substituteName && isInXI(pick.substituteName, playingEleven);
+    const subInXI = isInXI(pick.substituteName, playingEleven);
     return (!mainInXI && subInXI) ? pick.substituteName! : pick.playerName;
   }
 
