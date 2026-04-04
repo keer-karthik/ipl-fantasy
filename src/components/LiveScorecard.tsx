@@ -21,8 +21,12 @@ function formatDismissal(raw: string): string {
 
 // ─── Name normalisation ───────────────────────────────────────────────────────
 function norm(s: string) { return s.toLowerCase().replace(/[^a-z]/g, ''); }
+function lastName(s: string) { const p = s.trim().split(/\s+/); return norm(p[p.length - 1]); }
 function matchName(a: string, b: string) {
   const na = norm(a), nb = norm(b);
+  const la = lastName(a), lb = lastName(b);
+  // Last-name match catches Lungisani Ngidi vs Lungi Ngidi style mismatches
+  if (la === lb && la.length > 3) return true;
   return na === nb || na.includes(nb) || nb.includes(na) ||
     (na.length > 4 && nb.slice(-na.length) === na) ||
     (nb.length > 4 && na.slice(-nb.length) === nb);

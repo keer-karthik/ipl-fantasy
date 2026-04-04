@@ -40,17 +40,23 @@ function normalizeName(name: string): string {
   return name.toLowerCase().replace(/[^a-z]/g, '');
 }
 
+function lastName(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  return normalizeName(parts[parts.length - 1]);
+}
+
+function nameMatches(a: string, b: string): boolean {
+  const na = normalizeName(a), nb = normalizeName(b);
+  const la = lastName(a), lb = lastName(b);
+  // Last-name match catches nickname/full-name mismatches (e.g. "Lungi" vs "Lungisani")
+  if (la === lb && la.length > 3) return true;
+  return na === nb || na.includes(nb) || nb.includes(na) ||
+    (na.length > 4 && nb.slice(-na.length) === na) ||
+    (nb.length > 4 && na.slice(-nb.length) === nb);
+}
+
 function findPick(espnName: string, picks: PlayerPick[]): PlayerPick | null {
-  const normalized = normalizeName(espnName);
-  return picks.find(p => {
-    const pn = normalizeName(p.playerName);
-    // Match on last name or substantial overlap
-    return pn === normalized ||
-      pn.includes(normalized) ||
-      normalized.includes(pn) ||
-      (normalized.length > 4 && pn.slice(-normalized.length) === normalized) ||
-      (pn.length > 4 && normalized.slice(-pn.length) === pn);
-  }) ?? null;
+  return picks.find(p => nameMatches(espnName, p.playerName)) ?? null;
 }
 
 export function calcLiveBatsmen(
@@ -133,15 +139,8 @@ export function calcLiveFantasyTotal(
   const breakdown: { name: string; pts: number; multiplier: Multiplier | null }[] = [];
 
   for (const pick of picks) {
-    const pn = normalizeName(pick.playerName);
-    function nameMatch(espn: string) {
-      const en = normalizeName(espn);
-      return en === pn || en.includes(pn) || pn.includes(en) ||
-        (pn.length > 4 && en.slice(-pn.length) === pn) ||
-        (en.length > 4 && pn.slice(-en.length) === en);
-    }
-    const batter = batsmen.find(b => nameMatch(b.playerName));
-    const bowler = bowlers.find(b => nameMatch(b.playerName));
+    const batter = batsmen.find(b => nameMatches(b.playerName, pick.playerName));
+    const bowler = bowlers.find(b => nameMatches(b.playerName, pick.playerName));
     // Apply multiplier once to combined raw total (not separately per discipline)
     const combinedRaw = (batter?.fantasyPoints ?? 0) + (bowler?.fantasyPoints ?? 0);
     const finalPts = pick.multiplier ? applyMultiplier(combinedRaw, pick.multiplier) : combinedRaw;
@@ -162,21 +161,8 @@ export function autoResultFromLive(
   const allBowling = Object.values(innings).flatMap(inning => inning.bowling);
 
   return picks.map(pick => {
-    const batter = allBatting.find(b => {
-      const bn = normalizeName(b.playerName ?? '');
-      const pn = normalizeName(pick.playerName);
-      return bn === pn || bn.includes(pn) || pn.includes(bn) ||
-        (bn.length > 4 && pn.slice(-bn.length) === bn) ||
-        (pn.length > 4 && bn.slice(-pn.length) === pn);
-    }) ?? null;
-
-    const bowler = allBowling.find(b => {
-      const bn = normalizeName(b.playerName ?? '');
-      const pn = normalizeName(pick.playerName);
-      return bn === pn || bn.includes(pn) || pn.includes(bn) ||
-        (bn.length > 4 && pn.slice(-bn.length) === bn) ||
-        (pn.length > 4 && bn.slice(-pn.length) === pn);
-    }) ?? null;
+    const batter = allBatting.find(b => nameMatches(b.playerName ?? '', pick.playerName)) ?? null;
+    const bowler = allBowling.find(b => nameMatches(b.playerName ?? '', pick.playerName)) ?? null;
 
     const didBat = !!batter && (
       parseInt(batter.ballsFaced ?? '0') > 0 ||
