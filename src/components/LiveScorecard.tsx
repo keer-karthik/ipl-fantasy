@@ -154,63 +154,155 @@ function shortName(n: string) {
   return parts.length > 1 ? `${parts[parts.length - 1]}, ${parts[0][0]}.` : n;
 }
 
-// ─── Player avatar: IPL CDN only, falls back to coloured initials ─────────────
-function PlayerAvatar({ name, size = 48 }: { name: string; espnImageUrl?: string; size?: number }) {
-  const iplUrl = iplImageUrl(name);
+const INITIALS_COLORS = [
+  'bg-blue-600', 'bg-emerald-600', 'bg-violet-600',
+  'bg-amber-500', 'bg-rose-600', 'bg-cyan-600',
+];
+
+type BreakdownItem = {
+  name: string; activeName: string; pts: number;
+  batPts: number; bowlPts: number; fieldPts: number;
+  multiplier: Multiplier | null; isSubstituted: boolean;
+};
+
+// ─── Portrait player trading card ─────────────────────────────────────────────
+function PlayerTradingCard({ b, isLads }: { b: BreakdownItem; isLads: boolean }) {
+  const iplUrl = iplImageUrl(b.activeName);
   const [imgOk, setImgOk] = useState(!!iplUrl);
 
-  const initials = name.trim().split(' ').slice(0, 2).map(w => w[0]?.toUpperCase() ?? '').join('');
-  const colorSeed = name.charCodeAt(0) % 6;
-  const colors = [
-    'bg-blue-500', 'bg-emerald-500', 'bg-violet-500',
-    'bg-amber-500', 'bg-rose-500', 'bg-cyan-500',
-  ];
+  const initials = b.activeName.trim().split(' ').slice(0, 2).map(w => w[0]?.toUpperCase() ?? '').join('');
+  const colorSeed = b.activeName.charCodeAt(0) % INITIALS_COLORS.length;
 
-  const handleError = () => setImgOk(false);
+  const topBorder  = isLads ? 'border-t-[3px] border-amber-400' : 'border-t-[3px] border-violet-500';
+  const badgeBg    = isLads ? 'bg-amber-400 text-amber-950'     : 'bg-violet-500 text-white';
+
+  const PLAYER_FONT: React.CSSProperties = {
+    fontFamily: 'var(--font-barlow-condensed), system-ui, sans-serif',
+    fontWeight: 900,
+    letterSpacing: '0.04em',
+  };
 
   return (
-    <div
-      className={`relative rounded-xl overflow-hidden shrink-0 ${!imgOk || !iplUrl ? colors[colorSeed] : ''}`}
-      style={{ width: size, height: size }}>
-      {iplUrl && imgOk ? (
-        <img
-          src={iplUrl}
-          alt={name}
-          width={size}
-          height={size}
-          className="w-full h-full object-cover object-top"
-          onError={handleError}
-        />
-      ) : (
-        <span className="absolute inset-0 flex items-center justify-center text-white font-black"
-          style={{ fontSize: size * 0.36 }}>
-          {initials}
-        </span>
-      )}
-    </div>
+    <motion.div
+      key={b.name}
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.2 }}
+      className={`rounded-2xl overflow-hidden shadow-md bg-white ${topBorder}`}
+    >
+      {/* ── Photo zone ── */}
+      <div className="relative w-full" style={{ height: '160px' }}>
+        {iplUrl && imgOk ? (
+          <img
+            src={iplUrl}
+            alt={b.activeName}
+            className="w-full h-full object-cover object-top"
+            onError={() => setImgOk(false)}
+          />
+        ) : (
+          <div className={`w-full h-full flex items-center justify-center ${INITIALS_COLORS[colorSeed]}`}>
+            <span className="text-6xl text-white/80" style={PLAYER_FONT}>{initials}</span>
+          </div>
+        )}
+
+        {/* Dark gradient — bottom third */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/0 to-black/0 pointer-events-none" />
+
+        {/* Multiplier badge — top left */}
+        {b.multiplier && (
+          <span className={`absolute top-2.5 left-2.5 text-[11px] px-2 py-0.5 rounded-md shadow-lg ${badgeBg}`}
+            style={PLAYER_FONT}>
+            {multiplierBadge(b.multiplier)}
+          </span>
+        )}
+
+        {/* Sub tag — top right */}
+        {b.isSubstituted && (
+          <span className="absolute top-2.5 right-2.5 text-[9px] font-black uppercase tracking-wider
+            bg-black/60 text-white/90 px-1.5 py-0.5 rounded-md">
+            SUB
+          </span>
+        )}
+
+        {/* Points — overlaid bottom right of photo */}
+        <motion.div
+          key={b.pts}
+          initial={{ scale: 1.35, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          className={`absolute bottom-2 right-3 text-[26px] drop-shadow-[0_1px_4px_rgba(0,0,0,0.7)] ${
+            b.pts > 0 ? 'text-green-400' : b.pts < 0 ? 'text-red-400' : 'text-white/50'
+          }`}
+          style={PLAYER_FONT}
+        >
+          {ptsStr(b.pts)}
+        </motion.div>
+      </div>
+
+      {/* ── Name + stats strip ── */}
+      <div className="px-3 pt-2.5 pb-2">
+        {/* Full name ALL CAPS */}
+        <div className="text-[18px] text-gray-900 leading-tight uppercase truncate" style={PLAYER_FONT}>
+          {b.activeName}
+        </div>
+        {b.isSubstituted && (
+          <div className="text-[10px] text-gray-400 font-semibold mt-0.5">
+            ↑ sub for {b.name}
+          </div>
+        )}
+
+        {/* Stat chips */}
+        <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+          {b.batPts !== 0 && (
+            <span className="text-[12px] font-bold">
+              <span className="text-blue-400">Bat </span>
+              <span className={`font-black ${ptsColor(b.batPts)}`}>{ptsStr(b.batPts)}</span>
+            </span>
+          )}
+          {b.bowlPts !== 0 && (
+            <span className="text-[12px] font-bold">
+              <span className="text-orange-400">Bowl </span>
+              <span className={`font-black ${ptsColor(b.bowlPts)}`}>{ptsStr(b.bowlPts)}</span>
+            </span>
+          )}
+          {b.fieldPts !== 0 && (
+            <span className="text-[12px] font-bold">
+              <span className="text-green-500">Field </span>
+              <span className={`font-black ${ptsColor(b.fieldPts)}`}>{ptsStr(b.fieldPts)}</span>
+            </span>
+          )}
+          {b.batPts === 0 && b.bowlPts === 0 && b.fieldPts === 0 && (
+            <span className="text-[12px] text-gray-300 font-medium">—</span>
+          )}
+        </div>
+      </div>
+    </motion.div>
   );
 }
 
+// ─── Side panel ───────────────────────────────────────────────────────────────
 function SidePanel({
   label, total, breakdown, textColor, borderColor, bgColor,
 }: {
   label: string; total: number;
-  breakdown: { name: string; activeName: string; pts: number; batPts: number; bowlPts: number; fieldPts: number; multiplier: Multiplier | null; isSubstituted: boolean }[];
+  breakdown: BreakdownItem[];
   textColor: string; borderColor: string; bgColor: string;
 }) {
   const isLads = label === 'LADS';
-  const accentBorder = isLads ? 'border-amber-200' : 'border-violet-200';
   const accentText   = isLads ? 'text-amber-600'  : 'text-violet-600';
-  const accentBadge  = isLads
-    ? 'bg-amber-100 text-amber-700 border-amber-200'
-    : 'bg-violet-100 text-violet-700 border-violet-200';
+  const dividerColor = isLads ? 'border-amber-100' : 'border-violet-100';
+
+  const HEADER_FONT: React.CSSProperties = {
+    fontFamily: 'var(--font-barlow-condensed), system-ui, sans-serif',
+    fontWeight: 900,
+    letterSpacing: '0.12em',
+  };
 
   return (
     <div className={`flex-1 rounded-2xl border-2 ${borderColor} ${bgColor} flex flex-col overflow-hidden`}>
 
-      {/* ── TOP: label + big number ── */}
+      {/* ── Header: label + total ── */}
       <div className="px-5 pt-5 pb-4">
-        <div className={`text-[10px] font-black uppercase tracking-[0.25em] mb-2 ${accentText}`}>{label}</div>
+        <div className={`text-[11px] mb-1.5 uppercase ${accentText}`} style={HEADER_FONT}>{label}</div>
         <motion.div
           key={total}
           initial={{ scale: 1.06, opacity: 0.6 }}
@@ -223,70 +315,11 @@ function SidePanel({
         <div className="text-[10px] text-gray-400 mt-1 font-medium tracking-wide uppercase">pts this game</div>
       </div>
 
-      {/* ── Picks: one card per player ── */}
-      <div className={`flex-1 overflow-y-auto border-t ${accentBorder} px-3 py-2.5 space-y-2.5`}>
+      {/* ── Player cards ── */}
+      <div className={`flex-1 overflow-y-auto border-t ${dividerColor} px-3 py-3 space-y-3`}>
         {breakdown.map(b => (
-            <div key={b.name}
-              className="bg-white/70 rounded-2xl border border-white/80 shadow-sm overflow-hidden">
-              <div className="flex items-center gap-3 p-2.5">
-
-                {/* Photo */}
-                <PlayerAvatar name={b.activeName} size={52} />
-
-                {/* Name + multiplier + sub notice */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="text-[15px] font-black text-gray-900 leading-tight">
-                      {shortName(b.activeName)}
-                    </span>
-                    {b.multiplier && (
-                      <span className={`shrink-0 text-[11px] font-black px-1.5 py-0.5 rounded-md border ${accentBadge}`}>
-                        {multiplierBadge(b.multiplier)}
-                      </span>
-                    )}
-                  </div>
-                  {b.isSubstituted && (
-                    <div className="text-[10px] text-gray-400 font-semibold mt-0.5">
-                      ↑ sub for {shortName(b.name)}
-                    </div>
-                  )}
-                  {/* Stat chips */}
-                  <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                    {b.batPts !== 0 && (
-                      <span className="text-[11px] font-bold">
-                        <span className="text-blue-400">Bat </span>
-                        <span className={`font-black ${ptsColor(b.batPts)}`}>{ptsStr(b.batPts)}</span>
-                      </span>
-                    )}
-                    {b.bowlPts !== 0 && (
-                      <span className="text-[11px] font-bold">
-                        <span className="text-orange-400">Bowl </span>
-                        <span className={`font-black ${ptsColor(b.bowlPts)}`}>{ptsStr(b.bowlPts)}</span>
-                      </span>
-                    )}
-                    {b.fieldPts !== 0 && (
-                      <span className="text-[11px] font-bold">
-                        <span className="text-green-500">Field </span>
-                        <span className={`font-black ${ptsColor(b.fieldPts)}`}>{ptsStr(b.fieldPts)}</span>
-                      </span>
-                    )}
-                    {b.batPts === 0 && b.bowlPts === 0 && b.fieldPts === 0 && (
-                      <span className="text-[11px] text-gray-300 font-medium">—</span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Total points — large, right-aligned */}
-                <motion.div key={b.pts}
-                  initial={{ scale: 1.2, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-                  className={`text-[22px] font-black shrink-0 ${ptsColor(b.pts)}`}>
-                  {ptsStr(b.pts)}
-                </motion.div>
-
-              </div>
-            </div>
-          );
-        })}
+          <PlayerTradingCard key={b.name} b={b} isLads={isLads} />
+        ))}
       </div>
     </div>
   );
@@ -305,28 +338,48 @@ function ProgressChart({ history, onRegenerate }: { history: HistoryPoint[]; onR
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const W = 560, H = 180, PAD = { l: 46, r: 14, t: 20, b: 30 };
+  const W = 640, H = 230, PAD = { l: 50, r: 22, t: 26, b: 40 };
   const inner = { w: W - PAD.l - PAD.r, h: H - PAD.t - PAD.b };
+
+  // Define last first so SEQ_END can reference it
+  const last = history[history.length - 1];
 
   const allVals = history.flatMap(p => [p.lads, p.gils]);
   const rawMin = Math.min(...allVals, 0);
   const rawMax = Math.max(...allVals, 0);
-  const vPad = Math.max((rawMax - rawMin) * 0.18, 20);
+  const vPad = Math.max((rawMax - rawMin) * 0.14, 15);
   const minV = rawMin - vPad, maxV = rawMax + vPad;
   const range = maxV - minV || 1;
 
-  const SEQ_START = 0, SEQ_END = 39.6;
+  // Dynamic X range: fills chart space during live matches; expands to full once Inn 2 starts
+  const SEQ_START = 0;
+  const SEQ_END = last.seq < 19 ? Math.max(last.seq + 2, 5) : 39.6;
+
   const toX = (seq: number) => PAD.l + ((seq - SEQ_START) / (SEQ_END - SEQ_START)) * inner.w;
   const toY = (v: number) => PAD.t + (1 - (v - minV) / range) * inner.h;
   const zeroY = toY(0);
 
-  function linePath(pts: HistoryPoint[], key: 'lads' | 'gils') {
-    return pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${toX(p.seq).toFixed(1)},${toY(p[key]).toFixed(1)}`).join(' ');
+  // Catmull-Rom → cubic bezier: smooth worm-style curves
+  function smoothLinePath(pts: HistoryPoint[], key: 'lads' | 'gils') {
+    if (pts.length < 2) return `M${toX(pts[0].seq).toFixed(1)},${toY(pts[0][key]).toFixed(1)}`;
+    const c = pts.map(p => [toX(p.seq), toY(p[key])]);
+    let d = `M${c[0][0].toFixed(1)},${c[0][1].toFixed(1)}`;
+    for (let i = 0; i < c.length - 1; i++) {
+      const p0 = c[Math.max(0, i - 1)], p1 = c[i], p2 = c[i + 1], p3 = c[Math.min(c.length - 1, i + 2)];
+      const t = 0.35;
+      const cp1x = p1[0] + (p2[0] - p0[0]) * t / 2, cp1y = p1[1] + (p2[1] - p0[1]) * t / 2;
+      const cp2x = p2[0] - (p3[0] - p1[0]) * t / 2, cp2y = p2[1] - (p3[1] - p1[1]) * t / 2;
+      d += ` C${cp1x.toFixed(1)},${cp1y.toFixed(1)} ${cp2x.toFixed(1)},${cp2y.toFixed(1)} ${p2[0].toFixed(1)},${p2[1].toFixed(1)}`;
+    }
+    return d;
   }
 
-  const last = history[history.length - 1];
+  function smoothAreaPath(pts: HistoryPoint[], key: 'lads' | 'gils') {
+    const line = smoothLinePath(pts, key);
+    return `${line} L${toX(last.seq).toFixed(1)},${zeroY.toFixed(1)} L${toX(pts[0].seq).toFixed(1)},${zeroY.toFixed(1)} Z`;
+  }
 
-  // Y-axis ticks: pick sensible interval
+  // Y-axis ticks
   const ySpan = rawMax - rawMin;
   const step = ySpan > 400 ? 100 : ySpan > 200 ? 50 : ySpan > 100 ? 25 : 20;
   const yTicks: number[] = [0];
@@ -337,174 +390,190 @@ function ProgressChart({ history, onRegenerate }: { history: HistoryPoint[]; onR
     { seq: 0, label: '1' }, { seq: 4, label: '5' }, { seq: 9, label: '10' },
     { seq: 14, label: '15' }, { seq: 19, label: '20' }, { seq: 24, label: '25' },
     { seq: 29, label: '30' }, { seq: 34, label: '35' }, { seq: 39, label: '40' },
-  ];
+  ].filter(({ seq }) => seq <= SEQ_END + 1);
 
   const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
     if (!svgRef.current || !containerRef.current) return;
-    const rect = svgRef.current.getBoundingClientRect();
-    const relX = e.clientX - rect.left;
-    setMouseX(relX);
-    const svgX = (relX / rect.width) * W;
+    // getScreenCTM gives exact SVG-space coords, eliminating cursor offset from scaling/letterboxing
+    const pt = svgRef.current.createSVGPoint();
+    pt.x = e.clientX; pt.y = e.clientY;
+    const ctm = svgRef.current.getScreenCTM();
+    if (!ctm) return;
+    const svgPt = pt.matrixTransform(ctm.inverse());
+    const containerRect = containerRef.current.getBoundingClientRect();
+    setMouseX(e.clientX - containerRect.left);
     let best = 0, bestDist = Infinity;
     history.forEach((p, i) => {
-      const d = Math.abs(toX(p.seq) - svgX);
+      const d = Math.abs(toX(p.seq) - svgPt.x);
       if (d < bestDist) { bestDist = d; best = i; }
     });
-    // Only show tooltip if mouse is reasonably close to a data point
     setHoverIdx(bestDist < inner.w / history.length * 2 ? best : null);
   };
 
   const hp = hoverIdx !== null ? history[hoverIdx] : null;
   const prevHp = hoverIdx !== null && hoverIdx > 0 ? history[hoverIdx - 1] : null;
-
-  // Over label for tooltip: seq 0–19.x = Inn 1 overs 1–20, seq 20–39.x = Inn 2 overs 1–20
   const hpOver = hp
     ? { inn: hp.seq >= 20 ? 2 : 1, ov: Math.floor(hp.seq >= 20 ? hp.seq - 20 : hp.seq) + 1 }
     : null;
 
-  // Tooltip x position: flip to left side when mouse is past midpoint
   const containerWidth = containerRef.current?.clientWidth ?? 400;
   const tipLeft = mouseX < containerWidth * 0.55;
-
   const fmtPts = (n: number) => `${n > 0 ? '+' : ''}${n}`;
+  const eventPts = history.filter(p => p.events && p.events.length > 0);
 
   return (
-    <div className="rounded-2xl bg-white border border-gray-200 overflow-hidden shadow-sm">
+    <div style={{ borderRadius: 16, overflow: 'hidden', border: '1px solid #e2e8f0', boxShadow: '0 1px 8px rgba(0,0,0,0.07)' }}>
       {/* Header */}
-      <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between"
-        style={{ background: 'var(--ipl-navy)' }}>
-        <span className="text-white font-bold text-sm uppercase tracking-widest">Points Race</span>
-        <div className="flex items-center gap-4">
+      <div style={{ background: 'var(--ipl-navy)', padding: '10px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <span style={{ fontFamily: 'Georgia, "Times New Roman", serif', fontStyle: 'italic', fontWeight: 900, fontSize: 14, color: 'white', letterSpacing: 0.5 }}>
+          Points Race
+        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
           <button onClick={onRegenerate}
-            className="text-[10px] font-bold px-2.5 py-1 rounded bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-colors uppercase tracking-wide">
+            style={{ fontSize: 10, fontWeight: 700, padding: '4px 10px', borderRadius: 6, background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.65)', border: 'none', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: 1 }}
+            onMouseEnter={e => { const el = e.currentTarget; el.style.background = 'rgba(255,255,255,0.2)'; el.style.color = 'white'; }}
+            onMouseLeave={e => { const el = e.currentTarget; el.style.background = 'rgba(255,255,255,0.1)'; el.style.color = 'rgba(255,255,255,0.65)'; }}>
             ↻ Regenerate
           </button>
-          <div className="flex gap-4 text-sm font-bold">
-            <span className="flex items-center gap-1.5 text-amber-300">
-              <span className="w-4 h-0.5 bg-amber-400 inline-block rounded" />
+          <div style={{ display: 'flex', gap: 18 }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 13, fontWeight: 700, color: '#fbbf24' }}>
+              <span style={{ width: 9, height: 9, borderRadius: '50%', background: '#f59e0b', display: 'inline-block', flexShrink: 0 }} />
               Lads {fmtPts(Math.round(last.lads))}
             </span>
-            <span className="flex items-center gap-1.5 text-violet-300">
-              <span className="w-4 h-0.5 bg-violet-400 inline-block rounded" />
+            <span style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 13, fontWeight: 700, color: '#a78bfa' }}>
+              <span style={{ width: 9, height: 9, borderRadius: '50%', background: '#7c3aed', display: 'inline-block', flexShrink: 0 }} />
               Gils {fmtPts(Math.round(last.gils))}
             </span>
           </div>
         </div>
       </div>
 
-      {/* Chart */}
-      <div ref={containerRef} className="relative px-3 py-4">
-        <svg ref={svgRef} viewBox={`0 0 ${W} ${H}`} className="w-full"
-          style={{ height: '200px', cursor: 'crosshair' }}
+      {/* Chart — white background, SVG has no fixed height so it sizes by viewBox aspect ratio
+          This eliminates letterboxing entirely and makes getScreenCTM accurate. */}
+      <div ref={containerRef} style={{ position: 'relative', background: 'white' }}>
+        <svg ref={svgRef} viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', display: 'block', cursor: 'crosshair' }}
           onMouseMove={handleMouseMove} onMouseLeave={() => setHoverIdx(null)}>
 
-          {/* Y-axis gridlines + labels */}
+          <defs>
+            <linearGradient id="ladsAreaGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.14" />
+              <stop offset="100%" stopColor="#f59e0b" stopOpacity="0.01" />
+            </linearGradient>
+            <linearGradient id="gilsAreaGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#7c3aed" stopOpacity="0.10" />
+              <stop offset="100%" stopColor="#7c3aed" stopOpacity="0.01" />
+            </linearGradient>
+          </defs>
+
+          {/* Horizontal gridlines only — clean like the reference worm */}
           {yTicks.map(v => (
             <g key={v}>
               <line x1={PAD.l} y1={toY(v)} x2={W - PAD.r} y2={toY(v)}
-                stroke={v === 0 ? '#94a3b8' : '#e2e8f0'}
-                strokeWidth={v === 0 ? 1.2 : 0.7}
-                strokeDasharray={v === 0 ? '5,4' : undefined} />
-              <text x={PAD.l - 7} y={toY(v) + 4.5} textAnchor="end"
-                style={{ fontSize: 11, fontWeight: 700, fill: '#94a3b8' }}>
+                stroke={v === 0 ? '#94a3b8' : '#f1f5f9'}
+                strokeWidth={v === 0 ? 1 : 0.8} />
+              <text x={PAD.l - 8} y={toY(v) + 4} textAnchor="end"
+                style={{ fontSize: 10, fontWeight: 700, fill: '#94a3b8', fontFamily: 'ui-monospace, monospace' }}>
                 {v > 0 ? `+${v}` : v}
               </text>
             </g>
           ))}
 
-          {/* Area fills */}
-          <path
-            d={`${linePath(history, 'lads')} L${toX(last.seq).toFixed(1)},${zeroY.toFixed(1)} L${toX(SEQ_START).toFixed(1)},${zeroY.toFixed(1)} Z`}
-            fill="#f59e0b" opacity="0.10" />
-          <path
-            d={`${linePath(history, 'gils')} L${toX(last.seq).toFixed(1)},${zeroY.toFixed(1)} L${toX(SEQ_START).toFixed(1)},${zeroY.toFixed(1)} Z`}
-            fill="#7c3aed" opacity="0.10" />
+          {/* Innings divider — only shown once Inn 2 data present */}
+          {last.seq >= 19.5 && (
+            <>
+              <line x1={toX(20)} y1={PAD.t - 10} x2={toX(20)} y2={H - PAD.b}
+                stroke="#cbd5e1" strokeWidth="1" strokeDasharray="4,3" />
+              <text x={toX(20)} y={PAD.t - 12} textAnchor="middle"
+                style={{ fontSize: 8, fontWeight: 800, fill: '#94a3b8', letterSpacing: 1.5 }}>INN 2</text>
+            </>
+          )}
 
-          {/* Lines */}
-          <path d={linePath(history, 'lads')} fill="none"
-            stroke="#f59e0b" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-          <path d={linePath(history, 'gils')} fill="none"
-            stroke="#7c3aed" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+          {/* Gradient area fills */}
+          <path d={smoothAreaPath(history, 'lads')} fill="url(#ladsAreaGrad)" />
+          <path d={smoothAreaPath(history, 'gils')} fill="url(#gilsAreaGrad)" />
 
-          {/* End dots */}
-          <circle cx={toX(last.seq)} cy={toY(last.lads)} r="5" fill="#f59e0b" stroke="white" strokeWidth="2" />
-          <circle cx={toX(last.seq)} cy={toY(last.gils)} r="5" fill="#7c3aed" stroke="white" strokeWidth="2" />
+          {/* Smooth worm lines */}
+          <path d={smoothLinePath(history, 'lads')} fill="none"
+            stroke="#f59e0b" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+          <path d={smoothLinePath(history, 'gils')} fill="none"
+            stroke="#7c3aed" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
 
-          {/* Innings divider */}
-          <line x1={toX(20)} y1={PAD.t - 6} x2={toX(20)} y2={H - PAD.b}
-            stroke="#94a3b8" strokeWidth="1" strokeDasharray="4,3" />
-          <text x={toX(20)} y={PAD.t - 8} textAnchor="middle"
-            style={{ fontSize: 9, fontWeight: 700, fill: '#94a3b8' }}>INN 2</text>
+          {/* Hollow event dots at overs where notable events occurred */}
+          {eventPts.map((p, i) => (
+            <g key={i}>
+              <circle cx={toX(p.seq)} cy={toY(p.lads)} r="4" fill="white" stroke="#f59e0b" strokeWidth="2" />
+              <circle cx={toX(p.seq)} cy={toY(p.gils)} r="4" fill="white" stroke="#7c3aed" strokeWidth="2" />
+            </g>
+          ))}
 
-          {/* X-axis over labels */}
+          {/* Terminal dots */}
+          <circle cx={toX(last.seq)} cy={toY(last.lads)} r="5" fill="#f59e0b" stroke="white" strokeWidth="2.5" />
+          <circle cx={toX(last.seq)} cy={toY(last.gils)} r="5" fill="#7c3aed" stroke="white" strokeWidth="2.5" />
+
+          {/* X-axis baseline */}
+          <line x1={PAD.l} y1={H - PAD.b} x2={W - PAD.r} y2={H - PAD.b} stroke="#e2e8f0" strokeWidth="1" />
+
+          {/* X-axis labels */}
           {xLabels.map(({ seq, label }) => (
-            <text key={seq} x={toX(seq)} y={H - 8} textAnchor="middle"
-              style={{ fontSize: 10, fontWeight: 700, fill: '#94a3b8' }}>
+            <text key={seq} x={toX(seq)} y={H - PAD.b + 14} textAnchor="middle"
+              style={{ fontSize: 10, fontWeight: 600, fill: '#94a3b8', fontFamily: 'ui-monospace, monospace' }}>
               {label}
             </text>
           ))}
-          <text x={W / 2} y={H - 1} textAnchor="middle"
-            style={{ fontSize: 9, fontWeight: 600, fill: '#cbd5e1' }}>Overs</text>
+          <text x={W - PAD.r} y={H - 6} textAnchor="end"
+            style={{ fontSize: 9, fontWeight: 700, fill: '#94a3b8', letterSpacing: 0.5 }}>Overs</text>
 
           {/* Hover crosshair */}
           {hp && (
             <>
-              <line x1={toX(hp.seq)} y1={PAD.t - 4} x2={toX(hp.seq)} y2={H - PAD.b}
-                stroke="#64748b" strokeWidth="1" strokeDasharray="3,3" />
-              <circle cx={toX(hp.seq)} cy={toY(hp.lads)} r="5.5" fill="#f59e0b" stroke="white" strokeWidth="2" />
-              <circle cx={toX(hp.seq)} cy={toY(hp.gils)} r="5.5" fill="#7c3aed" stroke="white" strokeWidth="2" />
+              <line x1={toX(hp.seq)} y1={PAD.t} x2={toX(hp.seq)} y2={H - PAD.b}
+                stroke="#94a3b8" strokeWidth="1" strokeDasharray="3,3" />
+              <circle cx={toX(hp.seq)} cy={toY(hp.lads)} r="5.5" fill="white" stroke="#f59e0b" strokeWidth="2.5" />
+              <circle cx={toX(hp.seq)} cy={toY(hp.gils)} r="5.5" fill="white" stroke="#7c3aed" strokeWidth="2.5" />
             </>
           )}
 
-          {/* Invisible overlay for mouse events (ensures full area is responsive) */}
+          {/* Full inner overlay — ensures mouse events fire over empty areas */}
           <rect x={PAD.l} y={PAD.t} width={inner.w} height={inner.h} fill="transparent" />
         </svg>
 
         {/* Hover tooltip */}
         {hp && hpOver && (
-          <div
-            className="absolute top-4 z-20 pointer-events-none
-              bg-gray-900 text-white rounded-xl shadow-2xl px-4 py-3 min-w-[200px] max-w-[260px]"
-            style={{ [tipLeft ? 'left' : 'right']: `${tipLeft ? mouseX + 12 : containerWidth - mouseX + 12}px` }}>
-            {/* Over header */}
-            <div className="text-[11px] font-black uppercase tracking-wider text-slate-400 mb-2">
+          <div style={{
+            position: 'absolute', top: 8, zIndex: 20, pointerEvents: 'none',
+            [tipLeft ? 'left' : 'right']: `${tipLeft ? mouseX + 14 : containerWidth - mouseX + 14}px`,
+            background: 'rgba(10, 15, 30, 0.93)',
+            backdropFilter: 'blur(10px)',
+            borderRadius: 10, padding: '10px 14px', minWidth: 175,
+            boxShadow: '0 8px 28px rgba(0,0,0,0.28)',
+            border: '1px solid rgba(255,255,255,0.07)',
+          }}>
+            <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 1.8, color: '#475569', marginBottom: 9, fontFamily: 'ui-monospace, monospace' }}>
               Inn {hpOver.inn} · Over {hpOver.ov}
             </div>
-            {/* Totals + delta */}
-            <div className="flex gap-4 mb-2">
-              <div className="flex flex-col">
-                <span className={`text-lg font-black leading-none ${hp.lads >= 0 ? 'text-amber-400' : 'text-red-400'}`}>
+            <div style={{ display: 'flex', gap: 18, marginBottom: hp.events?.length ? 10 : 0 }}>
+              <div>
+                <div style={{ fontSize: 22, fontWeight: 900, color: hp.lads >= 0 ? '#fbbf24' : '#f87171', lineHeight: 1, fontFamily: 'ui-monospace, monospace' }}>
                   {fmtPts(hp.lads)}
-                </span>
-                <span className="text-[10px] text-slate-400 mt-0.5">
-                  Lads
-                  {prevHp && (
-                    <span className="ml-1 text-slate-500">
-                      ({fmtPts(hp.lads - prevHp.lads)} ov)
-                    </span>
-                  )}
-                </span>
+                </div>
+                <div style={{ fontSize: 10, color: '#475569', marginTop: 3 }}>
+                  Lads{prevHp && <span style={{ color: '#334155' }}> ({fmtPts(hp.lads - prevHp.lads)} ov)</span>}
+                </div>
               </div>
-              <div className="flex flex-col">
-                <span className={`text-lg font-black leading-none ${hp.gils >= 0 ? 'text-violet-400' : 'text-red-400'}`}>
+              <div>
+                <div style={{ fontSize: 22, fontWeight: 900, color: hp.gils >= 0 ? '#a78bfa' : '#f87171', lineHeight: 1, fontFamily: 'ui-monospace, monospace' }}>
                   {fmtPts(hp.gils)}
-                </span>
-                <span className="text-[10px] text-slate-400 mt-0.5">
-                  Gils
-                  {prevHp && (
-                    <span className="ml-1 text-slate-500">
-                      ({fmtPts(hp.gils - prevHp.gils)} ov)
-                    </span>
-                  )}
-                </span>
+                </div>
+                <div style={{ fontSize: 10, color: '#475569', marginTop: 3 }}>
+                  Gils{prevHp && <span style={{ color: '#334155' }}> ({fmtPts(hp.gils - prevHp.gils)} ov)</span>}
+                </div>
               </div>
             </div>
-            {/* Events */}
             {hp.events && hp.events.length > 0 && (
-              <div className="border-t border-white/10 pt-2 space-y-1">
+              <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
                 {hp.events.map((ev, i) => (
-                  <div key={i} className="text-[11px] text-slate-300 flex items-center gap-1.5">
-                    <span className="text-slate-500">·</span>{ev}
+                  <div key={i} style={{ fontSize: 10, color: '#94a3b8', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ color: '#475569', fontSize: 12 }}>·</span>{ev}
                   </div>
                 ))}
               </div>
