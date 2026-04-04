@@ -48,12 +48,17 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
   }
 
+  // Matches where pick locking is temporarily bypassed
+  const LOCK_BYPASS = new Set([8, 9]);
+
   // Server-enforced pick lock: reject if picks changed after match started
   const oldState = await loadState();
   for (const [id, newMatch] of Object.entries(newState.matches)) {
-    const fixture = fixtures.find(f => f.match === Number(id));
+    const matchId = Number(id);
+    if (LOCK_BYPASS.has(matchId)) continue;
+    const fixture = fixtures.find(f => f.match === matchId);
     if (!fixture) continue;
-    const oldMatch = oldState.matches[Number(id)];
+    const oldMatch = oldState.matches[matchId];
     const picksChanged =
       JSON.stringify(newMatch.lads.picks) !== JSON.stringify(oldMatch?.lads?.picks) ||
       JSON.stringify(newMatch.gils.picks) !== JSON.stringify(oldMatch?.gils?.picks);

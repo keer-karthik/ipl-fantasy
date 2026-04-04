@@ -460,10 +460,11 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
           </div>
 
           {(() => {
+            const LOCK_BYPASS = new Set([8, 9]);
             const myPicks = side === 'lads' ? ladsPicks : gilsPicks;
             const ready = myPicks.length === 5;
             const matchStart = getMatchStartIST(fixture);
-            const started = now >= matchStart;
+            const started = !LOCK_BYPASS.has(matchId) && now >= matchStart;
             const secsLeft = Math.max(0, Math.floor((matchStart.getTime() - now.getTime()) / 1000));
             const hh = String(Math.floor(secsLeft / 3600)).padStart(2, '0');
             const mm = String(Math.floor((secsLeft % 3600) / 60)).padStart(2, '0');
@@ -474,7 +475,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
                   <div className="text-center py-2 px-4 rounded-xl bg-red-50 border border-red-200 text-red-600 font-semibold text-sm">
                     Picks Locked
                   </div>
-                ) : (
+                ) : !LOCK_BYPASS.has(matchId) && (
                   <div className="text-center text-xs text-amber-600 font-mono font-semibold">
                     Picks lock in {hh}:{mm}:{ss}
                   </div>
