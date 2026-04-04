@@ -13,7 +13,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import espnIds from '../../../../data/espn_ids.json';
 import fixturesRaw from '../../../../data/fixtures.json';
 import { getSeasonStateRow, upsertSeasonState } from '@/lib/supabase-server';
-import { reconstructChartHistory } from '@/lib/chartReconstruct';
+import { reconstructChartHistory, type PlaybyPlayEntry } from '@/lib/chartReconstruct';
 import type { PlayerPick, SeasonState } from '@/lib/types';
 
 // Guard: Vercel signs cron requests with CRON_SECRET — reject anything else in prod.
@@ -71,21 +71,27 @@ export async function GET(req: NextRequest) {
         results[matchId] = 'no picks'; continue;
       }
 
-      // Fetch full ESPN summary for this match
-      const res = await fetch(
+      // Fetch ESPN summary for roster/innings data
+      const summaryRes = await fetch(
         `https://site.api.espn.com/apis/site/v2/sports/cricket/8048/summary?event=${espnId}`,
         { next: { revalidate: 0 } }
       );
-      const summary = await res.json();
-      const { innings, commentaries, playingEleven } = parseEspnSummary(summary);
+      const summary = await summaryRes.json();
+      const { innings, playingEleven } = parseEspnSummary(summary);
+
+      // Fetch all pages of playbyplay
+      const playbyplay = await fetchAllPlaybyplay(espnId);
+      if (playbyplay.length === 0) { results[matchId] = 'no playbyplay'; continue; }
 
       // Build chart via reconstruction (works for both live and completed)
       const reconstructed = reconstructChartHistory(
-        innings, commentaries,
-        picks.ladsPicks, picks.gilsPicks,
+        playbyplay,
+        innings,
+        picks.ladsPicks,
+        picks.gilsPicks,
         playingEleven,
       );
-      if (reconstructed.length === 0) { results[matchId] = 'no commentary'; continue; }
+      if (reconstructed.length === 0) { results[matchId] = 'no data points'; continue; }
 
       // Merge with existing snapshots (real-time snapshots win at their seq)
       const existingCh = (state.chartHistory as Record<string, typeof reconstructed> | undefined) ?? {};
@@ -110,6 +116,46 @@ export async function GET(req: NextRequest) {
   await upsertSeasonState(state as Record<string, unknown>);
 
   return NextResponse.json({ processed: activeMatchIds, results });
+}
+
+// ── Fetch all pages of ESPN playbyplay ───────────────────────────────────────
+async function fetchAllPlaybyplay(espnId: string): Promise<PlaybyPlayEntry[]> {
+  const all: PlaybyPlayEntry[] = [];
+  let page = 1, pageCount = 1;
+  while (page <= pageCount) {
+    const res = await fetch(
+      `https://site.api.espn.com/apis/site/v2/sports/cricket/8048/playbyplay?event=${espnId}&page=${page}`,
+      { next: { revalidate: 0 } }
+    );
+    if (!res.ok) break;
+    const data = await res.json();
+    const comm = data?.commentary;
+    if (!comm?.items) break;
+    pageCount = comm.pageCount ?? 1;
+    for (const item of comm.items) {
+      const bat = item.batsman?.athlete?.displayName;
+      const bowl = item.bowler?.athlete?.displayName;
+      if (!bat || !bowl || !item.sequence) continue;
+      all.push({
+        sequence: item.sequence,
+        inningsNumber: item.innings?.number ?? 1,
+        overNumber: item.over?.number ?? 1,
+        ballNumber: item.over?.ball ?? 1,
+        isComplete: item.over?.complete ?? false,
+        batsmanName: bat,
+        batsmanRuns: item.batsman?.totalRuns ?? 0,
+        batsmanBalls: item.batsman?.faced ?? 0,
+        bowlerName: bowl,
+        bowlerLegalBalls: item.bowler?.balls ?? 0,
+        bowlerRuns: item.bowler?.conceded ?? 0,
+        bowlerWickets: item.bowler?.wickets ?? 0,
+        bowlerMaidens: item.bowler?.maidens ?? 0,
+        isDismissal: item.dismissal?.dismissal === true,
+      });
+    }
+    page++;
+  }
+  return all;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -184,12 +230,5 @@ function parseEspnSummary(summary: Record<string, unknown>) {
     }
   }
 
-  const hc = ((summary.header as Record<string,unknown>)?.competitions as unknown[])?.[0] as Record<string,unknown> ?? {};
-  const commDict = (hc.commentaries ?? {}) as Record<string, { shortText?: string; sequence?: number }>;
-  const commentaries = Object.values(commDict)
-    .filter(c => c.shortText)
-    .sort((a, b) => (a.sequence ?? 0) - (b.sequence ?? 0))
-    .map(c => ({ text: c.shortText ?? '', sequence: c.sequence }));
-
-  return { innings, commentaries, playingEleven };
+  return { innings, playingEleven };
 }

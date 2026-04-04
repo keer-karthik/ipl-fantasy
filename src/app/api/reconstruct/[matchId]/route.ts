@@ -11,7 +11,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import espnIds from '../../../../../data/espn_ids.json';
 import { getSeasonStateRow, upsertSeasonState } from '@/lib/supabase-server';
-import { reconstructChartHistory } from '@/lib/chartReconstruct';
+import { reconstructChartHistory, type PlaybyPlayEntry } from '@/lib/chartReconstruct';
 import type { PlayerPick, SeasonState } from '@/lib/types';
 import type { ChartPoint } from '@/lib/supabase-server';
 
@@ -25,10 +25,9 @@ export async function GET(
 
   if (!espnId) return NextResponse.json({ error: 'Match not found' }, { status: 404 });
 
-  // ── Fetch ESPN data ──────────────────────────────────────────────────────────
+  // ── Fetch ESPN summary (roster/innings/playingEleven) ────────────────────────
   let espnData: {
     innings: Record<string, { batting: Array<Record<string,string>>; bowling: Array<Record<string,string>> }>;
-    commentaries: Array<{ text: string; sequence?: number }>;
     playingEleven: string[];
     status: { isLive: boolean; isComplete: boolean };
   };
@@ -42,6 +41,14 @@ export async function GET(
     espnData = parseEspnSummary(raw);
   } catch (e) {
     return NextResponse.json({ error: 'ESPN fetch failed', detail: String(e) }, { status: 500 });
+  }
+
+  // ── Fetch all pages of playbyplay ────────────────────────────────────────────
+  let playbyplay: PlaybyPlayEntry[];
+  try {
+    playbyplay = await fetchAllPlaybyplay(espnId);
+  } catch (e) {
+    return NextResponse.json({ error: 'ESPN playbyplay fetch failed', detail: String(e) }, { status: 500 });
   }
 
   // ── Load picks from Supabase ─────────────────────────────────────────────────
@@ -58,8 +65,8 @@ export async function GET(
 
   // ── Run reconstruction ───────────────────────────────────────────────────────
   const reconstructed = reconstructChartHistory(
+    playbyplay,
     espnData.innings,
-    espnData.commentaries,
     ladsPicks,
     gilsPicks,
     espnData.playingEleven,
@@ -84,7 +91,47 @@ export async function GET(
   return NextResponse.json(merged);
 }
 
-// ── ESPN summary parser (mirrors logic in /api/live/[matchId]) ───────────────
+// ── Fetch all pages of ESPN playbyplay ───────────────────────────────────────
+async function fetchAllPlaybyplay(espnId: string): Promise<PlaybyPlayEntry[]> {
+  const all: PlaybyPlayEntry[] = [];
+  let page = 1, pageCount = 1;
+  while (page <= pageCount) {
+    const res = await fetch(
+      `https://site.api.espn.com/apis/site/v2/sports/cricket/8048/playbyplay?event=${espnId}&page=${page}`,
+      { next: { revalidate: 0 } }
+    );
+    if (!res.ok) break;
+    const data = await res.json();
+    const comm = data?.commentary;
+    if (!comm?.items) break;
+    pageCount = comm.pageCount ?? 1;
+    for (const item of comm.items) {
+      const bat = item.batsman?.athlete?.displayName;
+      const bowl = item.bowler?.athlete?.displayName;
+      if (!bat || !bowl || !item.sequence) continue;
+      all.push({
+        sequence: item.sequence,
+        inningsNumber: item.innings?.number ?? 1,
+        overNumber: item.over?.number ?? 1,
+        ballNumber: item.over?.ball ?? 1,
+        isComplete: item.over?.complete ?? false,
+        batsmanName: bat,
+        batsmanRuns: item.batsman?.totalRuns ?? 0,
+        batsmanBalls: item.batsman?.faced ?? 0,
+        bowlerName: bowl,
+        bowlerLegalBalls: item.bowler?.balls ?? 0,
+        bowlerRuns: item.bowler?.conceded ?? 0,
+        bowlerWickets: item.bowler?.wickets ?? 0,
+        bowlerMaidens: item.bowler?.maidens ?? 0,
+        isDismissal: item.dismissal?.dismissal === true,
+      });
+    }
+    page++;
+  }
+  return all;
+}
+
+// ── ESPN summary parser ───────────────────────────────────────────────────────
 function extractStats(linescores: Array<{
   order: number;
   statistics?: { categories?: Array<{ stats?: Array<{ name: string; displayValue: string }> }> }
@@ -145,19 +192,7 @@ function parseEspnSummary(summary: Record<string, unknown>) {
     }
   }
 
-  // Build innings keyed by batting team (same as live route)
-  const headerComp = (summary.header as Record<string,unknown>)?.competitions as unknown[];
-  const hc = (Array.isArray(headerComp) ? headerComp[0] : {}) as Record<string,unknown>;
-  const commDict = (hc.commentaries ?? {}) as Record<string, { shortText?: string; sequence?: number }>;
-  const commentaries = Object.values(commDict)
-    .filter(c => c.shortText)
-    .sort((a, b) => (a.sequence ?? 0) - (b.sequence ?? 0))
-    .map(c => ({ text: c.shortText ?? '', sequence: c.sequence }));
-
-  // Status from header
-  const status = { isLive: false, isComplete: false };
-
-  // Build innings — just use teamBatters/Bowlers keyed by team name
+  // Build innings keyed by batting team
   const innings: Record<string, { batting: Array<Record<string,string>>; bowling: Array<Record<string,string>> }> = {};
   for (const teamName of Object.keys(teamBatters)) {
     if (teamBatters[teamName].length > 0 || teamBowlers[teamName].length > 0) {
@@ -168,5 +203,6 @@ function parseEspnSummary(summary: Record<string, unknown>) {
     }
   }
 
-  return { innings, commentaries, playingEleven, status };
+  const status = { isLive: false, isComplete: false };
+  return { innings, playingEleven, status };
 }
