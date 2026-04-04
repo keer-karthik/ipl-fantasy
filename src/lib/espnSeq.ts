@@ -18,10 +18,10 @@ export interface DecodedSeq {
 export function decodeSeq(seq: number): DecodedSeq | null {
   if (!seq || seq < 100000) return null;
   const innings = Math.floor(seq / 100000);
-  const over    = Math.floor((seq % 100000) / 100);
+  const overIdx = Math.floor((seq % 100000) / 100); // 0-indexed: over 1 → 0, over 20 → 19
   const ball    = seq % 100;
-  if (innings < 1 || innings > 2 || over < 1 || over > 20 || ball < 1) return null;
-  return { innings, over, ball };
+  if (innings < 1 || innings > 2 || overIdx < 0 || overIdx > 19 || ball < 1) return null;
+  return { innings, over: overIdx + 1, ball }; // return 1-indexed over
 }
 
 /** Convert an ESPN sequence integer to a 0–39.6 chart x-position. */
