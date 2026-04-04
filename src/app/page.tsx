@@ -92,21 +92,22 @@ function SideCard({ side, label, color }: { side: ReturnType<typeof computeSideS
           </span>
         </div>
         <div className="flex justify-between text-gray-500">
-          <span>💜 Purple Hits</span>
+          <span className="flex items-center gap-1.5"><span style={{ width: 8, height: 8, background: '#9333ea', display: 'inline-block', borderRadius: 2, flexShrink: 0 }} />Purple Hits</span>
           <span className="font-bold text-purple-600">{side.purpleHits}</span>
         </div>
         <div className="flex justify-between text-gray-500">
-          <span>🔴 All-in Used</span><span className="font-bold text-red-500">{side.allInUsed}/4</span>
+          <span className="flex items-center gap-1.5"><span style={{ width: 8, height: 8, background: '#ef4444', display: 'inline-block', borderRadius: 2, flexShrink: 0 }} />All-in Used</span>
+          <span className="font-bold text-red-500">{side.allInUsed}/4</span>
         </div>
         {side.orangeCapRuns && (
           <div className="flex justify-between text-gray-500 text-xs">
-            <span>🟠 Orange Cap</span>
+            <span className="flex items-center gap-1.5"><span style={{ width: 8, height: 8, background: '#ea580c', display: 'inline-block', borderRadius: 2, flexShrink: 0 }} />Orange Cap</span>
             <span className="font-semibold text-orange-600 truncate ml-2">{side.orangeCapRuns.player} — {side.orangeCapRuns.runs} runs</span>
           </div>
         )}
         {side.purpleCapWickets && (
           <div className="flex justify-between text-gray-500 text-xs">
-            <span>🟣 Purple Cap</span>
+            <span className="flex items-center gap-1.5"><span style={{ width: 8, height: 8, background: '#7c3aed', display: 'inline-block', borderRadius: 2, flexShrink: 0 }} />Purple Cap</span>
             <span className="font-semibold text-purple-600 truncate ml-2">{side.purpleCapWickets.player} — {side.purpleCapWickets.wickets}w</span>
           </div>
         )}
@@ -305,16 +306,16 @@ export default function Dashboard() {
         <h2 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">End of Season Prizes</h2>
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
           {[
-            { icon: '🏆', label: 'Most Wins', pts: 700 },
-            { icon: '🟠', label: 'Orange Cap', pts: 350 },
-            { icon: '🟣', label: 'Purple Cap', pts: 350 },
-            { icon: '🔥', label: 'Longest Streak', pts: 350 },
-            { icon: '💜', label: 'Purple Hits', pts: 350 },
+            { abbrev: 'WINS', label: 'Most Wins', pts: 700, color: '#d97706' },
+            { abbrev: 'OC', label: 'Orange Cap', pts: 350, color: '#ea580c' },
+            { abbrev: 'PC', label: 'Purple Cap', pts: 350, color: '#7c3aed' },
+            { abbrev: 'STK', label: 'Longest Streak', pts: 350, color: '#dc2626' },
+            { abbrev: 'PH', label: 'Purple Hits', pts: 350, color: '#9333ea' },
           ].map((p, i) => (
             <motion.div key={p.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.05 }}
               className="bg-white rounded-xl border border-gray-100 shadow-sm p-3 text-center hover:shadow-md transition-shadow">
-              <div className="text-2xl mb-1">{p.icon}</div>
+              <div style={{ fontSize: 18, fontWeight: 900, letterSpacing: 1, color: p.color, fontFamily: 'Georgia, "Times New Roman", serif', lineHeight: 1, marginBottom: 6 }}>{p.abbrev}</div>
               <div className="text-xs text-gray-500 leading-tight">{p.label}</div>
               <div className="text-sm font-black mt-1" style={{ color: 'var(--ipl-orange)' }}>+{p.pts}</div>
             </motion.div>

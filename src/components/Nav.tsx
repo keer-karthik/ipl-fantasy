@@ -5,10 +5,10 @@ import { useState, useEffect } from 'react';
 import { useSession } from '@/lib/session';
 
 const links = [
-  { href: '/', label: 'Dashboard', icon: '🏠' },
-  { href: '/fixtures', label: 'Fixtures', icon: '📅' },
-  { href: '/players', label: 'Players', icon: '👤' },
-  { href: '/rules', label: 'Rules', icon: '📋' },
+  { href: '/', label: 'Dashboard', icon: 'D' },
+  { href: '/fixtures', label: 'Fixtures', icon: 'F' },
+  { href: '/players', label: 'Players', icon: 'P' },
+  { href: '/rules', label: 'Rules', icon: 'R' },
 ];
 
 function useClock() {
@@ -32,7 +32,6 @@ export default function Nav() {
       <nav className="sticky top-0 z-50 shadow-md" style={{ background: 'var(--ipl-navy)' }}>
         <div className="max-w-5xl mx-auto px-4 flex items-center gap-1 h-14">
           <Link href="/" className="font-bold text-lg mr-4 sm:mr-8 text-white shrink-0 flex items-center gap-2">
-            <span className="text-2xl">🏏</span>
             <span className="text-white font-extrabold tracking-wide">IPL <span style={{ color: '#f7a500' }}>Fantasy</span></span>
           </Link>
 
@@ -99,7 +98,7 @@ export default function Nav() {
                 active ? 'text-blue-700' : 'text-gray-400'
               }`}
             >
-              <span className="text-lg leading-none">{l.icon}</span>
+              <span style={{ fontSize: 11, fontWeight: 900, letterSpacing: 0.5, lineHeight: 1 }}>{l.icon}</span>
               <span>{l.label}</span>
               {active && <span className="absolute bottom-0 w-6 h-0.5 bg-blue-600 rounded-t" />}
             </Link>

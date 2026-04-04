@@ -235,7 +235,7 @@ function PicksEditor({
                 >
                   {MULTIPLIERS.map(m => (
                     <option key={m} value={m} disabled={!canUseMultiplier(m, i)}>
-                      {m === 'yellow' ? '🟡 Yellow 1×' : m === 'green' ? '🟢 Green 2×' : m === 'purple' ? '🟣 Purple 3×' : `🔴 All-in 5× (${allInUsedSeason}/4 used)`}
+                      {m === 'yellow' ? 'Yellow 1×' : m === 'green' ? 'Green 2×' : m === 'purple' ? 'Purple 3×' : `All-in 5× (${allInUsedSeason}/4 used)`}
                     </option>
                   ))}
                 </select>
@@ -295,7 +295,7 @@ function ResultsDisplay({ match }: { match: ReturnType<typeof emptyMatch> }) {
                 isWinner ? 'border-amber-400 bg-amber-50' : 'border-gray-200 bg-white'
               }`}>
               <div className={`text-sm font-bold mb-1 ${side === 'lads' ? 'text-blue-600' : 'text-pink-600'}`}>
-                {side === 'lads' ? 'Lads' : 'Gils'} {isWinner && '🏆'}
+                {side === 'lads' ? 'Lads' : 'Gils'} {isWinner && <span style={{ fontSize: 10, fontWeight: 900, letterSpacing: 1, textTransform: 'uppercase' }}>WIN</span>}
               </div>
               <div className="text-4xl font-black text-gray-900">{data.total}</div>
               <div className="text-xs text-gray-400 mt-1">points</div>
@@ -541,9 +541,9 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
   }
 
   const tabs: { key: 'studio' | 'live' | 'result'; label: string; disabled?: boolean }[] = [
-    { key: 'studio', label: '🎯 Studio' },
-    { key: 'live', label: '🔴 Live' },
-    { key: 'result', label: '🏆 Result', disabled: !match.isComplete },
+    { key: 'studio', label: 'Studio' },
+    { key: 'live', label: 'Live' },
+    { key: 'result', label: 'Result', disabled: !match.isComplete },
   ];
 
   return (

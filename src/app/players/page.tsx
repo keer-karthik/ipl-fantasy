@@ -41,7 +41,7 @@ export default function PlayersPage() {
 
       {players.length === 0 ? (
         <div className="text-center py-20 bg-white rounded-2xl border border-gray-200 shadow-sm">
-          <div className="text-5xl mb-4">📊</div>
+          <div style={{ fontSize: 13, fontWeight: 900, letterSpacing: 3, color: '#cbd5e1', marginBottom: 16, textTransform: 'uppercase' }}>No Data</div>
           <p className="font-semibold text-gray-600">No match data yet.</p>
           <p className="text-sm text-gray-400 mt-1">Complete some matches to see player stats.</p>
         </div>
