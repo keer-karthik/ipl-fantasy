@@ -69,8 +69,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ mat
     const rosters: Array<{
       team: { displayName: string };
       roster: Array<{
-        athlete: { displayName: string };
-        linescores?: Array<{ linescores?: Array<{ order: number; statistics?: { categories?: Array<{ stats?: Array<{ name: string; displayValue: string }> }> } }> }>;
+        athlete: { displayName: string; id?: string };
+        linescores?: Array<{ linescores?: Array<{ order: number; statistics?: { categories?: Array<{ stats?: Array<{ name: string; displayValue: string }> }> }; batting?: { outDetails?: { shortText?: string; fielders?: Array<{ athlete?: { displayName?: string }; isKeeper?: number }> } } }> }>;
       }>;
     }> = summary.rosters ?? [];
 
@@ -79,6 +79,18 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ mat
     const playingEleven: string[] = rosters.flatMap(r =>
       (r.roster ?? []).map(p => p.athlete?.displayName ?? '').filter(Boolean)
     );
+
+    // Build player image map: name → ESPN headshot URL (via athlete.id)
+    const playerImageMap: Record<string, string> = {};
+    for (const r of rosters) {
+      for (const p of r.roster ?? []) {
+        const name = p.athlete?.displayName;
+        const id = p.athlete?.id;
+        if (name && id) {
+          playerImageMap[name] = `https://a.espncdn.com/i/headshots/cricket/players/full/${id}.png`;
+        }
+      }
+    }
 
     // Per team, collect batting and bowling records
     const teamBatters: Record<string, Array<Record<string, string>>> = {};
@@ -236,6 +248,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ mat
       playingEleven,
       innings,
       commentaries,
+      playerImageMap,
       actualWinner: (competitors as Array<{ winner?: boolean; team: { displayName: string } }>).find(c => c.winner)?.team?.displayName ?? null,
     });
   } catch (e) {

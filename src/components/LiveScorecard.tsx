@@ -133,12 +133,46 @@ function shortName(n: string) {
   return parts.length > 1 ? `${parts[parts.length - 1]}, ${parts[0][0]}.` : n;
 }
 
+// ─── Player avatar with ESPN headshot + initials fallback ────────────────────
+function PlayerAvatar({ name, imageUrl, size = 48 }: { name: string; imageUrl?: string; size?: number }) {
+  const [imgOk, setImgOk] = useState(true);
+  const initials = name.trim().split(' ').slice(0, 2).map(w => w[0]?.toUpperCase() ?? '').join('');
+  const colorSeed = name.charCodeAt(0) % 6;
+  const colors = [
+    'bg-blue-500', 'bg-emerald-500', 'bg-violet-500',
+    'bg-amber-500', 'bg-rose-500', 'bg-cyan-500',
+  ];
+
+  return (
+    <div
+      className={`relative rounded-xl overflow-hidden shrink-0 ${!imgOk || !imageUrl ? colors[colorSeed] : ''}`}
+      style={{ width: size, height: size }}>
+      {imageUrl && imgOk ? (
+        <img
+          src={imageUrl}
+          alt={name}
+          width={size}
+          height={size}
+          className="w-full h-full object-cover object-top"
+          onError={() => setImgOk(false)}
+        />
+      ) : (
+        <span className="absolute inset-0 flex items-center justify-center text-white font-black"
+          style={{ fontSize: size * 0.36 }}>
+          {initials}
+        </span>
+      )}
+    </div>
+  );
+}
+
 function SidePanel({
-  label, total, breakdown, color, textColor, borderColor, bgColor,
+  label, total, breakdown, textColor, borderColor, bgColor, playerImageMap,
 }: {
   label: string; total: number;
   breakdown: { name: string; activeName: string; pts: number; batPts: number; bowlPts: number; fieldPts: number; multiplier: Multiplier | null; isSubstituted: boolean }[];
-  color: string; textColor: string; borderColor: string; bgColor: string;
+  textColor: string; borderColor: string; bgColor: string;
+  playerImageMap?: Record<string, string>;
 }) {
   const isLads = label === 'LADS';
   const accentBorder = isLads ? 'border-amber-200' : 'border-violet-200';
@@ -146,6 +180,18 @@ function SidePanel({
   const accentBadge  = isLads
     ? 'bg-amber-100 text-amber-700 border-amber-200'
     : 'bg-violet-100 text-violet-700 border-violet-200';
+
+  // Look up image URL by player name (try exact, then first-word substring)
+  function getImg(activeName: string): string | undefined {
+    if (!playerImageMap) return undefined;
+    if (playerImageMap[activeName]) return playerImageMap[activeName];
+    // Fuzzy: find a key whose last name matches
+    const lastName = activeName.trim().split(' ').pop()?.toLowerCase() ?? '';
+    const match = Object.entries(playerImageMap).find(([k]) =>
+      k.toLowerCase().includes(lastName) || lastName.includes(k.toLowerCase().split(' ').pop() ?? '')
+    );
+    return match?.[1];
+  }
 
   return (
     <div className={`flex-1 rounded-2xl border-2 ${borderColor} ${bgColor} flex flex-col overflow-hidden`}>
@@ -166,58 +212,67 @@ function SidePanel({
       </div>
 
       {/* ── Picks: one card per player ── */}
-      <div className={`flex-1 overflow-y-auto border-t ${accentBorder} px-3 py-2 space-y-2`}>
+      <div className={`flex-1 overflow-y-auto border-t ${accentBorder} px-3 py-2.5 space-y-2.5`}>
         {breakdown.map(b => {
-          const hasStats = b.batPts !== 0 || b.bowlPts !== 0 || b.fieldPts !== 0;
+          const imgUrl = getImg(b.activeName);
           return (
             <div key={b.name}
-              className="bg-white/60 rounded-xl px-3 py-2.5 border border-white shadow-sm">
+              className="bg-white/70 rounded-2xl border border-white/80 shadow-sm overflow-hidden">
+              <div className="flex items-center gap-3 p-2.5">
 
-              {/* Row 1: name + multiplier badge + total */}
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-[13px] font-extrabold text-gray-900 truncate leading-tight">
-                    {shortName(b.activeName)}
-                  </span>
-                  {b.multiplier && (
-                    <span className={`shrink-0 text-[10px] font-black px-1.5 py-0.5 rounded-md border ${accentBadge}`}>
-                      {multiplierBadge(b.multiplier)}
+                {/* Photo */}
+                <PlayerAvatar name={b.activeName} imageUrl={imgUrl} size={52} />
+
+                {/* Name + multiplier + sub notice */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-[15px] font-black text-gray-900 leading-tight">
+                      {shortName(b.activeName)}
                     </span>
+                    {b.multiplier && (
+                      <span className={`shrink-0 text-[11px] font-black px-1.5 py-0.5 rounded-md border ${accentBadge}`}>
+                        {multiplierBadge(b.multiplier)}
+                      </span>
+                    )}
+                  </div>
+                  {b.isSubstituted && (
+                    <div className="text-[10px] text-gray-400 font-semibold mt-0.5">
+                      ↑ sub for {shortName(b.name)}
+                    </div>
                   )}
-                </div>
-                <motion.span key={b.pts}
-                  initial={{ scale: 1.2, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-                  className={`text-[17px] font-black shrink-0 ${ptsColor(b.pts)}`}>
-                  {ptsStr(b.pts)}
-                </motion.span>
-              </div>
-
-              {/* Row 2: sub label + stat chips */}
-              <div className="flex items-center gap-2 mt-1 flex-wrap">
-                {b.isSubstituted && (
-                  <span className="text-[9px] text-gray-400 font-semibold">↑ sub {shortName(b.name)}</span>
-                )}
-                {hasStats ? (
-                  <>
+                  {/* Stat chips */}
+                  <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                     {b.batPts !== 0 && (
-                      <span className="text-[10px] font-bold text-blue-500">
-                        Bat <span className={ptsColor(b.batPts)}>{ptsStr(b.batPts)}</span>
+                      <span className="text-[11px] font-bold">
+                        <span className="text-blue-400">Bat </span>
+                        <span className={`font-black ${ptsColor(b.batPts)}`}>{ptsStr(b.batPts)}</span>
                       </span>
                     )}
                     {b.bowlPts !== 0 && (
-                      <span className="text-[10px] font-bold text-orange-500">
-                        Bowl <span className={ptsColor(b.bowlPts)}>{ptsStr(b.bowlPts)}</span>
+                      <span className="text-[11px] font-bold">
+                        <span className="text-orange-400">Bowl </span>
+                        <span className={`font-black ${ptsColor(b.bowlPts)}`}>{ptsStr(b.bowlPts)}</span>
                       </span>
                     )}
                     {b.fieldPts !== 0 && (
-                      <span className="text-[10px] font-bold text-green-600">
-                        Field <span className={ptsColor(b.fieldPts)}>{ptsStr(b.fieldPts)}</span>
+                      <span className="text-[11px] font-bold">
+                        <span className="text-green-500">Field </span>
+                        <span className={`font-black ${ptsColor(b.fieldPts)}`}>{ptsStr(b.fieldPts)}</span>
                       </span>
                     )}
-                  </>
-                ) : (
-                  <span className="text-[10px] text-gray-300 font-medium">—</span>
-                )}
+                    {b.batPts === 0 && b.bowlPts === 0 && b.fieldPts === 0 && (
+                      <span className="text-[11px] text-gray-300 font-medium">—</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Total points — large, right-aligned */}
+                <motion.div key={b.pts}
+                  initial={{ scale: 1.2, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+                  className={`text-[22px] font-black shrink-0 ${ptsColor(b.pts)}`}>
+                  {ptsStr(b.pts)}
+                </motion.div>
+
               </div>
             </div>
           );
@@ -643,8 +698,9 @@ export default function LiveScorecard({
             <SidePanel
               label="LADS" total={ladsDisplayTotal}
               breakdown={ladsBreakdown}
-              color="#d97706" textColor={ladsDisplayTotal >= 0 ? 'text-green-600' : 'text-red-500'}
+              textColor={ladsDisplayTotal >= 0 ? 'text-green-600' : 'text-red-500'}
               borderColor="border-amber-200" bgColor="bg-amber-50"
+              playerImageMap={liveData?.playerImageMap}
             />
           </div>
           <div className="fixed right-0 bottom-0 hidden 2xl:flex flex-col z-30 p-2"
@@ -652,8 +708,9 @@ export default function LiveScorecard({
             <SidePanel
               label="GILS" total={gilsDisplayTotal}
               breakdown={gilsBreakdown}
-              color="#7c3aed" textColor={gilsDisplayTotal >= 0 ? 'text-green-600' : 'text-red-500'}
+              textColor={gilsDisplayTotal >= 0 ? 'text-green-600' : 'text-red-500'}
               borderColor="border-violet-200" bgColor="bg-violet-50"
+              playerImageMap={liveData?.playerImageMap}
             />
           </div>
         </>

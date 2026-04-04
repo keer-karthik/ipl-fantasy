@@ -16,6 +16,7 @@ export interface LiveData {
   commentaries: Array<{ text: string; over: string; sequence?: number }>;
   headline: string;
   actualWinner: string | null;
+  playerImageMap?: Record<string, string>;
 }
 
 export function useLiveScore(matchId: number, enabled = true) {
