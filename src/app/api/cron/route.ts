@@ -87,9 +87,9 @@ export async function GET(req: NextRequest) {
       // Primary: outDetails.fielders. Fallback: parse dismissal text ("c Archer b Khan").
       function normN(s: string) { return s.toLowerCase().replace(/[^a-z]/g, ''); }
       function extractFielderFromText(dismissal: string): string {
-        const catchM = dismissal.match(/^c\s+(?![&†])([^b]+?)\s+b\s+/i);
+        const catchM = dismissal.match(/^c\s+[↑†]?(?!&)(.+?)\s+b\s+/i);
         if (catchM) return catchM[1].trim();
-        const stM = dismissal.match(/^st\s+([^b]+?)\s+b\s+/i);
+        const stM = dismissal.match(/^st\s+[↑†]?(.+?)\s+b\s+/i);
         if (stM) return stM[1].trim();
         const roM = dismissal.match(/run out\s*\(([^)]+)\)/i);
         if (roM) return roM[1].split('/')[0].trim();
