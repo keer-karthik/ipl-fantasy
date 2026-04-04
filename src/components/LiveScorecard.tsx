@@ -6,6 +6,27 @@ import { decodeSeq, seqToOverPos } from '@/lib/espnSeq';
 import type { PlayerPick, Multiplier } from '@/lib/types';
 import type { LiveData } from '@/hooks/useLiveScore';
 import { multiplierBadge } from '@/lib/scoring';
+import iplPlayerIds from '../../data/player_images.json';
+
+// IPL CDN headshot URL — looks up player ID from player_images.json
+const _iplIds = iplPlayerIds as Record<string, string>;
+const _n = (s: string) => s.toLowerCase().replace(/[^a-z]/g, '');
+function iplImageUrl(name: string): string | undefined {
+  const n = _n(name);
+  for (const [k, id] of Object.entries(_iplIds)) {
+    if (_n(k) === n) return `https://documents.iplt20.com/ipl/IPLHeadshot2026/${id}.png`;
+  }
+  // Fuzzy: last-name-only match
+  const lastName = name.trim().split(' ').pop()?.toLowerCase().replace(/[^a-z]/g, '') ?? '';
+  if (lastName.length >= 4) {
+    for (const [k, id] of Object.entries(_iplIds)) {
+      if ((_n(k).split('').length > 0) && k.trim().split(' ').pop()?.toLowerCase().replace(/[^a-z]/g, '') === lastName) {
+        return `https://documents.iplt20.com/ipl/IPLHeadshot2026/${id}.png`;
+      }
+    }
+  }
+  return undefined;
+}
 
 // ─── Dismissal formatting ─────────────────────────────────────────────────────
 // ESPN can return short codes ("c", "b", "lbw") or richer text like "c Axar Patel b Kuldeep Yadav".
@@ -133,9 +154,12 @@ function shortName(n: string) {
   return parts.length > 1 ? `${parts[parts.length - 1]}, ${parts[0][0]}.` : n;
 }
 
-// ─── Player avatar with ESPN headshot + initials fallback ────────────────────
-function PlayerAvatar({ name, imageUrl, size = 48 }: { name: string; imageUrl?: string; size?: number }) {
+// ─── Player avatar: IPL CDN first, then ESPN fallback, then initials ─────────
+function PlayerAvatar({ name, espnImageUrl, size = 48 }: { name: string; espnImageUrl?: string; size?: number }) {
+  const iplUrl = iplImageUrl(name);
+  const [src, setSrc] = useState<string | undefined>(iplUrl ?? espnImageUrl);
   const [imgOk, setImgOk] = useState(true);
+
   const initials = name.trim().split(' ').slice(0, 2).map(w => w[0]?.toUpperCase() ?? '').join('');
   const colorSeed = name.charCodeAt(0) % 6;
   const colors = [
@@ -143,18 +167,27 @@ function PlayerAvatar({ name, imageUrl, size = 48 }: { name: string; imageUrl?: 
     'bg-amber-500', 'bg-rose-500', 'bg-cyan-500',
   ];
 
+  const handleError = () => {
+    // If IPL image failed and we have ESPN as fallback, try that
+    if (src === iplUrl && espnImageUrl && espnImageUrl !== iplUrl) {
+      setSrc(espnImageUrl);
+    } else {
+      setImgOk(false);
+    }
+  };
+
   return (
     <div
-      className={`relative rounded-xl overflow-hidden shrink-0 ${!imgOk || !imageUrl ? colors[colorSeed] : ''}`}
+      className={`relative rounded-xl overflow-hidden shrink-0 ${!imgOk || !src ? colors[colorSeed] : ''}`}
       style={{ width: size, height: size }}>
-      {imageUrl && imgOk ? (
+      {src && imgOk ? (
         <img
-          src={imageUrl}
+          src={src}
           alt={name}
           width={size}
           height={size}
           className="w-full h-full object-cover object-top"
-          onError={() => setImgOk(false)}
+          onError={handleError}
         />
       ) : (
         <span className="absolute inset-0 flex items-center justify-center text-white font-black"
@@ -221,7 +254,7 @@ function SidePanel({
               <div className="flex items-center gap-3 p-2.5">
 
                 {/* Photo */}
-                <PlayerAvatar name={b.activeName} imageUrl={imgUrl} size={52} />
+                <PlayerAvatar name={b.activeName} espnImageUrl={imgUrl} size={52} />
 
                 {/* Name + multiplier + sub notice */}
                 <div className="flex-1 min-w-0">
