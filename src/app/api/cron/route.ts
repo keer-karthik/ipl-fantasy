@@ -29,27 +29,35 @@ export async function GET(req: NextRequest) {
   }
 
   const today = new Date();
-  // Accept matches from yesterday onwards (handles late-night games crossing midnight)
-  const cutoff = new Date(today);
-  cutoff.setDate(cutoff.getDate() - 1);
-
   const fixtures = fixturesRaw as Array<{ match: number; date: string }>;
 
-  // Determine which matches are "active" (today or yesterday)
+  // Load picks from Supabase first so we can check which matches have picks
+  const row = await getSeasonStateRow();
+  const state = (row?.state ?? {}) as SeasonState & Record<string, unknown>;
+  const chartHistory = (state.chartHistory as Record<string, unknown> | undefined) ?? {};
+
+  // Process all past matches that:
+  //   1. Have already been played (date ≤ today)
+  //   2. Have picks entered for at least one side
+  //   3. Have no chart history yet (backfill) OR are from today/yesterday (keep current)
   const activeMatchIds = fixtures
     .filter(f => {
       const d = parseMatchDate(f.date);
-      return d >= cutoff && d <= today;
+      if (d > today) return false; // future match — skip
+      const m = state.matches?.[f.match];
+      const hasPicks = (m?.lads?.picks?.length ?? 0) > 0 || (m?.gils?.picks?.length ?? 0) > 0;
+      if (!hasPicks) return false;
+      const hasHistory = Array.isArray(chartHistory[String(f.match)]) &&
+        (chartHistory[String(f.match)] as unknown[]).length > 0;
+      // Always re-run today/yesterday (match may still be live or just finished)
+      const isRecent = (today.getTime() - d.getTime()) < 2 * 24 * 60 * 60 * 1000;
+      return isRecent || !hasHistory; // backfill old matches missing chart data
     })
     .map(f => f.match);
 
   if (activeMatchIds.length === 0) {
-    return NextResponse.json({ skipped: 'no active matches today' });
+    return NextResponse.json({ skipped: 'no matches need processing' });
   }
-
-  // Load picks from Supabase once
-  const row = await getSeasonStateRow();
-  const state = (row?.state ?? {}) as SeasonState & Record<string, unknown>;
 
   const results: Record<number, string> = {};
 
