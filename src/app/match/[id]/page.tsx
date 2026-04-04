@@ -5,9 +5,9 @@ import { useSeasonState, emptyMatch } from '@/lib/store';
 import { getFixture, teams, formatDate, getMatchStartIST } from '@/lib/data';
 import { multiplierColor, multiplierBadge } from '@/lib/scoring';
 import { TeamLogo } from '@/components/TeamBadge';
-import LiveScorecard from '@/components/LiveScorecard';
+import LiveScorecard, { SidePanel } from '@/components/LiveScorecard';
 import { useLiveScore } from '@/hooks/useLiveScore';
-import { autoResultFromLive } from '@/lib/liveScoring';
+import { autoResultFromLive, calcLiveBatsmen, calcLiveBowlers, calcLiveFantasyTotal } from '@/lib/liveScoring';
 import type { Multiplier, PlayerPick, PlayerStats, TeamName } from '@/lib/types';
 
 const MULTIPLIERS: Multiplier[] = ['yellow', 'green', 'purple', 'allin'];
@@ -527,6 +527,30 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
     isSubstituted: false,
   })) : undefined;
 
+  // ─── Breakdown computation for persistent side panels ─────────────────────
+  const allPicksForPanel = [...ladsPicks, ...gilsPicks];
+  const panelBatsmen = liveData
+    ? Object.values(liveData.innings).flatMap(inn => calcLiveBatsmen(inn.batting, allPicksForPanel))
+    : [];
+  const panelBowlers = liveData
+    ? Object.values(liveData.innings).flatMap(inn => calcLiveBowlers(inn.bowling, allPicksForPanel))
+    : [];
+  const panelPlayingEleven = liveData?.playingEleven ?? [];
+  const ladsAgg = calcLiveFantasyTotal(panelBatsmen, panelBowlers, ladsPicks, panelPlayingEleven);
+  const gilsAgg = calcLiveFantasyTotal(panelBatsmen, panelBowlers, gilsPicks, panelPlayingEleven);
+
+  const ladsBreakdown = (ladsAgg.breakdown.some(b => b.pts !== 0) ? ladsAgg.breakdown : null) ?? savedLadsBreakdown ?? ladsAgg.breakdown;
+  const gilsBreakdown = (gilsAgg.breakdown.some(b => b.pts !== 0) ? gilsAgg.breakdown : null) ?? savedGilsBreakdown ?? gilsAgg.breakdown;
+
+  const ladsDisplayTotal = ladsAgg.rawTotal !== 0
+    ? Math.round(ladsAgg.rawTotal)
+    : (match.lads.total ?? 0);
+  const gilsDisplayTotal = gilsAgg.rawTotal !== 0
+    ? Math.round(gilsAgg.rawTotal)
+    : (match.gils.total ?? 0);
+
+  const showSidePanels = ladsPicks.length > 0 || gilsPicks.length > 0;
+
   function savePicks() {
     updateMatch(matchId, m => ({
       ...m,
@@ -782,6 +806,30 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
           <ResultsDisplay match={match} />
         </motion.div>
+      )}
+
+      {/* Fixed side panels — persist across all tabs at 2xl (1536px+) */}
+      {showSidePanels && (
+        <>
+          <div className="fixed left-0 bottom-0 hidden 2xl:flex flex-col z-30 p-2"
+            style={{ top: '56px', width: 'calc(50vw - 32rem)' }}>
+            <SidePanel
+              label="LADS" total={ladsDisplayTotal}
+              breakdown={ladsBreakdown}
+              textColor={ladsDisplayTotal >= 0 ? 'text-green-600' : 'text-red-500'}
+              borderColor="border-amber-200" bgColor="bg-amber-50"
+            />
+          </div>
+          <div className="fixed right-0 bottom-0 hidden 2xl:flex flex-col z-30 p-2"
+            style={{ top: '56px', width: 'calc(50vw - 32rem)' }}>
+            <SidePanel
+              label="GILS" total={gilsDisplayTotal}
+              breakdown={gilsBreakdown}
+              textColor={gilsDisplayTotal >= 0 ? 'text-green-600' : 'text-red-500'}
+              borderColor="border-violet-200" bgColor="bg-violet-50"
+            />
+          </div>
+        </>
       )}
     </div>
   );

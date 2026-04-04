@@ -159,7 +159,7 @@ const INITIALS_COLORS = [
   'bg-amber-500', 'bg-rose-600', 'bg-cyan-600',
 ];
 
-type BreakdownItem = {
+export type BreakdownItem = {
   name: string; activeName: string; pts: number;
   batPts: number; bowlPts: number; fieldPts: number;
   multiplier: Multiplier | null; isSubstituted: boolean;
@@ -854,31 +854,6 @@ export default function LiveScorecard({
           </span>
         )}
       </div>
-
-      {/* Fixed side panels — fill viewport margins at 2xl (1536px+).
-          max-w-5xl = 64rem = 1024px, so each side has calc(50vw - 32rem) available. */}
-      {showSidePanels && (
-        <>
-          <div className="fixed left-0 bottom-0 hidden 2xl:flex flex-col z-30 p-2"
-            style={{ top: '56px', width: 'calc(50vw - 32rem)' }}>
-            <SidePanel
-              label="LADS" total={ladsDisplayTotal}
-              breakdown={ladsBreakdown}
-              textColor={ladsDisplayTotal >= 0 ? 'text-green-600' : 'text-red-500'}
-              borderColor="border-amber-200" bgColor="bg-amber-50"
-            />
-          </div>
-          <div className="fixed right-0 bottom-0 hidden 2xl:flex flex-col z-30 p-2"
-            style={{ top: '56px', width: 'calc(50vw - 32rem)' }}>
-            <SidePanel
-              label="GILS" total={gilsDisplayTotal}
-              breakdown={gilsBreakdown}
-              textColor={gilsDisplayTotal >= 0 ? 'text-green-600' : 'text-red-500'}
-              borderColor="border-violet-200" bgColor="bg-violet-50"
-            />
-          </div>
-        </>
-      )}
 
       {/* Mini totals bar — shown below 2xl where fixed panels aren't visible */}
       {showSidePanels && (
