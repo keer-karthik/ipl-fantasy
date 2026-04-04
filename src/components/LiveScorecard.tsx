@@ -1,4 +1,5 @@
 'use client';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { calcLiveBatsmen, calcLiveBowlers, calcLiveFantasyTotal } from '@/lib/liveScoring';
 import type { PlayerPick, Multiplier } from '@/lib/types';
@@ -145,8 +146,8 @@ function SidePanel({
         <div className="text-xs text-gray-400 mt-2 font-medium tracking-wide">pts this game</div>
       </div>
 
-      {/* ── BOTTOM: picks list (fills remaining height, scrollable) ── */}
-      <div className="flex-1 border-t border-gray-200/80 px-4 py-4 space-y-0 overflow-y-auto flex flex-col justify-between">
+      {/* ── BOTTOM: picks list — stacked directly below, no gaps ── */}
+      <div className="border-t border-gray-200/80 px-4 py-3 space-y-1 overflow-y-auto">
         {breakdown.map(b => (
           <div key={b.name} className="flex items-center gap-2 py-2 border-b border-gray-100 last:border-0">
             <div className="text-sm font-semibold text-gray-700 truncate flex-1 min-w-0">
@@ -179,6 +180,99 @@ function SidePanel({
   );
 }
 
+// ─── Live progression chart ───────────────────────────────────────────────────
+interface HistoryPoint { t: number; lads: number; gils: number; over?: string }
+
+function ProgressChart({ history }: { history: HistoryPoint[] }) {
+  if (history.length < 2) return null;
+
+  const W = 500, H = 100, PAD = { l: 36, r: 8, t: 10, b: 10 };
+  const inner = { w: W - PAD.l - PAD.r, h: H - PAD.t - PAD.b };
+
+  const allVals = history.flatMap(p => [p.lads, p.gils]);
+  const rawMin = Math.min(...allVals, 0);
+  const rawMax = Math.max(...allVals, 0);
+  // Add 10% padding to vertical range
+  const vPad = Math.max((rawMax - rawMin) * 0.12, 10);
+  const minV = rawMin - vPad, maxV = rawMax + vPad;
+  const range = maxV - minV || 1;
+
+  const toX = (i: number) => PAD.l + (i / Math.max(history.length - 1, 1)) * inner.w;
+  const toY = (v: number) => PAD.t + (1 - (v - minV) / range) * inner.h;
+  const zeroY = toY(0);
+
+  function path(vals: number[]) {
+    return vals.map((v, i) => `${i === 0 ? 'M' : 'L'}${toX(i).toFixed(1)},${toY(v).toFixed(1)}`).join(' ');
+  }
+
+  const last = history.length - 1;
+  const ladsLast = history[last].lads;
+  const gilsLast = history[last].gils;
+  // Y-axis tick values
+  const ticks = [rawMin, 0, rawMax].filter((v, i, a) => a.indexOf(v) === i);
+
+  return (
+    <div className="rounded-2xl bg-white border border-gray-200 overflow-hidden shadow-sm">
+      <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between"
+        style={{ background: 'var(--ipl-navy)' }}>
+        <span className="text-white font-bold text-xs uppercase tracking-widest">Points Race</span>
+        <div className="flex gap-3 text-xs font-bold">
+          <span className="flex items-center gap-1.5 text-amber-300">
+            <span className="w-3 h-0.5 bg-amber-400 inline-block rounded" />
+            Lads {ladsLast > 0 ? '+' : ''}{Math.round(ladsLast)}
+          </span>
+          <span className="flex items-center gap-1.5 text-violet-300">
+            <span className="w-3 h-0.5 bg-violet-400 inline-block rounded" />
+            Gils {gilsLast > 0 ? '+' : ''}{Math.round(gilsLast)}
+          </span>
+        </div>
+      </div>
+      <div className="px-2 py-3">
+        <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: '120px' }}>
+          {/* Y-axis ticks */}
+          {ticks.map(v => (
+            <g key={v}>
+              <line x1={PAD.l - 4} y1={toY(v)} x2={W - PAD.r} y2={toY(v)}
+                stroke={v === 0 ? '#d1d5db' : '#f3f4f6'} strokeWidth={v === 0 ? 1.5 : 1}
+                strokeDasharray={v === 0 ? '4,4' : undefined} />
+              <text x={PAD.l - 6} y={toY(v) + 4} textAnchor="end"
+                className="fill-gray-400" style={{ fontSize: 9 }}>
+                {v > 0 ? `+${v}` : v}
+              </text>
+            </g>
+          ))}
+          {/* Area fills */}
+          <path
+            d={`${path(history.map(p => p.lads))} L${toX(last)},${zeroY} L${toX(0)},${zeroY} Z`}
+            fill="#f59e0b" opacity="0.12" />
+          <path
+            d={`${path(history.map(p => p.gils))} L${toX(last)},${zeroY} L${toX(0)},${zeroY} Z`}
+            fill="#7c3aed" opacity="0.12" />
+          {/* Lines */}
+          <path d={path(history.map(p => p.lads))} fill="none"
+            stroke="#f59e0b" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+          <path d={path(history.map(p => p.gils))} fill="none"
+            stroke="#7c3aed" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+          {/* End dots */}
+          <circle cx={toX(last)} cy={toY(ladsLast)} r="4" fill="#f59e0b" />
+          <circle cx={toX(last)} cy={toY(gilsLast)} r="4" fill="#7c3aed" />
+          {/* Start label */}
+          {history[0].over && (
+            <text x={toX(0)} y={H - 2} textAnchor="middle" className="fill-gray-400" style={{ fontSize: 9 }}>
+              {history[0].over}
+            </text>
+          )}
+          {history[last].over && (
+            <text x={toX(last)} y={H - 2} textAnchor="middle" className="fill-gray-400" style={{ fontSize: 9 }}>
+              {history[last].over}
+            </text>
+          )}
+        </svg>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function LiveScorecard({
   ladsPicks, gilsPicks, liveData, loading, lastUpdated,
@@ -189,6 +283,34 @@ export default function LiveScorecard({
   loading: boolean;
   lastUpdated: Date | null;
 }) {
+  const [history, setHistory] = useState<HistoryPoint[]>([]);
+
+  // Compute totals unconditionally (hooks must all come before any return)
+  const allPicks = [...ladsPicks, ...gilsPicks];
+  const aggBatsmen = liveData
+    ? Object.values(liveData.innings).flatMap(inn => calcLiveBatsmen(inn.batting, allPicks))
+    : [];
+  const aggBowlers = liveData
+    ? Object.values(liveData.innings).flatMap(inn => calcLiveBowlers(inn.bowling, allPicks))
+    : [];
+  const ladsAgg = calcLiveFantasyTotal(aggBatsmen, aggBowlers, ladsPicks);
+  const gilsAgg = calcLiveFantasyTotal(aggBatsmen, aggBowlers, gilsPicks);
+
+  // Append a history point whenever liveData updates (deduped)
+  useEffect(() => {
+    if (!liveData?.status.isLive) return;
+    const ladsT = Math.round(ladsAgg.rawTotal);
+    const gilsT = Math.round(gilsAgg.rawTotal);
+    setHistory(prev => {
+      const last = prev[prev.length - 1];
+      if (last && last.lads === ladsT && last.gils === gilsT) return prev;
+      // Parse current over from the first innings total string e.g. "120/4 (15.1 ov)"
+      const overMatch = Object.values(liveData.innings)[0]?.total.match(/\(([^)]+)\)/);
+      const overLabel = overMatch ? overMatch[1] : '';
+      return [...prev, { t: Date.now(), lads: ladsT, gils: gilsT, over: overLabel }];
+    });
+  }, [liveData]);
+
   if (!liveData) {
     return (
       <div className="rounded-2xl bg-white border border-gray-200 p-8 text-center">
@@ -198,18 +320,6 @@ export default function LiveScorecard({
   }
 
   const { status, innings, commentaries } = liveData;
-
-  // allPicks is ONLY used for row highlighting in the scorecard (both teams' dots)
-  const allPicks = [...ladsPicks, ...gilsPicks];
-
-  // Side panel totals: compute with each side's OWN picks so cross-contamination
-  // is impossible. calcLiveFantasyTotal iterates by pick (not by ESPN batsmen)
-  // so name mismatches that caused duplicate rows are also fixed.
-  const aggBatsmen = Object.values(innings).flatMap(inn => calcLiveBatsmen(inn.batting, allPicks));
-  const aggBowlers = Object.values(innings).flatMap(inn => calcLiveBowlers(inn.bowling, allPicks));
-  const ladsAgg = calcLiveFantasyTotal(aggBatsmen, aggBowlers, ladsPicks);
-  const gilsAgg = calcLiveFantasyTotal(aggBatsmen, aggBowlers, gilsPicks);
-
   const showSidePanels = ladsPicks.length > 0 || gilsPicks.length > 0;
 
   // Group commentaries by over for display
@@ -292,6 +402,10 @@ export default function LiveScorecard({
 
       {/* Full-width scorecard + commentary */}
       <div className="space-y-4">
+
+          {/* Points Race chart — show once we have 2+ history points */}
+          {showSidePanels && <ProgressChart history={history} />}
+
           {Object.entries(innings).map(([teamName, inning]) => {
             const batsmen = calcLiveBatsmen(inning.batting, allPicks);
             const bowlers = calcLiveBowlers(inning.bowling, allPicks);
