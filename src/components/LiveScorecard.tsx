@@ -154,11 +154,10 @@ function shortName(n: string) {
   return parts.length > 1 ? `${parts[parts.length - 1]}, ${parts[0][0]}.` : n;
 }
 
-// ─── Player avatar: IPL CDN first, then ESPN fallback, then initials ─────────
-function PlayerAvatar({ name, espnImageUrl, size = 48 }: { name: string; espnImageUrl?: string; size?: number }) {
+// ─── Player avatar: IPL CDN only, falls back to coloured initials ─────────────
+function PlayerAvatar({ name, size = 48 }: { name: string; espnImageUrl?: string; size?: number }) {
   const iplUrl = iplImageUrl(name);
-  const [src, setSrc] = useState<string | undefined>(iplUrl ?? espnImageUrl);
-  const [imgOk, setImgOk] = useState(true);
+  const [imgOk, setImgOk] = useState(!!iplUrl);
 
   const initials = name.trim().split(' ').slice(0, 2).map(w => w[0]?.toUpperCase() ?? '').join('');
   const colorSeed = name.charCodeAt(0) % 6;
@@ -167,22 +166,15 @@ function PlayerAvatar({ name, espnImageUrl, size = 48 }: { name: string; espnIma
     'bg-amber-500', 'bg-rose-500', 'bg-cyan-500',
   ];
 
-  const handleError = () => {
-    // If IPL image failed and we have ESPN as fallback, try that
-    if (src === iplUrl && espnImageUrl && espnImageUrl !== iplUrl) {
-      setSrc(espnImageUrl);
-    } else {
-      setImgOk(false);
-    }
-  };
+  const handleError = () => setImgOk(false);
 
   return (
     <div
-      className={`relative rounded-xl overflow-hidden shrink-0 ${!imgOk || !src ? colors[colorSeed] : ''}`}
+      className={`relative rounded-xl overflow-hidden shrink-0 ${!imgOk || !iplUrl ? colors[colorSeed] : ''}`}
       style={{ width: size, height: size }}>
-      {src && imgOk ? (
+      {iplUrl && imgOk ? (
         <img
-          src={src}
+          src={iplUrl}
           alt={name}
           width={size}
           height={size}
@@ -200,12 +192,11 @@ function PlayerAvatar({ name, espnImageUrl, size = 48 }: { name: string; espnIma
 }
 
 function SidePanel({
-  label, total, breakdown, textColor, borderColor, bgColor, playerImageMap,
+  label, total, breakdown, textColor, borderColor, bgColor,
 }: {
   label: string; total: number;
   breakdown: { name: string; activeName: string; pts: number; batPts: number; bowlPts: number; fieldPts: number; multiplier: Multiplier | null; isSubstituted: boolean }[];
   textColor: string; borderColor: string; bgColor: string;
-  playerImageMap?: Record<string, string>;
 }) {
   const isLads = label === 'LADS';
   const accentBorder = isLads ? 'border-amber-200' : 'border-violet-200';
@@ -213,18 +204,6 @@ function SidePanel({
   const accentBadge  = isLads
     ? 'bg-amber-100 text-amber-700 border-amber-200'
     : 'bg-violet-100 text-violet-700 border-violet-200';
-
-  // Look up image URL by player name (try exact, then first-word substring)
-  function getImg(activeName: string): string | undefined {
-    if (!playerImageMap) return undefined;
-    if (playerImageMap[activeName]) return playerImageMap[activeName];
-    // Fuzzy: find a key whose last name matches
-    const lastName = activeName.trim().split(' ').pop()?.toLowerCase() ?? '';
-    const match = Object.entries(playerImageMap).find(([k]) =>
-      k.toLowerCase().includes(lastName) || lastName.includes(k.toLowerCase().split(' ').pop() ?? '')
-    );
-    return match?.[1];
-  }
 
   return (
     <div className={`flex-1 rounded-2xl border-2 ${borderColor} ${bgColor} flex flex-col overflow-hidden`}>
@@ -246,15 +225,13 @@ function SidePanel({
 
       {/* ── Picks: one card per player ── */}
       <div className={`flex-1 overflow-y-auto border-t ${accentBorder} px-3 py-2.5 space-y-2.5`}>
-        {breakdown.map(b => {
-          const imgUrl = getImg(b.activeName);
-          return (
+        {breakdown.map(b => (
             <div key={b.name}
               className="bg-white/70 rounded-2xl border border-white/80 shadow-sm overflow-hidden">
               <div className="flex items-center gap-3 p-2.5">
 
                 {/* Photo */}
-                <PlayerAvatar name={b.activeName} espnImageUrl={imgUrl} size={52} />
+                <PlayerAvatar name={b.activeName} size={52} />
 
                 {/* Name + multiplier + sub notice */}
                 <div className="flex-1 min-w-0">
@@ -759,7 +736,6 @@ export default function LiveScorecard({
               breakdown={ladsBreakdown}
               textColor={ladsDisplayTotal >= 0 ? 'text-green-600' : 'text-red-500'}
               borderColor="border-amber-200" bgColor="bg-amber-50"
-              playerImageMap={liveData?.playerImageMap}
             />
           </div>
           <div className="fixed right-0 bottom-0 hidden 2xl:flex flex-col z-30 p-2"
@@ -769,7 +745,6 @@ export default function LiveScorecard({
               breakdown={gilsBreakdown}
               textColor={gilsDisplayTotal >= 0 ? 'text-green-600' : 'text-red-500'}
               borderColor="border-violet-200" bgColor="bg-violet-50"
-              playerImageMap={liveData?.playerImageMap}
             />
           </div>
         </>
