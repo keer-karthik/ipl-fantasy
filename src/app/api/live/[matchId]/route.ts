@@ -239,7 +239,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ mat
         state: status.type?.state ?? 'pre',
         description: status.type?.description ?? status.summary ?? 'Scheduled',
         isLive: status.type?.state === 'in',
-        isComplete: status.type?.state === 'post',
+        isComplete: status.type?.state === 'post' || status.type?.description === 'Result',
       },
       teams: competitors.map(c => ({
         name: c.team?.displayName,
