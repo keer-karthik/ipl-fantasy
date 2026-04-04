@@ -165,6 +165,43 @@ type BreakdownItem = {
   multiplier: Multiplier | null; isSubstituted: boolean;
 };
 
+// ─── Cricket silhouette icons ─────────────────────────────────────────────────
+function BatIcon({ size = 22 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      {/* Blade */}
+      <path d="M3.5 20.5a1.5 1.5 0 0 0 2.1 0L16.8 9.3l-2.1-2.1L3.5 18.4a1.5 1.5 0 0 0 0 2.1z" />
+      {/* Handle — a thin rectangle rotated 45° ending in a rounded tip */}
+      <path d="M17.9 2.1a1 1 0 0 0-1.4 0l-1.4 1.4 3.4 3.4 1.4-1.4a1 1 0 0 0 0-1.4l-2-2z" />
+    </svg>
+  );
+}
+
+function BallIcon({ size = 22 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <circle cx="12" cy="12" r="10" />
+      {/* Left seam curve */}
+      <path d="M9 3.5C6.5 6 6 9 6.5 12 6 15 6.5 18 9 20.5"
+        fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
+      {/* Right seam curve */}
+      <path d="M15 3.5C17.5 6 18 9 17.5 12 18 15 17.5 18 15 20.5"
+        fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function HandsIcon({ size = 22 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      {/* Left hand — palm up, 4 fingers + thumb */}
+      <path d="M2 16v-4.5a1 1 0 0 1 2 0V14h.5V9.5a1 1 0 0 1 2 0V14h.5V8.5a1 1 0 0 1 2 0V14h.5v-3a1 1 0 0 1 2 0v4.5l-.5 2.5H2.5L2 16z" />
+      {/* Right hand — mirror */}
+      <path d="M22 16v-4.5a1 1 0 0 0-2 0V14h-.5V9.5a1 1 0 0 0-2 0V14h-.5V8.5a1 1 0 0 0-2 0V14h-.5v-3a1 1 0 0 0-2 0v4.5l.5 2.5h8.5L22 16z" />
+    </svg>
+  );
+}
+
 // ─── Portrait player trading card ─────────────────────────────────────────────
 function PlayerTradingCard({ b, isLads }: { b: BreakdownItem; isLads: boolean }) {
   const iplUrl = iplImageUrl(b.activeName);
@@ -213,7 +250,7 @@ function PlayerTradingCard({ b, isLads }: { b: BreakdownItem; isLads: boolean })
           {b.multiplier && (
             <span
               className={`absolute top-2 left-2 rounded-lg shadow-lg ${badgeBg}`}
-              style={{ ...PLAYER_FONT, fontSize: '15px', padding: '3px 9px', lineHeight: 1.4 }}
+              style={{ ...PLAYER_FONT, fontSize: '18px', padding: '4px 10px', lineHeight: 1.3, letterSpacing: '0.08em' }}
             >
               {multiplierBadge(b.multiplier)}
             </span>
