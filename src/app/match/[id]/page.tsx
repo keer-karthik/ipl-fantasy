@@ -122,8 +122,11 @@ function PicksEditor({
                   value={pick.playerName}
                   onChange={e => {
                     const player = allPlayers.find(p => p.name === e.target.value);
-                    updatePick(i, 'playerName', e.target.value);
-                    if (player) updatePick(i, 'team', player.team);
+                    // Batch both fields in one update to avoid stale-closure overwrite
+                    const next = picks.map((p, idx) =>
+                      idx === i ? { ...p, playerName: e.target.value, ...(player ? { team: player.team } : {}) } : p
+                    );
+                    onChange(next);
                   }}
                   className="flex-1 bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
                 >
@@ -152,8 +155,10 @@ function PicksEditor({
                   value={pick.substituteName ?? ''}
                   onChange={e => {
                     const player = allPlayers.find(p => p.name === e.target.value);
-                    updatePick(i, 'substituteName', e.target.value);
-                    if (player) updatePick(i, 'substituteTeam', player.team);
+                    const next = picks.map((p, idx) =>
+                      idx === i ? { ...p, substituteName: e.target.value, ...(player ? { substituteTeam: player.team } : {}) } : p
+                    );
+                    onChange(next);
                   }}
                   className="flex-1 bg-gray-50 border border-gray-200 rounded px-2 py-1 text-xs text-gray-600"
                 >
