@@ -1,15 +1,15 @@
 /**
  * Reconstructs a Lads vs Gils points race chart from ESPN match data.
  *
- * For COMPLETED matches: samples at every over boundary using final player stats +
- * commentary-derived dismissal timings. Batting/bowling points are interpolated
- * from 0 → final proportionally to match progress; once a batter is dismissed
- * (detected from wicket commentary) their points lock in at that seq.
+ * Samples at the last ball of each over. For each sample point:
+ *  - Batting pts: locked in at dismissal, interpolated while still batting
+ *  - Bowling pts: linearly interpolated by progress through the innings
  *
- * For LIVE matches the cron job calls this on every poll, so the chart builds
- * in real time without any browser being open.
+ * Output seq values are over-positions in 0–39.6 range (seqToOverPos).
+ * This matches the chart domain in LiveScorecard.
  */
 
+import { decodeSeq, seqToOverPos } from './espnSeq';
 import { calcBattingPoints, calcBowlingPoints, applyMultiplier } from './scoring';
 import type { PlayerPick } from './types';
 
@@ -33,40 +33,35 @@ function nameMatches(a: string, b: string): boolean {
 function isInXI(name: string, xi: string[]) { return xi.length === 0 || xi.some(n => nameMatches(n, name)); }
 
 // ── Parse dismissal timings from wicket commentary ───────────────────────────
-// Returns a map: norm(playerName) → seq at which they were dismissed.
+// Returns map: norm(playerName) → over-position at which they were dismissed.
 const WICKET_WORDS = ['wicket', ' out', 'lbw', 'caught', 'bowled', 'stumped', 'run out'];
 
 function parseDismissalTimings(
-  balls: CommentaryEntry[],
+  balls: Array<{ text: string; overPos: number }>,
   playerNames: string[],
 ): Map<string, number> {
   const result = new Map<string, number>();
-
   for (const ball of balls) {
-    if (!ball.sequence) continue;
     const lower = ball.text.toLowerCase();
     if (!WICKET_WORDS.some(w => lower.includes(w))) continue;
-
-    // Look for any pick player's name parts in the commentary text
     for (const name of playerNames) {
-      const parts = name.toLowerCase().split(' ').filter(p => p.length >= 4); // skip short words
+      const parts = name.toLowerCase().split(' ').filter(p => p.length >= 4);
       if (parts.some(p => lower.includes(p))) {
         const key = norm(name);
-        if (!result.has(key)) result.set(key, ball.sequence);
+        if (!result.has(key)) result.set(key, ball.overPos);
         break;
       }
     }
   }
-
   return result;
 }
 
-// ── Estimate batting points for a player at a given seq ──────────────────────
+// ── Estimate batting points for a player at a given over-position ─────────────
 function estimateBatPoints(
   batter: Record<string, string>,
-  seq: number,
-  maxSeq: number,
-  dismissalSeq: Map<string, number>,
+  overPos: number,
+  maxOverPos: number,
+  dismissalMap: Map<string, number>,
 ): number {
   const finalRuns  = parseInt(batter.runs       ?? '0') || 0;
   const finalBalls = parseInt(batter.ballsFaced ?? '0') || 0;
@@ -74,33 +69,28 @@ function estimateBatPoints(
   const isActuallyOut = !!batter.dismissal &&
     batter.dismissal !== 'not out' && batter.dismissal !== '';
 
-  const playerKey = norm(batter.playerName ?? '');
-  const dismissedAt = dismissalSeq.get(playerKey);
-
-  // Locked-in: player was dismissed before this sample point
-  const isLockedIn = dismissedAt != null && dismissedAt <= seq;
+  const playerKey  = norm(batter.playerName ?? '');
+  const dismissedAt = dismissalMap.get(playerKey);
+  const isLockedIn  = dismissedAt != null && dismissedAt <= overPos;
 
   if (isLockedIn) {
-    // Use actual final stats (we know the complete innings)
     return calcBattingPoints(finalRuns, finalBalls, isActuallyOut, batPos);
   }
 
-  // Still batting (or not yet in): interpolate linearly
-  if (finalRuns === 0 && finalBalls === 0) return 0; // never batted
-  const progress = maxSeq > 0 ? Math.min(seq / maxSeq, 1) : 0;
+  if (finalRuns === 0 && finalBalls === 0) return 0;
+  const progress = maxOverPos > 0 ? Math.min(overPos / maxOverPos, 1) : 0;
   const estRuns  = Math.round(finalRuns  * progress);
   const estBalls = Math.round(finalBalls * progress);
 
-  // For in-progress batters, don't apply failure penalty yet (may still score)
   if (estRuns <= 10) return 0;
-  return calcBattingPoints(estRuns, estBalls, false /* not out yet */, batPos);
+  return calcBattingPoints(estRuns, estBalls, false, batPos);
 }
 
-// ── Estimate bowling points for a player at a given seq ──────────────────────
+// ── Estimate bowling points for a player at a given over-position ─────────────
 function estimateBowlPoints(
   bowler: Record<string, string>,
-  seq: number,
-  maxSeq: number,
+  overPos: number,
+  maxOverPos: number,
 ): number {
   const finalOvers   = parseFloat(bowler.overs    ?? '0') || 0;
   const finalWickets = parseInt(bowler.wickets    ?? '0') || 0;
@@ -108,7 +98,7 @@ function estimateBowlPoints(
   const finalMaidens = parseInt(bowler.maidens    ?? '0') || 0;
 
   if (finalOvers === 0) return 0;
-  const progress = maxSeq > 0 ? Math.min(seq / maxSeq, 1) : 0;
+  const progress = maxOverPos > 0 ? Math.min(overPos / maxOverPos, 1) : 0;
 
   const estOvers   = finalOvers   * progress;
   const estWickets = Math.round(finalWickets * progress);
@@ -126,44 +116,47 @@ export function reconstructChartHistory(
   gilsPicks: PlayerPick[],
   playingEleven: string[],
 ): ReconstructedPoint[] {
-  // Sort all commentary with a valid sequence
+  // Decode all commentary balls — skip any with unrecognised sequence format
   const balls = commentaries
-    .filter(c => c.sequence != null && c.sequence > 0)
-    .sort((a, b) => (a.sequence ?? 0) - (b.sequence ?? 0));
+    .filter(c => c.sequence != null && decodeSeq(c.sequence) !== null)
+    .map(c => ({
+      text: c.text,
+      rawSeq: c.sequence!,
+      overPos: seqToOverPos(c.sequence!)!,
+    }))
+    .sort((a, b) => a.overPos - b.overPos);
 
   if (balls.length < 2) return [];
 
-  const maxSeq = balls[balls.length - 1].sequence ?? 0;
+  const maxOverPos = balls[balls.length - 1].overPos;
 
-  // Flatten all batting/bowling records across both innings
+  // Flatten batting/bowling across all innings
   const allBatting = Object.values(innings).flatMap(inn => inn.batting);
   const allBowling = Object.values(innings).flatMap(inn => inn.bowling);
 
-  // All pick player names (for dismissal detection)
   const allPickNames = [...ladsPicks, ...gilsPicks].flatMap(p =>
     [p.playerName, p.substituteName].filter(Boolean) as string[]
   );
 
-  const dismissalSeq = parseDismissalTimings(balls, allPickNames);
+  const dismissalMap = parseDismissalTimings(balls, allPickNames);
 
-  // Sample at the last ball of each over
-  const overLastBall = new Map<number, number>(); // over → max seq in that over
+  // Sample at the last ball of each over (keyed by innings*1000+over)
+  const overLastPos = new Map<number, number>(); // key → max overPos in that over
   for (const ball of balls) {
-    const over = Math.floor(ball.sequence ?? 0);
-    const cur = overLastBall.get(over) ?? 0;
-    if ((ball.sequence ?? 0) > cur) overLastBall.set(over, ball.sequence ?? 0);
+    const d = decodeSeq(ball.rawSeq)!;
+    const key = d.innings * 1000 + d.over;
+    const cur = overLastPos.get(key) ?? 0;
+    if (ball.overPos > cur) overLastPos.set(key, ball.overPos);
   }
-  const sampleSeqs = Array.from(overLastBall.values()).sort((a, b) => a - b);
+  const samplePositions = Array.from(overLastPos.values()).sort((a, b) => a - b);
 
-  // Compute estimated totals at each sample point
+  // Compute estimated totals at each sample over-position
   const history: ReconstructedPoint[] = [];
 
-  for (const seq of sampleSeqs) {
+  for (const overPos of samplePositions) {
     const computeTotal = (picks: PlayerPick[]): number => {
       let total = 0;
-
       for (const pick of picks) {
-        // Sub logic: same as liveScoring — main out of XI → use sub
         const mainInXI = isInXI(pick.playerName, playingEleven);
         const subInXI = !!pick.substituteName && isInXI(pick.substituteName, playingEleven);
         const activeName = (!mainInXI && subInXI) ? pick.substituteName! : pick.playerName;
@@ -171,17 +164,16 @@ export function reconstructChartHistory(
         const batter = allBatting.find(b => nameMatches(b.playerName ?? '', activeName));
         const bowler = allBowling.find(b => nameMatches(b.playerName ?? '', activeName));
 
-        const batPts  = batter ? estimateBatPoints(batter,  seq, maxSeq, dismissalSeq) : 0;
-        const bowlPts = bowler ? estimateBowlPoints(bowler, seq, maxSeq)               : 0;
+        const batPts  = batter ? estimateBatPoints(batter,  overPos, maxOverPos, dismissalMap) : 0;
+        const bowlPts = bowler ? estimateBowlPoints(bowler, overPos, maxOverPos)               : 0;
         const raw     = batPts + bowlPts;
         total += pick.multiplier ? applyMultiplier(raw, pick.multiplier) : raw;
       }
-
       return total;
     };
 
     history.push({
-      seq,
+      seq: overPos,
       lads: Math.round(computeTotal(ladsPicks)),
       gils: Math.round(computeTotal(gilsPicks)),
     });

@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { calcLiveBatsmen, calcLiveBowlers, calcLiveFantasyTotal } from '@/lib/liveScoring';
+import { decodeSeq, seqToOverPos } from '@/lib/espnSeq';
 import type { PlayerPick, Multiplier } from '@/lib/types';
 import type { LiveData } from '@/hooks/useLiveScore';
 import { multiplierBadge } from '@/lib/scoring';
@@ -84,25 +85,6 @@ function BallCircle({ text }: { text: string }) {
       {label}
     </span>
   );
-}
-
-// ESPN commentary sequence is an integer: innings × 100000 + over × 100 + ball
-// e.g. 200708 = innings 2, over 7, ball 8
-function decodeSeq(seq: number): { innings: number; over: number; ball: number } | null {
-  if (!seq || seq < 100000) return null;
-  const innings = Math.floor(seq / 100000);
-  const over    = Math.floor((seq % 100000) / 100);
-  const ball    = seq % 100;
-  if (innings < 1 || innings > 2 || over < 1 || over > 20 || ball < 1) return null;
-  return { innings, over, ball };
-}
-
-// Convert an ESPN seq integer to a 0–39.6 chart position
-// innings 1 = 0–19.6, innings 2 = 20–39.6
-function seqToOverPos(seq: number): number | null {
-  const d = decodeSeq(seq);
-  if (!d) return null;
-  return (d.innings - 1) * 20 + (d.over - 1) + d.ball / 10;
 }
 
 function formatOver(sequence?: number): string {
@@ -373,12 +355,17 @@ export default function LiveScorecard({
 }) {
   const historyKey = `ipl-chart-${matchId}`;
 
+  // Valid over-position range: 0–39.6 (both innings of a T20 match)
+  const isValidSeq = (s: number) => s >= 0 && s <= 40;
+
   // Seed from localStorage first (instant, no flash), then merge Supabase history on mount.
+  // Filter out old data that was stored in wrong formats (raw ESPN integers, adjusted offsets, etc.)
   const [history, setHistory] = useState<HistoryPoint[]>(() => {
     if (typeof window === 'undefined') return [];
     try {
       const raw = localStorage.getItem(historyKey);
-      return raw ? (JSON.parse(raw) as HistoryPoint[]) : [];
+      const parsed = raw ? (JSON.parse(raw) as HistoryPoint[]) : [];
+      return parsed.filter(p => isValidSeq(p.seq));
     } catch { return []; }
   });
 
@@ -392,9 +379,13 @@ export default function LiveScorecard({
       .then((remote: HistoryPoint[] | null) => {
         if (!Array.isArray(remote) || remote.length === 0) return;
         setHistory(prev => {
-          // Merge: real-time snapshots in prev win at their seq; reconstruction fills the gaps
-          const seqMap = new Map(remote.map(p => [p.seq, p]));
-          for (const p of prev) seqMap.set(p.seq, p); // prev (local) wins
+          // Discard any old-format points before merging
+          const validRemote = remote.filter(p => isValidSeq(p.seq));
+          const validPrev   = prev.filter(p => isValidSeq(p.seq));
+          if (validRemote.length === 0) return validPrev;
+          // Merge: real-time snapshots win at their seq; reconstruction fills the gaps
+          const seqMap = new Map(validRemote.map(p => [p.seq, p]));
+          for (const p of validPrev) seqMap.set(p.seq, p);
           const merged = Array.from(seqMap.values()).sort((a, b) => a.seq - b.seq);
           try { localStorage.setItem(historyKey, JSON.stringify(merged)); } catch { /* quota */ }
           return merged;
