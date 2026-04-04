@@ -141,13 +141,14 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ mat
     }
 
     // ── Commentary ────────────────────────────────────────────────────────────
+    // commentaries is a dict keyed by ID, not an array
     const headerComp = summary.header?.competitions?.[0] ?? {};
-    const commentaries = (headerComp.commentaries ?? []).slice(0, 10).map(
-      (c: { over?: string | number; text?: string; description?: string }) => ({
-        over: c.over ?? '',
-        text: c.text ?? c.description ?? '',
-      })
-    );
+    const commDict: Record<string, { shortText?: string; sequence?: number }> = headerComp.commentaries ?? {};
+    const commentaries = Object.values(commDict)
+      .sort((a, b) => (b.sequence ?? 0) - (a.sequence ?? 0))
+      .slice(0, 15)
+      .map(c => ({ over: '', text: c.shortText ?? '' }))
+      .filter(c => c.text);
 
     return NextResponse.json({
       matchId,
