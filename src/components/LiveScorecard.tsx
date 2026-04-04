@@ -165,39 +165,49 @@ export type BreakdownItem = {
   multiplier: Multiplier | null; isSubstituted: boolean;
 };
 
-// ─── Cricket silhouette icons ─────────────────────────────────────────────────
+// ─── Cricket silhouette icons (IPL website style) ─────────────────────────────
+
+// Thin tapered cricket bat — narrow handle top-right, wider blade bottom-left
 function BatIcon({ size = 22 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-      {/* Blade */}
-      <path d="M3.5 20.5a1.5 1.5 0 0 0 2.1 0L16.8 9.3l-2.1-2.1L3.5 18.4a1.5 1.5 0 0 0 0 2.1z" />
-      {/* Handle — a thin rectangle rotated 45° ending in a rounded tip */}
-      <path d="M17.9 2.1a1 1 0 0 0-1.4 0l-1.4 1.4 3.4 3.4 1.4-1.4a1 1 0 0 0 0-1.4l-2-2z" />
+      {/* Blade: tapered, wider at bottom-left, narrows toward handle */}
+      <path d="M4.5 20.8c-.9.9-2.3.3-2.3-.9L9.8 6.8l3.4 3.4L4.5 20.8z" />
+      {/* Shoulder + handle */}
+      <path d="M11.4 5.2l-1.6 1.6 3.4 3.4 1.6-1.6 4.5-4.5c.6-.6.6-1.6 0-2.2L18.2.8c-.6-.6-1.6-.6-2.2 0l-4.6 4.4z" />
     </svg>
   );
 }
 
+// Cricket ball — solid circle with two curved seam lines
 function BallIcon({ size = 22 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
       <circle cx="12" cy="12" r="10" />
-      {/* Left seam curve */}
-      <path d="M9 3.5C6.5 6 6 9 6.5 12 6 15 6.5 18 9 20.5"
-        fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
-      {/* Right seam curve */}
-      <path d="M15 3.5C17.5 6 18 9 17.5 12 18 15 17.5 18 15 20.5"
-        fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M8.5 3.8C6 6.2 5.2 9.1 5.8 12c-.6 2.9.2 5.8 2.7 8.2"
+        fill="none" stroke="white" strokeWidth="1.4" strokeLinecap="round" />
+      <path d="M15.5 3.8C18 6.2 18.8 9.1 18.2 12c.6 2.9-.2 5.8-2.7 8.2"
+        fill="none" stroke="white" strokeWidth="1.4" strokeLinecap="round" />
     </svg>
   );
 }
 
+// Two open hands / WK gloves — 4 upright fingers + palm base, mirrored pair
 function HandsIcon({ size = 22 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-      {/* Left hand — palm up, 4 fingers + thumb */}
-      <path d="M2 16v-4.5a1 1 0 0 1 2 0V14h.5V9.5a1 1 0 0 1 2 0V14h.5V8.5a1 1 0 0 1 2 0V14h.5v-3a1 1 0 0 1 2 0v4.5l-.5 2.5H2.5L2 16z" />
-      {/* Right hand — mirror */}
-      <path d="M22 16v-4.5a1 1 0 0 0-2 0V14h-.5V9.5a1 1 0 0 0-2 0V14h-.5V8.5a1 1 0 0 0-2 0V14h-.5v-3a1 1 0 0 0-2 0v4.5l.5 2.5h8.5L22 16z" />
+    <svg width={size} height={size} viewBox="0 0 28 18" fill="currentColor" aria-hidden>
+      {/* ── Left glove ── */}
+      <rect x="0.5" y="5"  width="2.2" height="8"  rx="1.1" />
+      <rect x="3.3" y="2"  width="2.2" height="11" rx="1.1" />
+      <rect x="6.1" y="1"  width="2.2" height="12" rx="1.1" />
+      <rect x="8.9" y="2"  width="2.2" height="11" rx="1.1" />
+      <rect x="0.5" y="11" width="10.6" height="5"  rx="1.8" />
+      {/* ── Right glove (mirror) ── */}
+      <rect x="25.3" y="5"  width="2.2" height="8"  rx="1.1" />
+      <rect x="22.5" y="2"  width="2.2" height="11" rx="1.1" />
+      <rect x="19.7" y="1"  width="2.2" height="12" rx="1.1" />
+      <rect x="16.9" y="2"  width="2.2" height="11" rx="1.1" />
+      <rect x="16.9" y="11" width="10.6" height="5"  rx="1.8" />
     </svg>
   );
 }
