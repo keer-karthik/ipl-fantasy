@@ -162,7 +162,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ mat
       total: string;
     }> = {};
 
-    for (const [period, info] of Object.entries(periodInfo)) {
+    for (const [, info] of Object.entries(periodInfo)) {
       const { battingTeam, bowlingTeam, runs, wickets, overs } = info;
       const oversDisplay = overs % 1 === 0 ? `${overs}` : `${Math.floor(overs)}.${Math.round((overs % 1) * 10)}`;
       innings[battingTeam] = {
@@ -170,6 +170,44 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ mat
         bowling: teamBowlers[bowlingTeam] ?? [],
         total: `${runs}/${wickets} (${oversDisplay} ov)`,
       };
+    }
+
+    // Fallback: scoreboard gone (completed match ESPN marks as "Scheduled").
+    // Reconstruct innings from roster stats using inningsNumber.
+    if (Object.keys(innings).length === 0) {
+      // Find each team's batting innings number from their batters' stats
+      const teamInningsNum: Record<string, number> = {};
+      for (const roster of rosters) {
+        const teamName = roster.team.displayName;
+        outer: for (const player of roster.roster ?? []) {
+          for (const inningsLs of player.linescores ?? []) {
+            const innerLs = (inningsLs.linescores ?? []) as Array<{ order: number; statistics?: { categories?: Array<{ stats?: Array<{ name: string; displayValue: string }> }> } }>;
+            const s = extractStats(innerLs);
+            if (s?.batted === '1' && s.inningsNumber) {
+              teamInningsNum[teamName] = parseInt(s.inningsNumber);
+              break outer;
+            }
+          }
+        }
+      }
+      // Sort teams by when they batted, pair each with the other team as bowlers
+      const teams = Object.keys(teamInningsNum).sort((a, b) => teamInningsNum[a] - teamInningsNum[b]);
+      for (let i = 0; i < teams.length; i++) {
+        const battingTeam = teams[i];
+        const bowlingTeam = teams[1 - i] ?? '';
+        const batters = teamBatters[battingTeam] ?? [];
+        if (batters.length === 0) continue;
+        // Estimate total from batter records (sum runs, count dismissals for wickets)
+        const runs = batters.reduce((s, b) => s + (parseInt(b.runs ?? '0') || 0), 0);
+        const wickets = batters.filter(b => b.dismissal && b.dismissal !== 'not out').length;
+        const totalBalls = batters.reduce((s, b) => s + (parseInt(b.ballsFaced ?? '0') || 0), 0);
+        const oversDisplay = totalBalls > 0 ? `${Math.floor(totalBalls / 6)}.${totalBalls % 6}` : '20';
+        innings[battingTeam] = {
+          batting: batters,
+          bowling: teamBowlers[bowlingTeam] ?? [],
+          total: `${runs}/${wickets} (${oversDisplay} ov)`,
+        };
+      }
     }
 
     // ── Commentary ────────────────────────────────────────────────────────────
