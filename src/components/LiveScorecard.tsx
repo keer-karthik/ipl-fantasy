@@ -1,8 +1,8 @@
 'use client';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useLiveScore } from '@/hooks/useLiveScore';
 import { calcLiveBatsmen, calcLiveBowlers, calcLiveFantasyTotal } from '@/lib/liveScoring';
 import type { PlayerPick } from '@/lib/types';
+import type { LiveData } from '@/hooks/useLiveScore';
 import { multiplierBadge, multiplierColor } from '@/lib/scoring';
 
 function MultiBadge({ m }: { m: string }) {
@@ -31,15 +31,15 @@ function PtsChip({ pts, highlight }: { pts: number; highlight?: boolean }) {
 }
 
 export default function LiveScorecard({
-  matchId, ladsPicks, gilsPicks,
+  ladsPicks, gilsPicks, liveData, loading, lastUpdated,
 }: {
-  matchId: number;
   ladsPicks: PlayerPick[];
   gilsPicks: PlayerPick[];
+  liveData: LiveData | null;
+  loading: boolean;
+  lastUpdated: Date | null;
 }) {
-  const { data, loading, lastUpdated } = useLiveScore(matchId, true);
-
-  if (!data) {
+  if (!liveData) {
     return (
       <div className="rounded-2xl bg-white border border-gray-200 p-6 text-center">
         <div className="text-gray-400 text-sm">{loading ? 'Loading live data…' : 'No live data yet'}</div>
@@ -47,7 +47,7 @@ export default function LiveScorecard({
     );
   }
 
-  const { status, innings, commentaries } = data;
+  const { status, innings, commentaries } = liveData;
   const allPicks = [...ladsPicks, ...gilsPicks];
 
   return (

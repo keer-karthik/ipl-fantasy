@@ -1,5 +1,6 @@
 import { calcBattingPoints, calcBowlingPoints, calcFieldingPoints, applyMultiplier } from './scoring';
-import type { PlayerPick, Multiplier } from './types';
+import type { PlayerPick, PlayerResult, Multiplier } from './types';
+import type { LiveData } from '../hooks/useLiveScore';
 
 export interface LiveBatsman {
   playerName: string;
@@ -149,4 +150,90 @@ export function calcLiveFantasyTotal(
 
   const rawTotal = breakdown.reduce((s, p) => s + p.pts, 0);
   return { rawTotal, picksFound: seen.size, breakdown };
+}
+
+export function autoResultFromLive(
+  innings: LiveData['innings'],
+  picks: PlayerPick[],
+  correctPrediction: boolean,
+): PlayerResult[] {
+  // Flatten all batting and bowling records across all innings
+  const allBatting = Object.values(innings).flatMap(inning => inning.batting);
+  const allBowling = Object.values(innings).flatMap(inning => inning.bowling);
+
+  return picks.map(pick => {
+    const batter = allBatting.find(b => {
+      const bn = normalizeName(b.playerName ?? '');
+      const pn = normalizeName(pick.playerName);
+      return bn === pn || bn.includes(pn) || pn.includes(bn) ||
+        (bn.length > 4 && pn.slice(-bn.length) === bn) ||
+        (pn.length > 4 && bn.slice(-pn.length) === pn);
+    }) ?? null;
+
+    const bowler = allBowling.find(b => {
+      const bn = normalizeName(b.playerName ?? '');
+      const pn = normalizeName(pick.playerName);
+      return bn === pn || bn.includes(pn) || pn.includes(bn) ||
+        (bn.length > 4 && pn.slice(-bn.length) === bn) ||
+        (pn.length > 4 && bn.slice(-pn.length) === pn);
+    }) ?? null;
+
+    const didBat = !!batter && (
+      parseInt(batter.ballsFaced ?? '0') > 0 ||
+      (batter.dismissal !== 'not out' && batter.dismissal !== '')
+    );
+    const didBowl = !!bowler && parseFloat(bowler.overs ?? '0') > 0;
+
+    // Batting stats
+    const runs = didBat ? (parseInt(batter!.runs ?? '0') || 0) : 0;
+    const balls = didBat ? (parseInt(batter!.ballsFaced ?? '0') || 0) : 0;
+    const dismissed = didBat ? (batter!.dismissal !== 'not out' && batter!.dismissal !== '') : false;
+    const battingPosition = didBat ? (parseInt(batter!.battingPosition ?? '1') || 1) : 1;
+
+    // Bowling stats
+    const overs = didBowl ? (parseFloat(bowler!.overs ?? '0') || 0) : 0;
+    const runsConceded = didBowl ? (parseInt(bowler!.conceded ?? '0') || 0) : 0;
+    const wickets = didBowl ? (parseInt(bowler!.wickets ?? '0') || 0) : 0;
+    const maidens = didBowl ? (parseInt(bowler!.maidens ?? '0') || 0) : 0;
+
+    // Fielding — not available per-player from ESPN
+    const catches = 0;
+    const stumpings = 0;
+    const runOuts = 0;
+    const fieldingPoints = 0;
+
+    const isMOM = false;
+    const momPoints = 0;
+    const predPoints = correctPrediction ? 50 : 0;
+
+    const battingPoints = calcBattingPoints(runs, balls, dismissed, battingPosition);
+    const bowlingPoints = calcBowlingPoints(wickets, overs, runsConceded, maidens);
+    const rawTotal = battingPoints + bowlingPoints;
+    const finalTotal = applyMultiplier(rawTotal, pick.multiplier) + predPoints;
+
+    return {
+      playerName: pick.playerName,
+      didBat,
+      runs,
+      balls,
+      dismissed,
+      battingPosition,
+      didBowl,
+      overs,
+      runsConceded,
+      wickets,
+      maidens,
+      catches,
+      stumpings,
+      runOuts,
+      isMOM,
+      battingPoints,
+      bowlingPoints,
+      fieldingPoints,
+      momPoints,
+      rawTotal,
+      multiplier: pick.multiplier,
+      finalTotal,
+    };
+  });
 }

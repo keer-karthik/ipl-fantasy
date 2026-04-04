@@ -165,6 +165,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ mat
       })),
       innings,
       commentaries,
+      actualWinner: (competitors as Array<{ winner?: boolean; team: { displayName: string } }>).find(c => c.winner)?.team?.displayName ?? null,
     });
   } catch (e) {
     return NextResponse.json({ error: 'Failed to fetch live data', detail: String(e) }, { status: 500 });

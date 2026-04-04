@@ -3,9 +3,11 @@ import { use, useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useSeasonState, emptyMatch } from '@/lib/store';
 import { getFixture, teams, formatDate } from '@/lib/data';
-import { calcPlayerResult, multiplierColor, multiplierBadge } from '@/lib/scoring';
+import { multiplierColor, multiplierBadge } from '@/lib/scoring';
 import { TeamLogo } from '@/components/TeamBadge';
 import LiveScorecard from '@/components/LiveScorecard';
+import { useLiveScore } from '@/hooks/useLiveScore';
+import { autoResultFromLive } from '@/lib/liveScoring';
 import type { Multiplier, PlayerPick, PlayerStats, TeamName } from '@/lib/types';
 
 const MULTIPLIERS: Multiplier[] = ['yellow', 'green', 'purple', 'allin'];
@@ -122,7 +124,6 @@ function PicksEditor({
                   value={pick.playerName}
                   onChange={e => {
                     const player = allPlayers.find(p => p.name === e.target.value);
-                    // Batch both fields in one update to avoid stale-closure overwrite
                     const next = picks.map((p, idx) =>
                       idx === i ? { ...p, playerName: e.target.value, ...(player ? { team: player.team } : {}) } : p
                     );
@@ -176,95 +177,6 @@ function PicksEditor({
           </div>
         </div>
       ))}
-    </div>
-  );
-}
-
-// ─── Stats Entry ──────────────────────────────────────────────────────────────
-
-function StatsRow({ stats, onChange }: { stats: PlayerStats; onChange: (s: PlayerStats) => void }) {
-  return (
-    <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-3 shadow-sm">
-      <div className="flex items-center justify-between">
-        <span className="font-semibold text-gray-800">{stats.playerName}</span>
-        <label className="flex items-center gap-2 text-xs text-amber-600 font-semibold cursor-pointer">
-          <input type="checkbox" checked={stats.isMOM} onChange={e => onChange({ ...stats, isMOM: e.target.checked })} className="rounded" />
-          MOM (+10)
-        </label>
-      </div>
-
-      {/* Batting */}
-      <div>
-        <label className="flex items-center gap-2 text-xs text-gray-500 mb-2 cursor-pointer">
-          <input type="checkbox" checked={stats.didBat} onChange={e => onChange({ ...stats, didBat: e.target.checked })} />
-          Batted
-        </label>
-        {stats.didBat && (
-          <div className="grid grid-cols-4 gap-2">
-            {[
-              { label: 'Runs', field: 'runs' as const },
-              { label: 'Balls', field: 'balls' as const },
-              { label: 'Pos', field: 'battingPosition' as const },
-            ].map(({ label, field }) => (
-              <label key={field} className="text-center">
-                <span className="text-xs text-gray-400 block mb-1">{label}</span>
-                <input type="number" min={0} value={stats[field] as number}
-                  onChange={e => onChange({ ...stats, [field]: parseInt(e.target.value) || 0 })}
-                  className="w-full bg-gray-50 border border-gray-200 rounded px-2 py-1.5 text-sm text-center text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500/30" />
-              </label>
-            ))}
-            <label className="text-center">
-              <span className="text-xs text-gray-400 block mb-1">Out</span>
-              <div className="flex items-center justify-center h-9">
-                <input type="checkbox" checked={stats.dismissed}
-                  onChange={e => onChange({ ...stats, dismissed: e.target.checked })}
-                  className="w-4 h-4" />
-              </div>
-            </label>
-          </div>
-        )}
-      </div>
-
-      {/* Bowling */}
-      <div>
-        <label className="flex items-center gap-2 text-xs text-gray-500 mb-2 cursor-pointer">
-          <input type="checkbox" checked={stats.didBowl} onChange={e => onChange({ ...stats, didBowl: e.target.checked })} />
-          Bowled
-        </label>
-        {stats.didBowl && (
-          <div className="grid grid-cols-4 gap-2">
-            {[
-              { label: 'Overs', field: 'overs' as const, isFloat: true },
-              { label: 'Runs', field: 'runsConceded' as const },
-              { label: 'Wkts', field: 'wickets' as const },
-              { label: 'Maidens', field: 'maidens' as const },
-            ].map(({ label, field, isFloat }) => (
-              <label key={field} className="text-center">
-                <span className="text-xs text-gray-400 block mb-1">{label}</span>
-                <input type="number" min={0} step={isFloat ? 0.1 : 1} value={stats[field] as number}
-                  onChange={e => onChange({ ...stats, [field]: isFloat ? parseFloat(e.target.value) || 0 : parseInt(e.target.value) || 0 })}
-                  className="w-full bg-gray-50 border border-gray-200 rounded px-2 py-1.5 text-sm text-center text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500/30" />
-              </label>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Fielding */}
-      <div className="grid grid-cols-3 gap-2">
-        {[
-          { label: 'Catches', field: 'catches' as const },
-          { label: 'Stumpings', field: 'stumpings' as const },
-          { label: 'Run-outs', field: 'runOuts' as const },
-        ].map(({ label, field }) => (
-          <label key={field} className="text-center">
-            <span className="text-xs text-gray-400 block mb-1">{label}</span>
-            <input type="number" min={0} value={stats[field]}
-              onChange={e => onChange({ ...stats, [field]: parseInt(e.target.value) || 0 })}
-              className="w-full bg-gray-50 border border-gray-200 rounded px-2 py-1.5 text-sm text-center text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500/30" />
-          </label>
-        ))}
-      </div>
     </div>
   );
 }
@@ -341,15 +253,14 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
   const { state, updateMatch, loaded } = useSeasonState();
 
   // ALL hooks must be declared before any conditional return
-  const [activeTab, setActiveTab] = useState<'picks' | 'live' | 'stats' | 'result'>('picks');
+  const [activeTab, setActiveTab] = useState<'studio' | 'live' | 'result'>('studio');
   const [ladsPicks, setLadsPicks] = useState<PlayerPick[]>([]);
   const [gilsPicks, setGilsPicks] = useState<PlayerPick[]>([]);
-  const [ladsStats, setLadsStats] = useState<PlayerStats[]>([]);
-  const [gilsStats, setGilsStats] = useState<PlayerStats[]>([]);
   const [ladsPrediction, setLadsPrediction] = useState<TeamName | ''>('');
   const [gilsPrediction, setGilsPrediction] = useState<TeamName | ''>('');
-  const [actualWinner, setActualWinner] = useState<TeamName | ''>('');
   const [initialized, setInitialized] = useState(false);
+
+  const { data: liveData, loading: liveLoading, lastUpdated } = useLiveScore(matchId, true);
 
   // Initialise local state from persisted match data once loaded
   useEffect(() => {
@@ -357,21 +268,40 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
     const match = state.matches[matchId] ?? emptyMatch(matchId);
     setLadsPicks(match.lads.picks);
     setGilsPicks(match.gils.picks);
-    setLadsStats(
-      match.lads.picks.length > 0
-        ? (match.lads.stats.length > 0 ? match.lads.stats : match.lads.picks.map(p => emptyStats(p.playerName)))
-        : []
-    );
-    setGilsStats(
-      match.gils.picks.length > 0
-        ? (match.gils.stats.length > 0 ? match.gils.stats : match.gils.picks.map(p => emptyStats(p.playerName)))
-        : []
-    );
     setLadsPrediction(match.lads.predictedWinner ?? '');
     setGilsPrediction(match.gils.predictedWinner ?? '');
-    setActualWinner(match.actualWinner ?? '');
     setInitialized(true);
   }, [loaded, initialized, matchId, state.matches]);
+
+  // Auto-save when ESPN reports match complete
+  useEffect(() => {
+    if (!liveData?.status.isComplete) return;
+    const match = state.matches[matchId] ?? emptyMatch(matchId);
+    if (match.isComplete) return; // already saved
+    if (ladsPicks.length === 0 || gilsPicks.length === 0) return;
+
+    const actualWinner = liveData.actualWinner as TeamName | null;
+    const ladsCorrect = ladsPrediction !== '' && ladsPrediction === actualWinner;
+    const gilsCorrect = gilsPrediction !== '' && gilsPrediction === actualWinner;
+
+    const ladsResults = autoResultFromLive(liveData.innings, ladsPicks, ladsCorrect);
+    const gilsResults = autoResultFromLive(liveData.innings, gilsPicks, gilsCorrect);
+    const ladsTotal = ladsResults.reduce((s, r) => s + r.finalTotal, 0);
+    const gilsTotal = gilsResults.reduce((s, r) => s + r.finalTotal, 0);
+    const winner = ladsTotal > gilsTotal ? 'lads' : gilsTotal > ladsTotal ? 'gils' : null;
+    const ladsAllin = ladsPicks.some(p => p.multiplier === 'allin');
+    const gilsAllin = gilsPicks.some(p => p.multiplier === 'allin');
+
+    updateMatch(matchId, m => ({
+      ...m,
+      isComplete: true,
+      actualWinner,
+      winner,
+      lads: { ...m.lads, picks: ladsPicks, stats: [], results: ladsResults, total: ladsTotal, predictedWinner: ladsPrediction as TeamName || null, allInUsed: ladsAllin },
+      gils: { ...m.gils, picks: gilsPicks, stats: [], results: gilsResults, total: gilsTotal, predictedWinner: gilsPrediction as TeamName || null, allInUsed: gilsAllin },
+    }));
+    setActiveTab('result');
+  }, [liveData?.status.isComplete, liveData?.actualWinner]);
 
   if (!loaded) return <div className="text-gray-400 text-center py-20">Loading...</div>;
   if (!fixture) return <div className="text-red-500 text-center py-20">Match {matchId} not found.</div>;
@@ -384,42 +314,12 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
       lads: { ...m.lads, picks: ladsPicks, predictedWinner: (ladsPrediction as TeamName) || null },
       gils: { ...m.gils, picks: gilsPicks, predictedWinner: (gilsPrediction as TeamName) || null },
     }));
-    setLadsStats(ladsPicks.map(p => ladsStats.find(s => s.playerName === p.playerName) ?? emptyStats(p.playerName)));
-    setGilsStats(gilsPicks.map(p => gilsStats.find(s => s.playerName === p.playerName) ?? emptyStats(p.playerName)));
-    setActiveTab('stats');
+    setActiveTab('live');
   }
 
-  function saveStats() {
-    const aw = actualWinner as TeamName | '';
-    const results = (picks: PlayerPick[], stats: PlayerStats[], prediction: TeamName | '') => {
-      const correctPred = aw !== '' && prediction === aw;
-      return picks.map((pick, i) => calcPlayerResult(stats[i] ?? emptyStats(pick.playerName), pick.multiplier, correctPred));
-    };
-
-    const ladsResults = results(ladsPicks, ladsStats, ladsPrediction);
-    const gilsResults = results(gilsPicks, gilsStats, gilsPrediction);
-    const ladsTotal = ladsResults.reduce((s, r) => s + r.finalTotal, 0);
-    const gilsTotal = gilsResults.reduce((s, r) => s + r.finalTotal, 0);
-    const winner = ladsTotal > gilsTotal ? 'lads' : gilsTotal > ladsTotal ? 'gils' : null;
-
-    const ladsAllin = ladsPicks.some(p => p.multiplier === 'allin');
-    const gilsAllin = gilsPicks.some(p => p.multiplier === 'allin');
-
-    updateMatch(matchId, m => ({
-      ...m,
-      isComplete: true,
-      actualWinner: aw || null,
-      winner,
-      lads: { ...m.lads, picks: ladsPicks, stats: ladsStats, results: ladsResults, total: ladsTotal, predictedWinner: (ladsPrediction as TeamName) || null, allInUsed: ladsAllin },
-      gils: { ...m.gils, picks: gilsPicks, stats: gilsStats, results: gilsResults, total: gilsTotal, predictedWinner: (gilsPrediction as TeamName) || null, allInUsed: gilsAllin },
-    }));
-    setActiveTab('result');
-  }
-
-  const tabs: { key: 'picks' | 'live' | 'stats' | 'result'; label: string; disabled?: boolean }[] = [
-    { key: 'picks', label: '📋 Picks' },
+  const tabs: { key: 'studio' | 'live' | 'result'; label: string; disabled?: boolean }[] = [
+    { key: 'studio', label: '🎯 Studio' },
     { key: 'live', label: '🔴 Live' },
-    { key: 'stats', label: '📝 Stats' },
     { key: 'result', label: '🏆 Result', disabled: !match.isComplete },
   ];
 
@@ -500,8 +400,8 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
         ))}
       </div>
 
-      {/* Picks Tab */}
-      {activeTab === 'picks' && (
+      {/* Studio Tab */}
+      {activeTab === 'studio' && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
           <div className="grid md:grid-cols-2 gap-6">
             <div className="bg-blue-50/60 rounded-2xl p-4 border border-blue-100">
@@ -542,7 +442,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
             className="w-full py-3 rounded-xl font-bold text-gray-900 transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
             style={{ background: ladsPicks.length === 5 && gilsPicks.length === 5 ? 'var(--ipl-orange)' : '#f0a060', color: 'white' }}
           >
-            Lock Picks & Go to Stats →
+            Lock Picks →
           </button>
         </motion.div>
       )}
@@ -551,56 +451,12 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
       {activeTab === 'live' && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
           <LiveScorecard
-            matchId={matchId}
             ladsPicks={ladsPicks}
             gilsPicks={gilsPicks}
+            liveData={liveData}
+            loading={liveLoading}
+            lastUpdated={lastUpdated}
           />
-        </motion.div>
-      )}
-
-      {/* Stats Tab */}
-      {activeTab === 'stats' && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-          {/* Actual winner */}
-          <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
-            <label className="text-sm font-semibold text-gray-600 block mb-2">Actual IPL match winner</label>
-            <select value={actualWinner} onChange={e => setActualWinner(e.target.value as TeamName | '')}
-              className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500/30">
-              <option value="">— Match not finished —</option>
-              <option value={fixture.home}>{fixture.home}</option>
-              <option value={fixture.away}>{fixture.away}</option>
-            </select>
-          </div>
-
-          <div className="grid md:grid-cols-2 gap-6">
-            {/* Lads stats */}
-            <div className="space-y-3">
-              <h3 className="font-bold text-blue-600">Lads — Player Stats</h3>
-              {ladsStats.length === 0 ? (
-                <p className="text-sm text-gray-400">Lock picks first.</p>
-              ) : ladsStats.map((s, i) => (
-                <StatsRow key={s.playerName} stats={s}
-                  onChange={next => setLadsStats(ladsStats.map((x, idx) => idx === i ? next : x))} />
-              ))}
-            </div>
-
-            {/* Gils stats */}
-            <div className="space-y-3">
-              <h3 className="font-bold text-pink-600">Gils — Player Stats</h3>
-              {gilsStats.length === 0 ? (
-                <p className="text-sm text-gray-400">Lock picks first.</p>
-              ) : gilsStats.map((s, i) => (
-                <StatsRow key={s.playerName} stats={s}
-                  onChange={next => setGilsStats(gilsStats.map((x, idx) => idx === i ? next : x))} />
-              ))}
-            </div>
-          </div>
-
-          <button onClick={saveStats}
-            className="w-full py-3 rounded-xl font-bold text-white transition-colors shadow-sm"
-            style={{ background: 'var(--ipl-navy)' }}>
-            Calculate & Save Results →
-          </button>
         </motion.div>
       )}
 

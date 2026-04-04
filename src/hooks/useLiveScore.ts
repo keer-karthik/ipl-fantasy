@@ -14,6 +14,7 @@ export interface LiveData {
   }>;
   commentaries: Array<{ text: string; over: string }>;
   headline: string;
+  actualWinner: string | null;
 }
 
 export function useLiveScore(matchId: number, enabled = true) {
