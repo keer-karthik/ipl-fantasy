@@ -188,93 +188,96 @@ function PlayerTradingCard({ b, isLads }: { b: BreakdownItem; isLads: boolean })
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2 }}
-      className={`flex flex-col rounded-2xl overflow-hidden shadow-md bg-white ${topBorder}`}
+      className={`flex flex-row rounded-2xl overflow-hidden shadow-md bg-white ${topBorder}`}
       style={{ flex: '1 1 0', minHeight: 0 }}
     >
-      {/* ── Photo zone — grows to fill card, name strip stays fixed ── */}
-      <div className="relative w-full flex-1 min-h-0 bg-gray-50">
-        {iplUrl && imgOk ? (
-          <img
-            src={iplUrl}
-            alt={b.activeName}
-            className="w-full h-full object-contain object-top"
-            onError={() => setImgOk(false)}
-          />
-        ) : (
-          <div className={`w-full h-full flex items-center justify-center ${INITIALS_COLORS[colorSeed]}`}>
-            <span className="text-6xl text-white/80" style={PLAYER_FONT}>{initials}</span>
+      {/* ══ LEFT: photo + name ══ */}
+      <div className="relative flex flex-col bg-gray-50 overflow-hidden" style={{ width: '44%' }}>
+
+        {/* Photo fills all remaining height */}
+        <div className="relative flex-1 min-h-0">
+          {iplUrl && imgOk ? (
+            <img
+              src={iplUrl}
+              alt={b.activeName}
+              className="w-full h-full object-contain object-top"
+              onError={() => setImgOk(false)}
+            />
+          ) : (
+            <div className={`w-full h-full flex items-center justify-center ${INITIALS_COLORS[colorSeed]}`}>
+              <span className="text-4xl text-white/80" style={PLAYER_FONT}>{initials}</span>
+            </div>
+          )}
+
+          {/* Multiplier badge — top left over photo */}
+          {b.multiplier && (
+            <span className={`absolute top-1.5 left-1.5 text-[10px] px-1.5 py-0.5 rounded-md shadow-md ${badgeBg}`}
+              style={PLAYER_FONT}>
+              {multiplierBadge(b.multiplier)}
+            </span>
+          )}
+        </div>
+
+        {/* Name — pinned below photo */}
+        <div className="shrink-0 px-2 py-1.5 bg-white border-t border-gray-100">
+          <div className="text-[12px] leading-tight uppercase truncate text-gray-900" style={PLAYER_FONT}>
+            {b.activeName}
           </div>
-        )}
+          {b.isSubstituted && (
+            <div className="text-[9px] text-gray-400 font-semibold leading-tight mt-0.5 truncate">
+              ↑ sub for {b.name}
+            </div>
+          )}
+        </div>
+      </div>
 
-        {/* Dark gradient — bottom third */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/0 to-black/0 pointer-events-none" />
+      {/* Divider */}
+      <div className="w-px bg-gray-100 shrink-0" />
 
-        {/* Multiplier badge — top left */}
-        {b.multiplier && (
-          <span className={`absolute top-2.5 left-2.5 text-[11px] px-2 py-0.5 rounded-md shadow-lg ${badgeBg}`}
-            style={PLAYER_FONT}>
-            {multiplierBadge(b.multiplier)}
-          </span>
-        )}
+      {/* ══ RIGHT: stats + total ══ */}
+      <div className="flex-1 flex flex-col justify-between px-3 py-2.5 min-w-0">
 
-        {/* Sub tag — top right */}
-        {b.isSubstituted && (
-          <span className="absolute top-2.5 right-2.5 text-[9px] font-black uppercase tracking-wider
-            bg-black/60 text-white/90 px-1.5 py-0.5 rounded-md">
-            SUB
-          </span>
-        )}
+        {/* Stat rows */}
+        <div className="space-y-1">
+          {b.batPts !== 0 && (
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold text-blue-400 uppercase tracking-wide">Bat</span>
+              <span className={`text-[13px] font-black ${ptsColor(b.batPts)}`} style={PLAYER_FONT}>
+                {ptsStr(b.batPts)}
+              </span>
+            </div>
+          )}
+          {b.bowlPts !== 0 && (
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold text-orange-400 uppercase tracking-wide">Bowl</span>
+              <span className={`text-[13px] font-black ${ptsColor(b.bowlPts)}`} style={PLAYER_FONT}>
+                {ptsStr(b.bowlPts)}
+              </span>
+            </div>
+          )}
+          {b.fieldPts !== 0 && (
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold text-green-500 uppercase tracking-wide">Field</span>
+              <span className={`text-[13px] font-black ${ptsColor(b.fieldPts)}`} style={PLAYER_FONT}>
+                {ptsStr(b.fieldPts)}
+              </span>
+            </div>
+          )}
+          {b.batPts === 0 && b.bowlPts === 0 && b.fieldPts === 0 && (
+            <span className="text-[11px] text-gray-300 font-medium">—</span>
+          )}
+        </div>
 
-        {/* Points — overlaid bottom right of photo */}
+        {/* Total — bottom right, large */}
         <motion.div
           key={b.pts}
-          initial={{ scale: 1.35, opacity: 0 }}
+          initial={{ scale: 1.3, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          className={`absolute bottom-2 right-3 text-[26px] drop-shadow-[0_1px_4px_rgba(0,0,0,0.7)] ${
-            b.pts > 0 ? 'text-green-400' : b.pts < 0 ? 'text-red-400' : 'text-white/50'
-          }`}
+          className={`text-right text-[28px] leading-none ${ptsColor(b.pts)}`}
           style={PLAYER_FONT}
         >
           {ptsStr(b.pts)}
         </motion.div>
-      </div>
-
-      {/* ── Name + stats strip — fixed height, never squished ── */}
-      <div className="px-3 pt-2 pb-2 shrink-0">
-        {/* Full name ALL CAPS */}
-        <div className="text-[18px] text-gray-900 leading-tight uppercase truncate" style={PLAYER_FONT}>
-          {b.activeName}
-        </div>
-        {b.isSubstituted && (
-          <div className="text-[10px] text-gray-400 font-semibold mt-0.5">
-            ↑ sub for {b.name}
-          </div>
-        )}
-
-        {/* Stat chips */}
-        <div className="flex items-center gap-3 mt-1.5 flex-wrap">
-          {b.batPts !== 0 && (
-            <span className="text-[12px] font-bold">
-              <span className="text-blue-400">Bat </span>
-              <span className={`font-black ${ptsColor(b.batPts)}`}>{ptsStr(b.batPts)}</span>
-            </span>
-          )}
-          {b.bowlPts !== 0 && (
-            <span className="text-[12px] font-bold">
-              <span className="text-orange-400">Bowl </span>
-              <span className={`font-black ${ptsColor(b.bowlPts)}`}>{ptsStr(b.bowlPts)}</span>
-            </span>
-          )}
-          {b.fieldPts !== 0 && (
-            <span className="text-[12px] font-bold">
-              <span className="text-green-500">Field </span>
-              <span className={`font-black ${ptsColor(b.fieldPts)}`}>{ptsStr(b.fieldPts)}</span>
-            </span>
-          )}
-          {b.batPts === 0 && b.bowlPts === 0 && b.fieldPts === 0 && (
-            <span className="text-[12px] text-gray-300 font-medium">—</span>
-          )}
-        </div>
       </div>
     </motion.div>
   );
