@@ -120,10 +120,10 @@ export function multiplierLabel(m: Multiplier): string {
 
 export function multiplierColor(m: Multiplier): string {
   return {
-    yellow: 'bg-yellow-400 text-yellow-900',
-    green: 'bg-green-500 text-white',
-    purple: 'bg-purple-600 text-white',
-    allin: 'bg-red-600 text-white',
+    yellow: 'bg-gray-200 text-gray-500',
+    green: 'bg-emerald-500 text-white',
+    purple: 'bg-violet-600 text-white',
+    allin: 'bg-orange-500 text-white',
   }[m];
 }
 

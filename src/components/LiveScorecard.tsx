@@ -211,7 +211,13 @@ function PlayerTradingCard({ b, isLads }: { b: BreakdownItem; isLads: boolean })
   const colorSeed = b.activeName.charCodeAt(0) % INITIALS_COLORS.length;
 
   const topBorder  = isLads ? 'border-t-[3px] border-amber-400' : 'border-t-[3px] border-violet-500';
-  const badgeBg    = isLads ? 'bg-amber-400 text-amber-950'     : 'bg-violet-500 text-white';
+  const multBadgeBg: Record<string, string> = {
+    yellow: 'bg-gray-200 text-gray-500',
+    green:  'bg-emerald-500 text-white',
+    purple: 'bg-violet-600 text-white',
+    allin:  'bg-orange-500 text-white',
+  };
+  const badgeBg = b.multiplier ? (multBadgeBg[b.multiplier] ?? 'bg-gray-200 text-gray-500') : '';
 
   const PLAYER_FONT: React.CSSProperties = {
     fontFamily: 'var(--font-barlow-condensed), system-ui, sans-serif',

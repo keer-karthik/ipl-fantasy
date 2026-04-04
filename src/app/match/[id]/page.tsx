@@ -383,7 +383,7 @@ function ResultsDisplay({ match }: { match: ReturnType<typeof emptyMatch> }) {
                       </td>
                       <td className="text-right px-2 py-2.5 font-medium text-gray-500 tabular-nums">+50</td>
                       <td className="text-center px-2 py-2.5">
-                        <span className="text-xs px-1.5 py-0.5 rounded font-bold bg-yellow-400 text-yellow-900">1×</span>
+                        <span className="text-xs px-1.5 py-0.5 rounded font-bold bg-gray-200 text-gray-500">1×</span>
                       </td>
                       <td className="text-right px-3 py-2.5 font-bold text-green-600 tabular-nums text-base">+50</td>
                     </tr>
