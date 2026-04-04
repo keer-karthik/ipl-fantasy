@@ -12,6 +12,7 @@ export interface LiveData {
     total: string;
     runs: string;
   }>;
+  playingEleven: string[];
   commentaries: Array<{ text: string; over: string; sequence?: number }>;
   headline: string;
   actualWinner: string | null;

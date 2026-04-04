@@ -7,17 +7,30 @@ import type { LiveData } from '@/hooks/useLiveScore';
 import { multiplierBadge } from '@/lib/scoring';
 
 // ─── Dismissal formatting ─────────────────────────────────────────────────────
+// ESPN can return short codes ("c", "b", "lbw") or richer text like "c Axar Patel b Kuldeep Yadav".
+// We expand the leading verb so it reads naturally.
 function formatDismissal(raw: string): string {
   if (!raw || raw === 'not out') return 'not out';
   const r = raw.trim();
-  // Already descriptive (length > 3 means it's more than a code)
-  if (r.length > 3) return r;
-  // Short codes → readable
-  const codes: Record<string, string> = {
-    c: 'caught', b: 'bowled', lbw: 'lbw', st: 'stumped',
-    ro: 'run out', 'c&b': 'c&b', ret: 'retired', 'hit wicket': 'hit wicket',
-  };
-  return codes[r.toLowerCase()] ?? r;
+
+  // Expand "c X b Y" → "c [X] b [Y]" (already legible — just ensure leading char is expanded)
+  // Expand standalone single-char codes
+  const lower = r.toLowerCase();
+  if (lower === 'c' || lower === 'caught') return 'caught';
+  if (lower === 'b' || lower === 'bowled') return 'bowled';
+  if (lower === 'lbw') return 'lbw';
+  if (lower === 'st' || lower === 'stumped') return 'stumped';
+  if (lower === 'ro' || lower === 'run out') return 'run out';
+  if (lower === 'c&b') return 'c&b';
+  if (lower === 'ret' || lower === 'retired') return 'retired hurt';
+
+  // For richer text like "c Axar Patel b Kuldeep", expand the leading code word
+  const expanded = r
+    .replace(/^c\s+/i, 'c ')      // "c Axar…" stays as-is (fielder name follows)
+    .replace(/\sb\s/g, ' b ')     // spacing around bowler marker is fine
+    .replace(/^b\s+/i, 'b ');    // "b Kuldeep" stays as-is
+
+  return expanded;
 }
 
 // ─── Name matching — exact full name only ─────────────────────────────────────
@@ -115,103 +128,155 @@ function PtsChip({ pts }: { pts: number }) {
 }
 
 // ─── Side panel (full-height, number at top) ─────────────────────────────────
+function ptsStr(n: number) { return n > 0 ? `+${n}` : n === 0 ? '—' : String(n); }
+function ptsColor(n: number) { return n > 0 ? 'text-green-600' : n < 0 ? 'text-red-500' : 'text-gray-300'; }
+function shortName(n: string) {
+  const parts = n.trim().split(' ');
+  return parts.length > 1 ? `${parts[parts.length - 1]}, ${parts[0][0]}.` : n;
+}
+
 function SidePanel({
   label, total, breakdown, color, textColor, borderColor, bgColor,
 }: {
   label: string; total: number;
-  breakdown: { name: string; activeName: string; pts: number; multiplier: Multiplier | null; isSubstituted: boolean }[];
+  breakdown: { name: string; activeName: string; pts: number; batPts: number; bowlPts: number; fieldPts: number; multiplier: Multiplier | null; isSubstituted: boolean }[];
   color: string; textColor: string; borderColor: string; bgColor: string;
 }) {
   const isLads = label === 'LADS';
+  const accentBorder = isLads ? 'border-amber-200' : 'border-violet-200';
+  const accentText   = isLads ? 'text-amber-600'  : 'text-violet-600';
+  const accentBadge  = isLads
+    ? 'bg-amber-100 text-amber-700 border-amber-200'
+    : 'bg-violet-100 text-violet-700 border-violet-200';
+
   return (
     <div className={`flex-1 rounded-2xl border-2 ${borderColor} ${bgColor} flex flex-col overflow-hidden`}>
 
       {/* ── TOP: label + big number ── */}
-      <div className="px-5 pt-5 pb-5">
-        <div className="text-[11px] font-black uppercase tracking-[0.25em] mb-3" style={{ color }}>
-          {label}
-        </div>
+      <div className="px-4 pt-4 pb-3">
+        <div className={`text-[10px] font-black uppercase tracking-[0.25em] mb-2 ${accentText}`}>{label}</div>
         <motion.div
           key={total}
           initial={{ scale: 1.1, opacity: 0.5 }}
           animate={{ scale: 1, opacity: 1 }}
           className={`font-black leading-none ${textColor}`}
-          style={{ fontSize: 'clamp(3.5rem, 5.5vw, 6.5rem)' }}
+          style={{ fontSize: 'clamp(3rem, 5vw, 5.5rem)' }}
         >
           {total > 0 ? `+${total}` : total}
         </motion.div>
-        <div className="text-xs text-gray-400 mt-2 font-medium tracking-wide">pts this game</div>
+        <div className="text-[10px] text-gray-400 mt-1 font-medium tracking-wide">pts this game</div>
       </div>
 
-      {/* ── BOTTOM: picks list — stacked directly below, no gaps ── */}
-      <div className="border-t border-gray-200/80 px-4 py-3 space-y-1 overflow-y-auto">
-        {breakdown.map(b => {
-          const displayName = (n: string) => {
-            const parts = n.trim().split(' ');
-            return parts.length > 1 ? `${parts[parts.length - 1]}, ${parts[0][0]}.` : n;
-          };
-          return (
-          <div key={b.name} className="flex items-center gap-2 py-2 border-b border-gray-100 last:border-0">
-            <div className="text-sm font-semibold text-gray-700 truncate flex-1 min-w-0">
-              {b.isSubstituted ? (
-                <span className="flex flex-col leading-tight">
-                  <span>{displayName(b.activeName)}</span>
-                  <span className="text-[10px] text-gray-400 font-normal">↑ sub for {displayName(b.name)}</span>
+      {/* ── Column headers ── */}
+      <div className={`border-t ${accentBorder} px-3 py-1.5 grid grid-cols-[1fr_auto_auto_auto_auto] gap-x-2 items-center`}>
+        <span className="text-[9px] font-black uppercase tracking-widest text-gray-400">Player</span>
+        <span className="text-[9px] font-black uppercase tracking-widest text-blue-400   w-7 text-right">Bat</span>
+        <span className="text-[9px] font-black uppercase tracking-widest text-orange-400 w-7 text-right">Bowl</span>
+        <span className="text-[9px] font-black uppercase tracking-widest text-green-500  w-7 text-right">Field</span>
+        <span className="text-[9px] font-black uppercase tracking-widest text-gray-500   w-10 text-right">Total</span>
+      </div>
+
+      {/* ── Picks list ── */}
+      <div className="flex-1 overflow-y-auto divide-y divide-gray-100">
+        {breakdown.map(b => (
+          <div key={b.name} className="px-3 py-2 grid grid-cols-[1fr_auto_auto_auto_auto] gap-x-2 items-center">
+
+            {/* Name + sub indicator */}
+            <div className="min-w-0">
+              <div className="text-[12px] font-bold text-gray-800 truncate leading-tight">
+                {shortName(b.activeName)}
+              </div>
+              {b.isSubstituted && (
+                <div className="text-[9px] text-gray-400 leading-tight truncate">
+                  ↑ sub {shortName(b.name)}
+                </div>
+              )}
+              {b.multiplier && (
+                <span className={`inline-block text-[9px] font-black px-1 py-0 rounded border mt-0.5 ${accentBadge}`}>
+                  {multiplierBadge(b.multiplier)}
                 </span>
-              ) : displayName(b.activeName)}
+              )}
             </div>
-            {b.multiplier && (
-              <span className={`text-xs font-bold px-1.5 py-0.5 rounded border shrink-0 ${
-                isLads
-                  ? 'bg-amber-100 text-amber-700 border-amber-200'
-                  : 'bg-violet-100 text-violet-700 border-violet-200'
-              }`}>
-                {multiplierBadge(b.multiplier)}
-              </span>
-            )}
-            <span className={`text-sm font-bold w-12 text-right shrink-0 ${
-              b.pts > 0 ? 'text-green-600' : b.pts < 0 ? 'text-red-500' : 'text-gray-400'
-            }`}>
-              {b.pts > 0 ? `+${b.pts}` : b.pts}
+
+            {/* Batting pts */}
+            <span className={`text-[11px] font-bold w-7 text-right ${ptsColor(b.batPts)}`}>
+              {ptsStr(b.batPts)}
             </span>
+
+            {/* Bowling pts */}
+            <span className={`text-[11px] font-bold w-7 text-right ${ptsColor(b.bowlPts)}`}>
+              {ptsStr(b.bowlPts)}
+            </span>
+
+            {/* Fielding pts (catches/stumpings/run-outs — always 0 from ESPN live) */}
+            <span className={`text-[11px] font-bold w-7 text-right ${ptsColor(b.fieldPts)}`}>
+              {ptsStr(b.fieldPts)}
+            </span>
+
+            {/* Final total (after multiplier) */}
+            <motion.span key={b.pts}
+              initial={{ scale: 1.2, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+              className={`text-[13px] font-black w-10 text-right ${ptsColor(b.pts)}`}>
+              {ptsStr(b.pts)}
+            </motion.span>
           </div>
-          );
-        })}
+        ))}
       </div>
     </div>
   );
 }
 
 // ─── Live progression chart ───────────────────────────────────────────────────
-interface HistoryPoint { t: number; lads: number; gils: number; over?: string }
+// seq = ESPN commentary sequence float (e.g. 7.3 = over 8, ball 3).
+// X-axis is proportional to seq so spacing reflects actual balls elapsed.
+interface HistoryPoint { seq: number; lads: number; gils: number }
+
+// Convert sequence float to over label: 7.3 → "Ov 8.3"
+function seqToLabel(seq: number): string {
+  const over = Math.floor(seq) + 1;
+  const ball = Math.round((seq % 1) * 10);
+  return ball > 0 ? `${over}.${ball}` : `Ov ${over}`;
+}
 
 function ProgressChart({ history }: { history: HistoryPoint[] }) {
   if (history.length < 2) return null;
 
-  const W = 500, H = 100, PAD = { l: 36, r: 8, t: 10, b: 10 };
+  const W = 500, H = 110, PAD = { l: 36, r: 8, t: 10, b: 20 };
   const inner = { w: W - PAD.l - PAD.r, h: H - PAD.t - PAD.b };
 
   const allVals = history.flatMap(p => [p.lads, p.gils]);
   const rawMin = Math.min(...allVals, 0);
   const rawMax = Math.max(...allVals, 0);
-  // Add 10% padding to vertical range
   const vPad = Math.max((rawMax - rawMin) * 0.12, 10);
   const minV = rawMin - vPad, maxV = rawMax + vPad;
   const range = maxV - minV || 1;
 
-  const toX = (i: number) => PAD.l + (i / Math.max(history.length - 1, 1)) * inner.w;
+  const seqMin = history[0].seq;
+  const seqMax = history[history.length - 1].seq;
+  const seqRange = seqMax - seqMin || 1;
+
+  // Map a seq value to an X pixel position
+  const toX = (seq: number) => PAD.l + ((seq - seqMin) / seqRange) * inner.w;
   const toY = (v: number) => PAD.t + (1 - (v - minV) / range) * inner.h;
   const zeroY = toY(0);
 
-  function path(vals: number[]) {
-    return vals.map((v, i) => `${i === 0 ? 'M' : 'L'}${toX(i).toFixed(1)},${toY(v).toFixed(1)}`).join(' ');
+  function path(pts: HistoryPoint[], key: 'lads' | 'gils') {
+    return pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${toX(p.seq).toFixed(1)},${toY(p[key]).toFixed(1)}`).join(' ');
   }
 
-  const last = history.length - 1;
-  const ladsLast = history[last].lads;
-  const gilsLast = history[last].gils;
-  // Y-axis tick values
-  const ticks = [rawMin, 0, rawMax].filter((v, i, a) => a.indexOf(v) === i);
+  const last = history[history.length - 1];
+  const first = history[0];
+  const ladsLast = last.lads;
+  const gilsLast = last.gils;
+  const ticks = [rawMin, 0, rawMax].filter((v, i, a) => a.indexOf(v) === i && Math.abs(v) > 5);
+
+  // Pick a few evenly-spaced over labels for X-axis
+  const xLabels: { seq: number; label: string }[] = [];
+  const step = seqRange / 4;
+  for (let i = 0; i <= 4; i++) {
+    const seq = seqMin + i * step;
+    xLabels.push({ seq, label: seqToLabel(seq) });
+  }
 
   return (
     <div className="rounded-2xl bg-white border border-gray-200 overflow-hidden shadow-sm">
@@ -230,7 +295,7 @@ function ProgressChart({ history }: { history: HistoryPoint[] }) {
         </div>
       </div>
       <div className="px-2 py-3">
-        <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: '120px' }}>
+        <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: '130px' }}>
           {/* Y-axis ticks */}
           {ticks.map(v => (
             <g key={v}>
@@ -243,32 +308,31 @@ function ProgressChart({ history }: { history: HistoryPoint[] }) {
               </text>
             </g>
           ))}
+          {/* Zero baseline */}
+          <line x1={PAD.l} y1={zeroY} x2={W - PAD.r} y2={zeroY}
+            stroke="#d1d5db" strokeWidth="1" strokeDasharray="4,4" />
           {/* Area fills */}
           <path
-            d={`${path(history.map(p => p.lads))} L${toX(last)},${zeroY} L${toX(0)},${zeroY} Z`}
+            d={`${path(history, 'lads')} L${toX(last.seq)},${zeroY} L${toX(first.seq)},${zeroY} Z`}
             fill="#f59e0b" opacity="0.12" />
           <path
-            d={`${path(history.map(p => p.gils))} L${toX(last)},${zeroY} L${toX(0)},${zeroY} Z`}
+            d={`${path(history, 'gils')} L${toX(last.seq)},${zeroY} L${toX(first.seq)},${zeroY} Z`}
             fill="#7c3aed" opacity="0.12" />
           {/* Lines */}
-          <path d={path(history.map(p => p.lads))} fill="none"
+          <path d={path(history, 'lads')} fill="none"
             stroke="#f59e0b" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-          <path d={path(history.map(p => p.gils))} fill="none"
+          <path d={path(history, 'gils')} fill="none"
             stroke="#7c3aed" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
           {/* End dots */}
-          <circle cx={toX(last)} cy={toY(ladsLast)} r="4" fill="#f59e0b" />
-          <circle cx={toX(last)} cy={toY(gilsLast)} r="4" fill="#7c3aed" />
-          {/* Start label */}
-          {history[0].over && (
-            <text x={toX(0)} y={H - 2} textAnchor="middle" className="fill-gray-400" style={{ fontSize: 9 }}>
-              {history[0].over}
+          <circle cx={toX(last.seq)} cy={toY(ladsLast)} r="4" fill="#f59e0b" />
+          <circle cx={toX(last.seq)} cy={toY(gilsLast)} r="4" fill="#7c3aed" />
+          {/* X-axis over labels */}
+          {xLabels.map(({ seq, label }) => (
+            <text key={seq} x={toX(seq)} y={H - 4} textAnchor="middle"
+              className="fill-gray-400" style={{ fontSize: 8 }}>
+              {label}
             </text>
-          )}
-          {history[last].over && (
-            <text x={toX(last)} y={H - 2} textAnchor="middle" className="fill-gray-400" style={{ fontSize: 9 }}>
-              {history[last].over}
-            </text>
-          )}
+          ))}
         </svg>
       </div>
     </div>
@@ -277,15 +341,47 @@ function ProgressChart({ history }: { history: HistoryPoint[] }) {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function LiveScorecard({
-  ladsPicks, gilsPicks, liveData, loading, lastUpdated,
+  matchId, ladsPicks, gilsPicks, liveData, loading, lastUpdated,
 }: {
+  matchId: number;
   ladsPicks: PlayerPick[];
   gilsPicks: PlayerPick[];
   liveData: LiveData | null;
   loading: boolean;
   lastUpdated: Date | null;
 }) {
-  const [history, setHistory] = useState<HistoryPoint[]>([]);
+  const historyKey = `ipl-chart-${matchId}`;
+
+  // Seed from localStorage first (instant, no flash), then merge Supabase history on mount.
+  const [history, setHistory] = useState<HistoryPoint[]>(() => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const raw = localStorage.getItem(historyKey);
+      return raw ? (JSON.parse(raw) as HistoryPoint[]) : [];
+    } catch { return []; }
+  });
+
+  // On mount: trigger reconstruction from ESPN data (works for past AND live games).
+  // The reconstruct endpoint fetches ESPN, rebuilds the full chart using commentary,
+  // merges with any existing Supabase snapshots, saves, and returns the merged result.
+  // This means opening ANY match page — even days later — auto-populates the chart.
+  useEffect(() => {
+    fetch(`/api/reconstruct/${matchId}`)
+      .then(r => r.ok ? r.json() : null)
+      .then((remote: HistoryPoint[] | null) => {
+        if (!Array.isArray(remote) || remote.length === 0) return;
+        setHistory(prev => {
+          // Merge: real-time snapshots in prev win at their seq; reconstruction fills the gaps
+          const seqMap = new Map(remote.map(p => [p.seq, p]));
+          for (const p of prev) seqMap.set(p.seq, p); // prev (local) wins
+          const merged = Array.from(seqMap.values()).sort((a, b) => a.seq - b.seq);
+          try { localStorage.setItem(historyKey, JSON.stringify(merged)); } catch { /* quota */ }
+          return merged;
+        });
+      })
+      .catch(() => { /* network error — use localStorage */ });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [matchId]);
 
   // Compute totals unconditionally (hooks must all come before any return)
   const allPicks = [...ladsPicks, ...gilsPicks];
@@ -295,21 +391,38 @@ export default function LiveScorecard({
   const aggBowlers = liveData
     ? Object.values(liveData.innings).flatMap(inn => calcLiveBowlers(inn.bowling, allPicks))
     : [];
-  const ladsAgg = calcLiveFantasyTotal(aggBatsmen, aggBowlers, ladsPicks);
-  const gilsAgg = calcLiveFantasyTotal(aggBatsmen, aggBowlers, gilsPicks);
+  const playingEleven = liveData?.playingEleven ?? [];
+  const ladsAgg = calcLiveFantasyTotal(aggBatsmen, aggBowlers, ladsPicks, playingEleven);
+  const gilsAgg = calcLiveFantasyTotal(aggBatsmen, aggBowlers, gilsPicks, playingEleven);
 
-  // Append a history point whenever liveData updates (deduped)
+  // Append a history point whenever liveData updates, keyed by commentary sequence (ball number).
+  // Saves to both localStorage (instant) and Supabase (durable, cross-session).
   useEffect(() => {
     if (!liveData?.status.isLive) return;
     const ladsT = Math.round(ladsAgg.rawTotal);
     const gilsT = Math.round(gilsAgg.rawTotal);
+    // Derive current ball from the highest sequence number in commentaries
+    const maxSeq = liveData.commentaries.reduce<number>((m, c) => {
+      const s = c.sequence ?? 0;
+      return s > m ? s : m;
+    }, 0);
+    if (maxSeq === 0) return; // no commentary yet, skip
     setHistory(prev => {
       const last = prev[prev.length - 1];
-      if (last && last.lads === ladsT && last.gils === gilsT) return prev;
-      // Parse current over from the first innings total string e.g. "120/4 (15.1 ov)"
-      const overMatch = Object.values(liveData.innings)[0]?.total.match(/\(([^)]+)\)/);
-      const overLabel = overMatch ? overMatch[1] : '';
-      return [...prev, { t: Date.now(), lads: ladsT, gils: gilsT, over: overLabel }];
+      // Skip if same ball AND same totals (duplicate poll)
+      if (last && last.seq === maxSeq && last.lads === ladsT && last.gils === gilsT) return prev;
+      const point = { seq: maxSeq, lads: ladsT, gils: gilsT };
+      const next = [...prev.filter(p => p.seq !== maxSeq), point];
+      next.sort((a, b) => a.seq - b.seq);
+      // Save locally for instant restore
+      try { localStorage.setItem(historyKey, JSON.stringify(next)); } catch { /* quota */ }
+      // Save to Supabase for cross-session persistence (fire-and-forget)
+      fetch(`/api/snapshots/${matchId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(point),
+      }).catch(() => { /* non-critical */ });
+      return next;
     });
   }, [liveData]);
 
@@ -463,7 +576,8 @@ export default function LiveScorecard({
                                     <OwnerDots lads={inLads} gils={inGils} />
                                     <div>
                                       <div className="font-semibold text-gray-800 text-sm">{b.playerName}</div>
-                                      <div className="text-xs text-gray-400 max-w-[160px] truncate" title={b.dismissal}>
+                                      <div className="text-xs text-gray-400 max-w-[220px]" title={b.dismissal}
+                                        style={{ overflowWrap: 'anywhere' }}>
                                         {b.isOut ? formatDismissal(b.dismissal) : <span className="text-green-600 font-medium">batting*</span>}
                                       </div>
                                     </div>

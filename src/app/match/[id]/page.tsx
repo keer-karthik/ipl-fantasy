@@ -1,5 +1,5 @@
 'use client';
-import { use, useState, useEffect } from 'react';
+import { use, useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { useSeasonState, emptyMatch } from '@/lib/store';
 import { getFixture, teams, formatDate, getMatchStartIST } from '@/lib/data';
@@ -11,6 +11,98 @@ import { autoResultFromLive } from '@/lib/liveScoring';
 import type { Multiplier, PlayerPick, PlayerStats, TeamName } from '@/lib/types';
 
 const MULTIPLIERS: Multiplier[] = ['yellow', 'green', 'purple', 'allin'];
+
+// Searchable player combobox — text input filters the dropdown in real-time
+function PlayerComboBox({
+  value,
+  options,
+  onChange,
+  placeholder,
+  className,
+  small,
+}: {
+  value: string;
+  options: Array<{ name: string; label: string; disabled?: boolean }>;
+  onChange: (name: string) => void;
+  placeholder?: string;
+  className?: string;
+  small?: boolean;
+}) {
+  const [query, setQuery] = useState('');
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const selected = options.find(o => o.name === value);
+  const filtered = query.trim()
+    ? options.filter(o => o.label.toLowerCase().includes(query.toLowerCase()))
+    : options;
+
+  // Close on outside click
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+        setQuery('');
+      }
+    }
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const inputCls = small
+    ? 'w-full bg-gray-50 border border-gray-200 rounded px-2 py-1 text-xs text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500/30'
+    : 'w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500/30';
+
+  return (
+    <div ref={containerRef} className={`relative ${className ?? ''}`}>
+      {/* When closed: show selected label; click anywhere opens it */}
+      {!open ? (
+        <button
+          type="button"
+          onClick={() => { setOpen(true); setQuery(''); }}
+          className={inputCls + ' text-left truncate w-full'}
+        >
+          {selected ? selected.label : <span className="text-gray-400">{placeholder ?? 'Select player'}</span>}
+        </button>
+      ) : (
+        <input
+          autoFocus
+          type="text"
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          placeholder={selected?.label ?? placeholder ?? 'Type to search…'}
+          className={inputCls}
+        />
+      )}
+      {open && (
+        <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-56 overflow-y-auto">
+          {filtered.length === 0 ? (
+            <div className="px-3 py-2 text-xs text-gray-400">No players found</div>
+          ) : (
+            filtered.map(o => (
+              <button
+                key={o.name}
+                type="button"
+                disabled={o.disabled}
+                onClick={() => {
+                  onChange(o.name);
+                  setOpen(false);
+                  setQuery('');
+                }}
+                className={`w-full text-left px-3 py-1.5 text-sm hover:bg-blue-50 transition-colors
+                  ${o.name === value ? 'bg-blue-50 font-medium text-blue-700' : 'text-gray-800'}
+                  ${o.disabled ? 'opacity-40 cursor-not-allowed' : ''}
+                  ${small ? 'text-xs py-1' : ''}`}
+              >
+                {o.label}
+              </button>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // IPL burst decoration (miniature version for match header)
 function BurstDecoration({ flip = false, size = 160 }: { flip?: boolean; size?: number }) {
@@ -120,24 +212,22 @@ function PicksEditor({
           <div className="flex gap-2 items-start">
             <div className="flex-1 space-y-2">
               <div className="flex gap-2">
-                <select
+                <PlayerComboBox
                   value={pick.playerName}
-                  onChange={e => {
-                    const player = allPlayers.find(p => p.name === e.target.value);
+                  options={allPlayers.map(p => ({
+                    name: p.name,
+                    label: `${p.name} (${p.role.charAt(0)}) — ${teams[p.team]?.shortName}`,
+                    disabled: picks.some((pk, idx) => idx !== i && pk.playerName === p.name),
+                  }))}
+                  onChange={name => {
+                    const player = allPlayers.find(p => p.name === name);
                     const next = picks.map((p, idx) =>
-                      idx === i ? { ...p, playerName: e.target.value, ...(player ? { team: player.team } : {}) } : p
+                      idx === i ? { ...p, playerName: name, ...(player ? { team: player.team } : {}) } : p
                     );
                     onChange(next);
                   }}
-                  className="flex-1 bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
-                >
-                  {allPlayers.map(p => (
-                    <option key={p.name} value={p.name}
-                      disabled={picks.some((pk, idx) => idx !== i && pk.playerName === p.name)}>
-                      {p.name} ({p.role.charAt(0)}) — {teams[p.team]?.shortName}
-                    </option>
-                  ))}
-                </select>
+                  className="flex-1"
+                />
                 <select
                   value={pick.multiplier}
                   onChange={e => updatePick(i, 'multiplier', e.target.value)}
@@ -152,24 +242,25 @@ function PicksEditor({
               </div>
               <div className="flex gap-2 items-center text-xs text-gray-500">
                 <span className="font-medium">Sub:</span>
-                <select
+                <PlayerComboBox
+                  small
                   value={pick.substituteName ?? ''}
-                  onChange={e => {
-                    const player = allPlayers.find(p => p.name === e.target.value);
+                  options={[
+                    { name: '', label: '— No substitute —' },
+                    ...allPlayers.filter(p => p.name !== pick.playerName).map(p => ({
+                      name: p.name,
+                      label: `${p.name} (${p.role.charAt(0)}) — ${teams[p.team]?.shortName}`,
+                    })),
+                  ]}
+                  onChange={name => {
+                    const player = allPlayers.find(p => p.name === name);
                     const next = picks.map((p, idx) =>
-                      idx === i ? { ...p, substituteName: e.target.value, ...(player ? { substituteTeam: player.team } : {}) } : p
+                      idx === i ? { ...p, substituteName: name || undefined, ...(player ? { substituteTeam: player.team } : { substituteTeam: undefined }) } : p
                     );
                     onChange(next);
                   }}
-                  className="flex-1 bg-gray-50 border border-gray-200 rounded px-2 py-1 text-xs text-gray-600"
-                >
-                  <option value="">— No substitute —</option>
-                  {allPlayers.filter(p => p.name !== pick.playerName).map(p => (
-                    <option key={p.name} value={p.name}>
-                      {p.name} ({p.role.charAt(0)}) — {teams[p.team]?.shortName}
-                    </option>
-                  ))}
-                </select>
+                  className="flex-1"
+                />
               </div>
             </div>
             <button onClick={() => removePick(i)}
@@ -285,8 +376,8 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
     const ladsCorrect = ladsPrediction !== '' && ladsPrediction === actualWinner;
     const gilsCorrect = gilsPrediction !== '' && gilsPrediction === actualWinner;
 
-    const ladsResults = autoResultFromLive(liveData.innings, ladsPicks, ladsCorrect);
-    const gilsResults = autoResultFromLive(liveData.innings, gilsPicks, gilsCorrect);
+    const ladsResults = autoResultFromLive(liveData.innings, ladsPicks, ladsCorrect, liveData.playingEleven ?? []);
+    const gilsResults = autoResultFromLive(liveData.innings, gilsPicks, gilsCorrect, liveData.playingEleven ?? []);
     const ladsTotal = ladsResults.reduce((s, r) => s + r.finalTotal, 0);
     const gilsTotal = gilsResults.reduce((s, r) => s + r.finalTotal, 0);
     const winner = ladsTotal > gilsTotal ? 'lads' : gilsTotal > ladsTotal ? 'gils' : null;
@@ -498,6 +589,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
       {activeTab === 'live' && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
           <LiveScorecard
+            matchId={matchId}
             ladsPicks={ladsPicks}
             gilsPicks={gilsPicks}
             liveData={liveData}

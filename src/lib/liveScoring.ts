@@ -33,7 +33,10 @@ export interface LiveBowler {
 export interface BreakdownEntry {
   name: string;          // original pick name
   activeName: string;    // substitute name if subbed in, else same as name
-  pts: number;
+  pts: number;           // final pts after multiplier
+  batPts: number;        // raw batting pts (pre-multiplier)
+  bowlPts: number;       // raw bowling pts (pre-multiplier)
+  fieldPts: number;      // raw fielding pts — catches/stumpings/run-outs (ESPN doesn't expose; always 0 in live)
   multiplier: Multiplier | null;
   isSubstituted: boolean;
 }
@@ -51,23 +54,31 @@ function normalizeName(name: string): string {
   return name.toLowerCase().replace(/[^a-z]/g, '');
 }
 
+// Known ESPN shortened names → pick name equivalents.
+// ESPN sometimes uses a player's common nickname rather than their full registered name.
+// Both directions are checked so either form can appear in either position.
+const NAME_ALIASES: Record<string, string> = {
+  'lungingidi': 'lungisaningidi',  // ESPN: "Lungi Ngidi" ↔ pick: "Lungisani Ngidi"
+};
+
 function nameMatches(a: string, b: string): boolean {
-  return normalizeName(a) === normalizeName(b);
+  const na = normalizeName(a);
+  const nb = normalizeName(b);
+  if (na === nb) return true;
+  // Check alias table in both directions
+  if (NAME_ALIASES[na] === nb) return true;
+  if (NAME_ALIASES[nb] === na) return true;
+  return false;
 }
 
 function findPick(espnName: string, picks: PlayerPick[]): PlayerPick | null {
   return picks.find(p => nameMatches(espnName, p.playerName)) ?? null;
 }
 
-// Check if a player appeared in the game (used to decide whether to activate sub)
-function hasActivity(
-  espnName: string,
-  batsmen: Array<{ playerName: string; balls: number; isOut: boolean }>,
-  bowlers: Array<{ playerName: string; overs: number }>,
-): boolean {
-  const b = batsmen.find(x => nameMatches(x.playerName, espnName));
-  const w = bowlers.find(x => nameMatches(x.playerName, espnName));
-  return (!!b && (b.balls > 0 || b.isOut)) || (!!w && w.overs > 0);
+// Check if a player is in today's playing eleven by name.
+// Players absent from ESPN's roster list are non-playing squad members → eligible for sub activation.
+function isInPlayingEleven(espnName: string, playingEleven: string[]): boolean {
+  return playingEleven.some(n => nameMatches(n, espnName));
 }
 
 export function calcLiveBatsmen(
@@ -142,30 +153,39 @@ export function calcLiveBowlers(
 export function calcLiveFantasyTotal(
   batsmen: LiveBatsman[],
   bowlers: LiveBowler[],
-  picks: PlayerPick[]
+  picks: PlayerPick[],
+  playingEleven: string[] = [],
 ): LiveFantasyTotal {
   const breakdown: BreakdownEntry[] = [];
 
   for (const pick of picks) {
-    // Determine which player's stats to use: main pick or substitute
-    const mainActive = hasActivity(pick.playerName, batsmen, bowlers);
     const subName = pick.substituteName;
 
-    // Activate substitute if: main player has zero activity AND substitute has appeared
-    const useSubstitute = !mainActive && !!subName && hasActivity(subName, batsmen, bowlers);
+    // Activate substitute only when the main player is NOT in the playing eleven.
+    // A player can be in the XI without batting or bowling (fielder, lower-order not yet in, etc.)
+    // so checking activity would incorrectly sub them out mid-game.
+    const mainInXI = playingEleven.length === 0 || isInPlayingEleven(pick.playerName, playingEleven);
+    const subInXI = !!subName && isInPlayingEleven(subName, playingEleven);
+    const useSubstitute = !mainInXI && subInXI;
 
     const activeName = useSubstitute ? subName! : pick.playerName;
     const batter = batsmen.find(b => nameMatches(b.playerName, activeName));
     const bowler = bowlers.find(b => nameMatches(b.playerName, activeName));
 
     // Apply multiplier once to combined raw total (non-linear loss multiplier)
-    const combinedRaw = (batter?.fantasyPoints ?? 0) + (bowler?.fantasyPoints ?? 0);
+    const batPts = batter?.fantasyPoints ?? 0;
+    const bowlPts = bowler?.fantasyPoints ?? 0;
+    const fieldPts = 0; // ESPN live data doesn't expose fielding stats
+    const combinedRaw = batPts + bowlPts + fieldPts;
     const finalPts = pick.multiplier ? applyMultiplier(combinedRaw, pick.multiplier) : combinedRaw;
 
     breakdown.push({
       name: pick.playerName,
       activeName,
       pts: finalPts,
+      batPts,
+      bowlPts,
+      fieldPts,
       multiplier: pick.multiplier,
       isSubstituted: useSubstitute,
     });
@@ -179,18 +199,17 @@ export function autoResultFromLive(
   innings: LiveData['innings'],
   picks: PlayerPick[],
   correctPrediction: boolean,
+  playingEleven: string[] = [],
 ): PlayerResult[] {
   // Flatten all batting and bowling records across all innings
   const allBatting = Object.values(innings).flatMap(inning => inning.batting);
   const allBowling = Object.values(innings).flatMap(inning => inning.bowling);
 
   return picks.map(pick => {
-    // Use substitute if main player never appeared
-    const mainBat = allBatting.find(b => nameMatches(b.playerName ?? '', pick.playerName));
-    const mainBowl = allBowling.find(b => nameMatches(b.playerName ?? '', pick.playerName));
-    const mainActive = (mainBat && (parseInt(mainBat.ballsFaced ?? '0') > 0 || (mainBat.dismissal !== 'not out' && mainBat.dismissal !== ''))) ||
-                       (mainBowl && parseFloat(mainBowl.overs ?? '0') > 0);
-    const subName = (!mainActive && pick.substituteName) ? pick.substituteName : null;
+    // Use substitute only if main player is absent from the playing eleven entirely.
+    const mainInXI = playingEleven.length === 0 || isInPlayingEleven(pick.playerName, playingEleven);
+    const subInXI = !!pick.substituteName && isInPlayingEleven(pick.substituteName, playingEleven);
+    const subName = (!mainInXI && subInXI) ? pick.substituteName! : null;
     const activeName = subName ?? pick.playerName;
 
     const batter = allBatting.find(b => nameMatches(b.playerName ?? '', activeName)) ?? null;

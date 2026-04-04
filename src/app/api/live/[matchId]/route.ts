@@ -74,6 +74,12 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ mat
       }>;
     }> = summary.rosters ?? [];
 
+    // All players who are in the playing eleven (appeared in rosters regardless of batting/bowling).
+    // Players NOT in this list are non-playing squad members — eligible to be substituted.
+    const playingEleven: string[] = rosters.flatMap(r =>
+      (r.roster ?? []).map(p => p.athlete?.displayName ?? '').filter(Boolean)
+    );
+
     // Per team, collect batting and bowling records
     const teamBatters: Record<string, Array<Record<string, string>>> = {};
     const teamBowlers: Record<string, Array<Record<string, string>>> = {};
@@ -152,9 +158,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ mat
     // commentaries is a dict keyed by ID, not an array
     const headerComp = summary.header?.competitions?.[0] ?? {};
     const commDict: Record<string, { shortText?: string; sequence?: number }> = headerComp.commentaries ?? {};
+    // Return all commentary — no slice — so the client has the full ball-by-ball picture.
     const commentaries = Object.values(commDict)
-      .sort((a, b) => (b.sequence ?? 0) - (a.sequence ?? 0))
-      .slice(0, 40)
+      .sort((a, b) => (a.sequence ?? 0) - (b.sequence ?? 0))
       .map(c => ({ over: '', text: c.shortText ?? '', sequence: c.sequence }))
       .filter(c => c.text);
 
@@ -171,6 +177,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ mat
         name: c.team?.displayName,
         linescores: c.linescores,
       })),
+      playingEleven,
       innings,
       commentaries,
       actualWinner: (competitors as Array<{ winner?: boolean; team: { displayName: string } }>).find(c => c.winner)?.team?.displayName ?? null,
