@@ -276,50 +276,50 @@ function PlayerTradingCard({ b, isLads }: { b: BreakdownItem; isLads: boolean })
       {/* Divider */}
       <div className={`w-[2px] shrink-0 ${isLads ? 'bg-amber-100' : 'bg-violet-100'}`} />
 
-      {/* ══ RIGHT: emoji stats + total ══ */}
-      <div className="flex-1 flex flex-col justify-between px-3 py-2.5 min-w-0">
+      {/* ══ RIGHT: silhouette stats + total ══ */}
+      <div className="flex-1 flex flex-col min-w-0 px-3 py-2">
 
-        {/* Stat rows — label + value */}
-        <div className="space-y-1.5">
+        {/* Stat rows — evenly distributed, filling the top space */}
+        <div className="flex-1 flex flex-col justify-evenly">
           {b.batPts !== 0 && (
             <div className="flex items-center gap-2">
-              <span style={{ fontSize: 9, fontWeight: 900, letterSpacing: 1, textTransform: 'uppercase', color: '#94a3b8' }}>BAT</span>
+              <BatIcon size={20} />
               <span className={`ml-auto font-black leading-none ${ptsColor(b.batPts)}`}
-                style={{ ...PLAYER_FONT, fontSize: '16px' }}>
+                style={{ ...PLAYER_FONT, fontSize: '20px' }}>
                 {ptsStr(b.batPts)}
               </span>
             </div>
           )}
           {b.bowlPts !== 0 && (
             <div className="flex items-center gap-2">
-              <span style={{ fontSize: 9, fontWeight: 900, letterSpacing: 1, textTransform: 'uppercase', color: '#94a3b8' }}>BWL</span>
+              <BallIcon size={20} />
               <span className={`ml-auto font-black leading-none ${ptsColor(b.bowlPts)}`}
-                style={{ ...PLAYER_FONT, fontSize: '16px' }}>
+                style={{ ...PLAYER_FONT, fontSize: '20px' }}>
                 {ptsStr(b.bowlPts)}
               </span>
             </div>
           )}
           {b.fieldPts !== 0 && (
             <div className="flex items-center gap-2">
-              <span style={{ fontSize: 9, fontWeight: 900, letterSpacing: 1, textTransform: 'uppercase', color: '#94a3b8' }}>FLD</span>
+              <HandsIcon size={20} />
               <span className={`ml-auto font-black leading-none ${ptsColor(b.fieldPts)}`}
-                style={{ ...PLAYER_FONT, fontSize: '16px' }}>
+                style={{ ...PLAYER_FONT, fontSize: '20px' }}>
                 {ptsStr(b.fieldPts)}
               </span>
             </div>
           )}
           {b.batPts === 0 && b.bowlPts === 0 && b.fieldPts === 0 && (
-            <span className="text-[11px] text-gray-200">—</span>
+            <span className="text-[12px] text-gray-200">—</span>
           )}
         </div>
 
-        {/* Total — hero number, bottom-right */}
+        {/* Total — hero number anchored to bottom */}
         <motion.div
           key={b.pts}
-          initial={{ scale: 1.3, opacity: 0 }}
+          initial={{ scale: 1.25, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          className={`text-right leading-none ${ptsColor(b.pts)}`}
-          style={{ ...PLAYER_FONT, fontSize: '32px' }}
+          className={`text-right leading-none shrink-0 ${ptsColor(b.pts)}`}
+          style={{ ...PLAYER_FONT, fontSize: '38px' }}
         >
           {ptsStr(b.pts)}
         </motion.div>
@@ -329,7 +329,7 @@ function PlayerTradingCard({ b, isLads }: { b: BreakdownItem; isLads: boolean })
 }
 
 // ─── Side panel ───────────────────────────────────────────────────────────────
-function SidePanel({
+export function SidePanel({
   label, total, breakdown, textColor, borderColor, bgColor,
 }: {
   label: string; total: number;
