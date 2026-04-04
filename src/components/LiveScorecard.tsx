@@ -86,14 +86,30 @@ function BallCircle({ text }: { text: string }) {
   );
 }
 
+// ESPN commentary sequence is an integer: innings × 100000 + over × 100 + ball
+// e.g. 200708 = innings 2, over 7, ball 8
+function decodeSeq(seq: number): { innings: number; over: number; ball: number } | null {
+  if (!seq || seq < 100000) return null;
+  const innings = Math.floor(seq / 100000);
+  const over    = Math.floor((seq % 100000) / 100);
+  const ball    = seq % 100;
+  if (innings < 1 || innings > 2 || over < 1 || over > 20 || ball < 1) return null;
+  return { innings, over, ball };
+}
+
+// Convert an ESPN seq integer to a 0–39.6 chart position
+// innings 1 = 0–19.6, innings 2 = 20–39.6
+function seqToOverPos(seq: number): number | null {
+  const d = decodeSeq(seq);
+  if (!d) return null;
+  return (d.innings - 1) * 20 + (d.over - 1) + d.ball / 10;
+}
+
 function formatOver(sequence?: number): string {
   if (!sequence) return '';
-  // ESPN sequence is float like 7.1 (over 7, ball 1)
-  const dec = Math.round((sequence % 1) * 10);
-  if (dec >= 1 && dec <= 6) {
-    return `${Math.floor(sequence)}.${dec}`;
-  }
-  return '';
+  const d = decodeSeq(sequence);
+  if (!d) return '';
+  return `${d.over}.${d.ball}`;
 }
 
 // ─── Pick ownership dots ──────────────────────────────────────────────────────
@@ -227,16 +243,9 @@ function SidePanel({
 }
 
 // ─── Live progression chart ───────────────────────────────────────────────────
-// seq = ESPN commentary sequence float (e.g. 7.3 = over 8, ball 3).
-// X-axis is proportional to seq so spacing reflects actual balls elapsed.
+// seq stored in HistoryPoint is a 0–39.6 over-position (seqToOverPos result).
+// innings 1 occupies 0–19.6, innings 2 occupies 20–39.6.
 interface HistoryPoint { seq: number; lads: number; gils: number }
-
-// Convert sequence float to over label: 7.3 → "Ov 8.3"
-function seqToLabel(seq: number): string {
-  const over = Math.floor(seq) + 1;
-  const ball = Math.round((seq % 1) * 10);
-  return ball > 0 ? `${over}.${ball}` : `Ov ${over}`;
-}
 
 function ProgressChart({ history }: { history: HistoryPoint[] }) {
   if (history.length < 1) return null;
@@ -363,10 +372,6 @@ export default function LiveScorecard({
   lastUpdated: Date | null;
 }) {
   const historyKey = `ipl-chart-${matchId}`;
-  // Track innings offset: when the 2nd innings starts, seq resets to ~0.
-  // We add 20 to all 2nd-innings seq values so the chart spans 0→40 overs.
-  const inningsOffsetRef = useRef(0);
-  const lastMaxSeqRef = useRef(0);
 
   // Seed from localStorage first (instant, no flash), then merge Supabase history on mount.
   const [history, setHistory] = useState<HistoryPoint[]>(() => {
@@ -423,21 +428,15 @@ export default function LiveScorecard({
       return s > m ? s : m;
     }, 0);
     if (maxSeq === 0) return; // no commentary yet, skip
-
-    // Detect innings change: seq dropped back near 0 after being well into the match.
-    // When this happens, offset all future seqs by 20 (full T20 innings length).
-    if (maxSeq < 2 && lastMaxSeqRef.current > 10) {
-      inningsOffsetRef.current = 20;
-    }
-    lastMaxSeqRef.current = Math.max(lastMaxSeqRef.current, maxSeq);
-    const adjustedSeq = maxSeq + inningsOffsetRef.current;
+    // Convert ESPN integer seq to 0–39.6 over-position
+    const overPos = seqToOverPos(maxSeq);
+    if (overPos === null) return; // unrecognised format
 
     setHistory(prev => {
       const last = prev[prev.length - 1];
-      // Skip if same ball AND same totals (duplicate poll)
-      if (last && last.seq === adjustedSeq && last.lads === ladsT && last.gils === gilsT) return prev;
-      const point = { seq: adjustedSeq, lads: ladsT, gils: gilsT };
-      const next = [...prev.filter(p => p.seq !== adjustedSeq), point];
+      if (last && last.seq === overPos && last.lads === ladsT && last.gils === gilsT) return prev;
+      const point = { seq: overPos, lads: ladsT, gils: gilsT };
+      const next = [...prev.filter(p => p.seq !== overPos), point];
       next.sort((a, b) => a.seq - b.seq);
       // Save locally for instant restore
       try { localStorage.setItem(historyKey, JSON.stringify(next)); } catch { /* quota */ }
@@ -445,7 +444,7 @@ export default function LiveScorecard({
       fetch(`/api/snapshots/${matchId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ seq: adjustedSeq, lads: ladsT, gils: gilsT }),
+        body: JSON.stringify(point),
       }).catch(() => { /* non-critical */ });
       return next;
     });
@@ -462,15 +461,20 @@ export default function LiveScorecard({
   const { status, innings, commentaries } = liveData;
   const showSidePanels = ladsPicks.length > 0 || gilsPicks.length > 0;
 
-  // Group commentaries by over for display
+  // Group commentaries by innings+over for display.
+  // Key = innings * 1000 + over (e.g. innings 2, over 7 → 2007)
   type CommEntry = { text: string; over: string; sequence?: number };
-  const overGroups: Map<number, CommEntry[]> = new Map();
+  type OverGroup = { innings: number; over: number; balls: CommEntry[] };
+  const overGroupMap: Map<number, OverGroup> = new Map();
   for (const c of commentaries) {
-    const overNum = c.sequence != null ? Math.floor(c.sequence) : -1;
-    if (!overGroups.has(overNum)) overGroups.set(overNum, []);
-    overGroups.get(overNum)!.push(c);
+    const d = c.sequence != null ? decodeSeq(c.sequence) : null;
+    const key = d ? d.innings * 1000 + d.over : -1;
+    if (!overGroupMap.has(key)) {
+      overGroupMap.set(key, { innings: d?.innings ?? 0, over: d?.over ?? 0, balls: [] });
+    }
+    overGroupMap.get(key)!.balls.push(c);
   }
-  const sortedOvers = Array.from(overGroups.entries()).sort((a, b) => b[0] - a[0]);
+  const sortedOvers = Array.from(overGroupMap.entries()).sort((a, b) => b[0] - a[0]);
 
   return (
     <div className="space-y-3">
@@ -697,16 +701,16 @@ export default function LiveScorecard({
                 <span className="text-white font-bold text-xs uppercase tracking-widest">Ball-by-Ball</span>
               </div>
               <div className="divide-y divide-gray-50">
-                {sortedOvers.map(([overNum, balls]) => (
-                  <div key={overNum}>
+                {sortedOvers.map(([key, group]) => (
+                  <div key={key}>
                     {/* Over header with ball summary */}
-                    {overNum >= 0 && (
+                    {key >= 0 && (
                       <div className="px-4 py-2 bg-gray-50 flex items-center gap-3">
                         <span className="text-xs font-black text-gray-500 uppercase tracking-wide w-16">
-                          Over {overNum + 1}
+                          {group.innings === 2 ? 'Inn 2 · ' : ''}Ov {group.over}
                         </span>
                         <div className="flex gap-1">
-                          {[...balls].reverse().map((c, i) => (
+                          {[...group.balls].reverse().map((c, i) => (
                             <BallCircle key={i} text={c.text} />
                           ))}
                         </div>
@@ -714,7 +718,7 @@ export default function LiveScorecard({
                     )}
                     {/* Individual balls */}
                     <div className="divide-y divide-gray-50">
-                      {balls.map((c, i) => {
+                      {group.balls.map((c, i) => {
                         const over = formatOver(c.sequence);
                         const t = c.text.toUpperCase();
                         const isSix = t.includes(' SIX') || t.includes(', 6');
