@@ -31,7 +31,7 @@ export async function upsertSeasonState(state: Record<string, unknown>): Promise
 
 // ── Chart history (stored under state.chartHistory[matchId]) ──────────────────
 
-export interface ChartPoint { seq: number; lads: number; gils: number }
+export interface ChartPoint { seq: number; lads: number; gils: number; events?: string[] }
 
 export async function getChartHistory(matchId: number): Promise<ChartPoint[]> {
   const row = await getSeasonStateRow();

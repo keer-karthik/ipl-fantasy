@@ -230,122 +230,222 @@ function SidePanel({
 // ─── Live progression chart ───────────────────────────────────────────────────
 // seq stored in HistoryPoint is a 0–39.6 over-position (seqToOverPos result).
 // innings 1 occupies 0–19.6, innings 2 occupies 20–39.6.
-interface HistoryPoint { seq: number; lads: number; gils: number }
+interface HistoryPoint { seq: number; lads: number; gils: number; events?: string[] }
 
 function ProgressChart({ history, onRegenerate }: { history: HistoryPoint[]; onRegenerate: () => void }) {
   if (history.length < 1) return null;
 
-  const W = 500, H = 110, PAD = { l: 36, r: 8, t: 10, b: 20 };
+  const [hoverIdx, setHoverIdx] = useState<number | null>(null);
+  const [mouseX, setMouseX] = useState(0);
+  const svgRef = useRef<SVGSVGElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const W = 560, H = 180, PAD = { l: 46, r: 14, t: 20, b: 30 };
   const inner = { w: W - PAD.l - PAD.r, h: H - PAD.t - PAD.b };
 
   const allVals = history.flatMap(p => [p.lads, p.gils]);
   const rawMin = Math.min(...allVals, 0);
   const rawMax = Math.max(...allVals, 0);
-  const vPad = Math.max((rawMax - rawMin) * 0.12, 10);
+  const vPad = Math.max((rawMax - rawMin) * 0.18, 20);
   const minV = rawMin - vPad, maxV = rawMax + vPad;
   const range = maxV - minV || 1;
 
-  // Fixed x-domain: always span the full 40 overs (both innings, seq 0 → 39.6).
-  // 1st innings: seq 0–19.6. 2nd innings: seq 20–39.6 (offset applied on append).
-  const SEQ_START = 0;
-  const SEQ_END = 39.6;
-
-  // Map a seq value to an X pixel position
+  const SEQ_START = 0, SEQ_END = 39.6;
   const toX = (seq: number) => PAD.l + ((seq - SEQ_START) / (SEQ_END - SEQ_START)) * inner.w;
   const toY = (v: number) => PAD.t + (1 - (v - minV) / range) * inner.h;
   const zeroY = toY(0);
 
-  function path(pts: HistoryPoint[], key: 'lads' | 'gils') {
+  function linePath(pts: HistoryPoint[], key: 'lads' | 'gils') {
     return pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${toX(p.seq).toFixed(1)},${toY(p[key]).toFixed(1)}`).join(' ');
   }
 
   const last = history[history.length - 1];
-  const ladsLast = last.lads;
-  const gilsLast = last.gils;
-  const ticks = [rawMin, 0, rawMax].filter((v, i, a) => a.indexOf(v) === i && Math.abs(v) > 5);
 
-  // Fixed over labels across both innings (seq = over-1, 0-indexed per innings, +20 for 2nd)
+  // Y-axis ticks: pick sensible interval
+  const ySpan = rawMax - rawMin;
+  const step = ySpan > 400 ? 100 : ySpan > 200 ? 50 : ySpan > 100 ? 25 : 20;
+  const yTicks: number[] = [0];
+  for (let t = step; t <= rawMax + step; t += step) if (t <= rawMax + 5) yTicks.push(t);
+  for (let t = -step; t >= rawMin - step; t -= step) if (t >= rawMin - 5) yTicks.push(t);
+
   const xLabels = [
-    { seq: 0,  label: '1' },
-    { seq: 4,  label: '5' },
-    { seq: 9,  label: '10' },
-    { seq: 14, label: '15' },
-    { seq: 19, label: '20' },
-    { seq: 24, label: '25' },
-    { seq: 29, label: '30' },
-    { seq: 34, label: '35' },
-    { seq: 39, label: '40' },
+    { seq: 0, label: '1' }, { seq: 4, label: '5' }, { seq: 9, label: '10' },
+    { seq: 14, label: '15' }, { seq: 19, label: '20' }, { seq: 24, label: '25' },
+    { seq: 29, label: '30' }, { seq: 34, label: '35' }, { seq: 39, label: '40' },
   ];
-  // Innings divider at seq=20 (boundary between 1st and 2nd innings)
-  const inningsDividerX = toX(20);
+
+  const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
+    if (!svgRef.current || !containerRef.current) return;
+    const rect = svgRef.current.getBoundingClientRect();
+    const relX = e.clientX - rect.left;
+    setMouseX(relX);
+    const svgX = (relX / rect.width) * W;
+    let best = 0, bestDist = Infinity;
+    history.forEach((p, i) => {
+      const d = Math.abs(toX(p.seq) - svgX);
+      if (d < bestDist) { bestDist = d; best = i; }
+    });
+    // Only show tooltip if mouse is reasonably close to a data point
+    setHoverIdx(bestDist < inner.w / history.length * 2 ? best : null);
+  };
+
+  const hp = hoverIdx !== null ? history[hoverIdx] : null;
+  const prevHp = hoverIdx !== null && hoverIdx > 0 ? history[hoverIdx - 1] : null;
+
+  // Over label for tooltip: seq 0–19.x = Inn 1 overs 1–20, seq 20–39.x = Inn 2 overs 1–20
+  const hpOver = hp
+    ? { inn: hp.seq >= 20 ? 2 : 1, ov: Math.floor(hp.seq >= 20 ? hp.seq - 20 : hp.seq) + 1 }
+    : null;
+
+  // Tooltip x position: flip to left side when mouse is past midpoint
+  const containerWidth = containerRef.current?.clientWidth ?? 400;
+  const tipLeft = mouseX < containerWidth * 0.55;
+
+  const fmtPts = (n: number) => `${n > 0 ? '+' : ''}${n}`;
 
   return (
     <div className="rounded-2xl bg-white border border-gray-200 overflow-hidden shadow-sm">
+      {/* Header */}
       <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between"
         style={{ background: 'var(--ipl-navy)' }}>
-        <span className="text-white font-bold text-xs uppercase tracking-widest">Points Race</span>
-        <div className="flex items-center gap-3">
+        <span className="text-white font-bold text-sm uppercase tracking-widest">Points Race</span>
+        <div className="flex items-center gap-4">
           <button onClick={onRegenerate}
-            className="text-[10px] font-bold px-2 py-1 rounded bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-colors uppercase tracking-wide">
+            className="text-[10px] font-bold px-2.5 py-1 rounded bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-colors uppercase tracking-wide">
             ↻ Regenerate
           </button>
-          <div className="flex gap-3 text-xs font-bold">
-          <span className="flex items-center gap-1.5 text-amber-300">
-            <span className="w-3 h-0.5 bg-amber-400 inline-block rounded" />
-            Lads {ladsLast > 0 ? '+' : ''}{Math.round(ladsLast)}
-          </span>
-          <span className="flex items-center gap-1.5 text-violet-300">
-            <span className="w-3 h-0.5 bg-violet-400 inline-block rounded" />
-            Gils {gilsLast > 0 ? '+' : ''}{Math.round(gilsLast)}
-          </span>
-        </div>
+          <div className="flex gap-4 text-sm font-bold">
+            <span className="flex items-center gap-1.5 text-amber-300">
+              <span className="w-4 h-0.5 bg-amber-400 inline-block rounded" />
+              Lads {fmtPts(Math.round(last.lads))}
+            </span>
+            <span className="flex items-center gap-1.5 text-violet-300">
+              <span className="w-4 h-0.5 bg-violet-400 inline-block rounded" />
+              Gils {fmtPts(Math.round(last.gils))}
+            </span>
+          </div>
         </div>
       </div>
-      <div className="px-2 py-3">
-        <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: '130px' }}>
-          {/* Y-axis ticks */}
-          {ticks.map(v => (
+
+      {/* Chart */}
+      <div ref={containerRef} className="relative px-3 py-4">
+        <svg ref={svgRef} viewBox={`0 0 ${W} ${H}`} className="w-full"
+          style={{ height: '200px', cursor: 'crosshair' }}
+          onMouseMove={handleMouseMove} onMouseLeave={() => setHoverIdx(null)}>
+
+          {/* Y-axis gridlines + labels */}
+          {yTicks.map(v => (
             <g key={v}>
-              <line x1={PAD.l - 4} y1={toY(v)} x2={W - PAD.r} y2={toY(v)}
-                stroke={v === 0 ? '#d1d5db' : '#f3f4f6'} strokeWidth={v === 0 ? 1.5 : 1}
-                strokeDasharray={v === 0 ? '4,4' : undefined} />
-              <text x={PAD.l - 6} y={toY(v) + 4} textAnchor="end"
-                className="fill-gray-400" style={{ fontSize: 9 }}>
+              <line x1={PAD.l} y1={toY(v)} x2={W - PAD.r} y2={toY(v)}
+                stroke={v === 0 ? '#94a3b8' : '#e2e8f0'}
+                strokeWidth={v === 0 ? 1.2 : 0.7}
+                strokeDasharray={v === 0 ? '5,4' : undefined} />
+              <text x={PAD.l - 7} y={toY(v) + 4.5} textAnchor="end"
+                style={{ fontSize: 11, fontWeight: 700, fill: '#94a3b8' }}>
                 {v > 0 ? `+${v}` : v}
               </text>
             </g>
           ))}
-          {/* Zero baseline */}
-          <line x1={PAD.l} y1={zeroY} x2={W - PAD.r} y2={zeroY}
-            stroke="#d1d5db" strokeWidth="1" strokeDasharray="4,4" />
+
           {/* Area fills */}
           <path
-            d={`${path(history, 'lads')} L${toX(last.seq)},${zeroY} L${toX(SEQ_START)},${zeroY} Z`}
-            fill="#f59e0b" opacity="0.12" />
+            d={`${linePath(history, 'lads')} L${toX(last.seq).toFixed(1)},${zeroY.toFixed(1)} L${toX(SEQ_START).toFixed(1)},${zeroY.toFixed(1)} Z`}
+            fill="#f59e0b" opacity="0.10" />
           <path
-            d={`${path(history, 'gils')} L${toX(last.seq)},${zeroY} L${toX(SEQ_START)},${zeroY} Z`}
-            fill="#7c3aed" opacity="0.12" />
+            d={`${linePath(history, 'gils')} L${toX(last.seq).toFixed(1)},${zeroY.toFixed(1)} L${toX(SEQ_START).toFixed(1)},${zeroY.toFixed(1)} Z`}
+            fill="#7c3aed" opacity="0.10" />
+
           {/* Lines */}
-          <path d={path(history, 'lads')} fill="none"
-            stroke="#f59e0b" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-          <path d={path(history, 'gils')} fill="none"
-            stroke="#7c3aed" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+          <path d={linePath(history, 'lads')} fill="none"
+            stroke="#f59e0b" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+          <path d={linePath(history, 'gils')} fill="none"
+            stroke="#7c3aed" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+
           {/* End dots */}
-          <circle cx={toX(last.seq)} cy={toY(ladsLast)} r="4" fill="#f59e0b" />
-          <circle cx={toX(last.seq)} cy={toY(gilsLast)} r="4" fill="#7c3aed" />
+          <circle cx={toX(last.seq)} cy={toY(last.lads)} r="5" fill="#f59e0b" stroke="white" strokeWidth="2" />
+          <circle cx={toX(last.seq)} cy={toY(last.gils)} r="5" fill="#7c3aed" stroke="white" strokeWidth="2" />
+
           {/* Innings divider */}
-          <line x1={inningsDividerX} y1={PAD.t} x2={inningsDividerX} y2={H - PAD.b}
-            stroke="#cbd5e1" strokeWidth="1" strokeDasharray="3,3" />
-          <text x={inningsDividerX} y={PAD.t - 1} textAnchor="middle"
-            className="fill-slate-400" style={{ fontSize: 7 }}>INN 2</text>
+          <line x1={toX(20)} y1={PAD.t - 6} x2={toX(20)} y2={H - PAD.b}
+            stroke="#94a3b8" strokeWidth="1" strokeDasharray="4,3" />
+          <text x={toX(20)} y={PAD.t - 8} textAnchor="middle"
+            style={{ fontSize: 9, fontWeight: 700, fill: '#94a3b8' }}>INN 2</text>
+
           {/* X-axis over labels */}
           {xLabels.map(({ seq, label }) => (
-            <text key={seq} x={toX(seq)} y={H - 4} textAnchor="middle"
-              className="fill-gray-400" style={{ fontSize: 8 }}>
+            <text key={seq} x={toX(seq)} y={H - 8} textAnchor="middle"
+              style={{ fontSize: 10, fontWeight: 700, fill: '#94a3b8' }}>
               {label}
             </text>
           ))}
+          <text x={W / 2} y={H - 1} textAnchor="middle"
+            style={{ fontSize: 9, fontWeight: 600, fill: '#cbd5e1' }}>Overs</text>
+
+          {/* Hover crosshair */}
+          {hp && (
+            <>
+              <line x1={toX(hp.seq)} y1={PAD.t - 4} x2={toX(hp.seq)} y2={H - PAD.b}
+                stroke="#64748b" strokeWidth="1" strokeDasharray="3,3" />
+              <circle cx={toX(hp.seq)} cy={toY(hp.lads)} r="5.5" fill="#f59e0b" stroke="white" strokeWidth="2" />
+              <circle cx={toX(hp.seq)} cy={toY(hp.gils)} r="5.5" fill="#7c3aed" stroke="white" strokeWidth="2" />
+            </>
+          )}
+
+          {/* Invisible overlay for mouse events (ensures full area is responsive) */}
+          <rect x={PAD.l} y={PAD.t} width={inner.w} height={inner.h} fill="transparent" />
         </svg>
+
+        {/* Hover tooltip */}
+        {hp && hpOver && (
+          <div
+            className="absolute top-4 z-20 pointer-events-none
+              bg-gray-900 text-white rounded-xl shadow-2xl px-4 py-3 min-w-[200px] max-w-[260px]"
+            style={{ [tipLeft ? 'left' : 'right']: `${tipLeft ? mouseX + 12 : containerWidth - mouseX + 12}px` }}>
+            {/* Over header */}
+            <div className="text-[11px] font-black uppercase tracking-wider text-slate-400 mb-2">
+              Inn {hpOver.inn} · Over {hpOver.ov}
+            </div>
+            {/* Totals + delta */}
+            <div className="flex gap-4 mb-2">
+              <div className="flex flex-col">
+                <span className={`text-lg font-black leading-none ${hp.lads >= 0 ? 'text-amber-400' : 'text-red-400'}`}>
+                  {fmtPts(hp.lads)}
+                </span>
+                <span className="text-[10px] text-slate-400 mt-0.5">
+                  Lads
+                  {prevHp && (
+                    <span className="ml-1 text-slate-500">
+                      ({fmtPts(hp.lads - prevHp.lads)} ov)
+                    </span>
+                  )}
+                </span>
+              </div>
+              <div className="flex flex-col">
+                <span className={`text-lg font-black leading-none ${hp.gils >= 0 ? 'text-violet-400' : 'text-red-400'}`}>
+                  {fmtPts(hp.gils)}
+                </span>
+                <span className="text-[10px] text-slate-400 mt-0.5">
+                  Gils
+                  {prevHp && (
+                    <span className="ml-1 text-slate-500">
+                      ({fmtPts(hp.gils - prevHp.gils)} ov)
+                    </span>
+                  )}
+                </span>
+              </div>
+            </div>
+            {/* Events */}
+            {hp.events && hp.events.length > 0 && (
+              <div className="border-t border-white/10 pt-2 space-y-1">
+                {hp.events.map((ev, i) => (
+                  <div key={i} className="text-[11px] text-slate-300 flex items-center gap-1.5">
+                    <span className="text-slate-500">·</span>{ev}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -395,9 +495,13 @@ export default function LiveScorecard({
           const validRemote = remote.filter(p => isValidSeq(p.seq));
           const validPrev   = prev.filter(p => isValidSeq(p.seq));
           if (validRemote.length === 0) return validPrev;
-          // Merge: real-time snapshots win at their seq; reconstruction fills the gaps
+          // Merge: real-time snapshots win at their seq; reconstruction fills the gaps.
+          // Always keep events from remote (old localStorage entries won't have them).
           const seqMap = new Map(validRemote.map(p => [p.seq, p]));
-          for (const p of validPrev) seqMap.set(p.seq, p);
+          for (const p of validPrev) {
+            const rec = seqMap.get(p.seq);
+            seqMap.set(p.seq, { ...p, events: p.events ?? rec?.events });
+          }
           const merged = Array.from(seqMap.values()).sort((a, b) => a.seq - b.seq);
           try { localStorage.setItem(historyKey, JSON.stringify(merged)); } catch { /* quota */ }
           return merged;

@@ -76,10 +76,14 @@ export async function GET(
   const existingCh = (state.chartHistory as Record<string, ChartPoint[]> | undefined) ?? {};
   const existingPts: ChartPoint[] = existingCh[String(numId)] ?? [];
 
-  // Build merged: reconstructed provides coverage; real snapshots override at their seq
+  // Build merged: reconstructed provides coverage; real snapshots override totals at their seq,
+  // but always keep events from reconstructed (old snapshots won't have them).
   const seqMap = new Map<number, ChartPoint>();
   for (const p of reconstructed) seqMap.set(p.seq, p);
-  for (const p of existingPts)    seqMap.set(p.seq, p); // real snapshots win
+  for (const p of existingPts) {
+    const rec = seqMap.get(p.seq);
+    seqMap.set(p.seq, { ...p, events: p.events ?? rec?.events });
+  }
   const merged = Array.from(seqMap.values()).sort((a, b) => a.seq - b.seq);
 
   // ── Persist merged history to Supabase ───────────────────────────────────────
@@ -124,6 +128,7 @@ async function fetchAllPlaybyplay(espnId: string): Promise<PlaybyPlayEntry[]> {
         bowlerWickets: item.bowler?.wickets ?? 0,
         bowlerMaidens: item.bowler?.maidens ?? 0,
         isDismissal: item.dismissal?.dismissal === true,
+        fielderName: item.dismissal?.fielder?.athlete?.displayName ?? undefined,
       });
     }
     page++;

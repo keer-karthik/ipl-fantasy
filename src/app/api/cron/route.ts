@@ -93,11 +93,14 @@ export async function GET(req: NextRequest) {
       );
       if (reconstructed.length === 0) { results[matchId] = 'no data points'; continue; }
 
-      // Merge with existing snapshots (real-time snapshots win at their seq)
+      // Merge with existing snapshots (real-time snapshots override totals; keep events from reconstructed)
       const existingCh = (state.chartHistory as Record<string, typeof reconstructed> | undefined) ?? {};
       const existing = existingCh[String(matchId)] ?? [];
       const seqMap = new Map(reconstructed.map(p => [p.seq, p]));
-      for (const p of existing) seqMap.set(p.seq, p);
+      for (const p of existing) {
+        const rec = seqMap.get(p.seq);
+        seqMap.set(p.seq, { ...p, events: p.events ?? rec?.events });
+      }
       const merged = Array.from(seqMap.values()).sort((a, b) => a.seq - b.seq);
 
       // Persist — update state in-place for next iteration
@@ -151,6 +154,7 @@ async function fetchAllPlaybyplay(espnId: string): Promise<PlaybyPlayEntry[]> {
         bowlerWickets: item.bowler?.wickets ?? 0,
         bowlerMaidens: item.bowler?.maidens ?? 0,
         isDismissal: item.dismissal?.dismissal === true,
+        fielderName: item.dismissal?.fielder?.athlete?.displayName ?? undefined,
       });
     }
     page++;
