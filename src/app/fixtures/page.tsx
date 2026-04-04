@@ -37,7 +37,9 @@ export default function FixturesPage() {
           const hasPicks = m?.lads.picks.length > 0;
           const today = isToday(f.date);
           const upcoming = isUpcoming(f.date);
-          const skipped = !done && !hasPicks && !today && !upcoming;
+          const isPast = !today && !upcoming;
+          const noPicks = !m?.lads.picks.length && !m?.gils.picks.length;
+          const skipped = isPast && !done && noPicks;
 
           let dotColor = 'bg-gray-300';
           let dotExtra = '';
