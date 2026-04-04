@@ -1,6 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useState, useEffect } from 'react';
 import { useSession } from '@/lib/session';
 
 const links = [
@@ -10,9 +11,20 @@ const links = [
   { href: '/rules', label: 'Rules' },
 ];
 
+function useClock() {
+  const [now, setNow] = useState<Date | null>(null);
+  useEffect(() => {
+    setNow(new Date());
+    const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  return now;
+}
+
 export default function Nav() {
   const path = usePathname();
   const { side } = useSession();
+  const now = useClock();
 
   return (
     <nav className="sticky top-0 z-50 shadow-md" style={{ background: 'var(--ipl-navy)' }}>
@@ -36,7 +48,13 @@ export default function Nav() {
             </Link>
           ))}
         </div>
-        <div className="ml-auto flex items-center gap-3">
+        <div className="ml-auto flex items-center gap-4">
+          {now && (
+            <div className="flex flex-col items-end text-[10px] leading-tight text-gray-400 font-mono">
+              <span>{now.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: false })} <span className="text-gray-600">IST</span></span>
+              <span>{now.toLocaleTimeString('en-US', { timeZone: 'America/Los_Angeles', hour: '2-digit', minute: '2-digit', hour12: false })} <span className="text-gray-600">PT</span></span>
+            </div>
+          )}
           {side && (
             <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
               side === 'lads'

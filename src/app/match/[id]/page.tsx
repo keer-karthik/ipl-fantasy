@@ -2,7 +2,7 @@
 import { use, useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useSeasonState, emptyMatch } from '@/lib/store';
-import { getFixture, teams, formatDate } from '@/lib/data';
+import { getFixture, teams, formatDate, getMatchStartIST } from '@/lib/data';
 import { multiplierColor, multiplierBadge } from '@/lib/scoring';
 import { TeamLogo } from '@/components/TeamBadge';
 import LiveScorecard from '@/components/LiveScorecard';
@@ -259,6 +259,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
   const [ladsPrediction, setLadsPrediction] = useState<TeamName | ''>('');
   const [gilsPrediction, setGilsPrediction] = useState<TeamName | ''>('');
   const [initialized, setInitialized] = useState(false);
+  const [now, setNow] = useState(() => new Date());
 
   const { data: liveData, loading: liveLoading, lastUpdated } = useLiveScore(matchId, true);
 
@@ -302,6 +303,16 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
     }));
     setActiveTab('result');
   }, [liveData?.status.isComplete, liveData?.actualWinner]);
+
+  // Clock for countdown — stops ticking once match has started
+  useEffect(() => {
+    const id = setInterval(() => {
+      const n = new Date();
+      setNow(n);
+      if (fixture && n >= getMatchStartIST(fixture)) clearInterval(id);
+    }, 1000);
+    return () => clearInterval(id);
+  }, [fixture]);
 
   if (!loaded) return <div className="text-gray-400 text-center py-20">Loading...</div>;
   if (!fixture) return <div className="text-red-500 text-center py-20">Match {matchId} not found.</div>;
@@ -451,15 +462,32 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
           {(() => {
             const myPicks = side === 'lads' ? ladsPicks : gilsPicks;
             const ready = myPicks.length === 5;
+            const matchStart = getMatchStartIST(fixture);
+            const started = now >= matchStart;
+            const secsLeft = Math.max(0, Math.floor((matchStart.getTime() - now.getTime()) / 1000));
+            const hh = String(Math.floor(secsLeft / 3600)).padStart(2, '0');
+            const mm = String(Math.floor((secsLeft % 3600) / 60)).padStart(2, '0');
+            const ss = String(secsLeft % 60).padStart(2, '0');
             return (
-              <button
-                onClick={savePicks}
-                disabled={!ready}
-                className="w-full py-3 rounded-xl font-bold text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
-                style={{ background: ready ? 'var(--ipl-orange)' : '#f0a060' }}
-              >
-                Lock Picks →
-              </button>
+              <div className="space-y-3">
+                {started ? (
+                  <div className="text-center py-2 px-4 rounded-xl bg-red-50 border border-red-200 text-red-600 font-semibold text-sm">
+                    Picks Locked
+                  </div>
+                ) : (
+                  <div className="text-center text-xs text-amber-600 font-mono font-semibold">
+                    Picks lock in {hh}:{mm}:{ss}
+                  </div>
+                )}
+                <button
+                  onClick={savePicks}
+                  disabled={!ready || started}
+                  className="w-full py-3 rounded-xl font-bold text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
+                  style={{ background: ready && !started ? 'var(--ipl-orange)' : '#f0a060' }}
+                >
+                  Lock Picks →
+                </button>
+              </div>
             );
           })()}
         </motion.div>
