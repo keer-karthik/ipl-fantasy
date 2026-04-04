@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
 import "./globals.css";
 import Nav from "@/components/Nav";
@@ -9,6 +9,22 @@ const geist = Geist({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "IPL Fantasy 2026 — Lads vs Gils",
   description: "Private IPL Fantasy League tracker",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "IPL Fantasy",
+  },
+  icons: {
+    apple: "/icon-192.png",
+  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  themeColor: "#003087",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -17,7 +33,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={`${geist.className} min-h-screen`} style={{ background: 'var(--ipl-light)', color: '#1a1a2e' }}>
         <SessionProvider>
           <Nav />
-          <main className="max-w-5xl mx-auto px-4 py-6">{children}</main>
+          <main className="max-w-5xl mx-auto px-4 py-6 pb-20 sm:pb-6">{children}</main>
         </SessionProvider>
       </body>
     </html>
