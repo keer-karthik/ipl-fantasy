@@ -1,115 +1,134 @@
 'use client';
 import Link from 'next/link';
+import { useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
+import { gsap } from 'gsap';
 import { useSeasonState } from '@/lib/store';
 import { computeSideStats } from '@/lib/stats';
 import { fixtures, formatDate, isToday, isUpcoming } from '@/lib/data';
 import { TeamLogo } from '@/components/TeamBadge';
 import type { TeamName } from '@/lib/types';
 
-// ─── IPL-style burst decoration (like the colorful firework patterns on iplt20.com) ───
+// ─── Brand colors — single source of truth ───────────────────────────────────
+const LADS  = '#f59e0b';   // amber-400
+const GILS  = '#7c3aed';   // violet-600
+const NAVY  = '#003087';
 
-function BurstDecoration({ flip = false }: { flip?: boolean }) {
-  const rays = [
-    { angle: 0,   color: '#FFD700', len: 70, dot: 6 },
-    { angle: 22,  color: '#FF6B00', len: 55, dot: 4 },
-    { angle: 45,  color: '#00C853', len: 65, dot: 5 },
-    { angle: 67,  color: '#FF1493', len: 50, dot: 4 },
-    { angle: 90,  color: '#00B4D8', len: 72, dot: 6 },
-    { angle: 112, color: '#9C27B0', len: 55, dot: 4 },
-    { angle: 135, color: '#FFD700', len: 68, dot: 5 },
-    { angle: 157, color: '#FF4444', len: 52, dot: 4 },
-    { angle: 180, color: '#00C853', len: 75, dot: 6 },
-    { angle: 202, color: '#FF6B00', len: 50, dot: 4 },
-    { angle: 225, color: '#00B4D8', len: 65, dot: 5 },
-    { angle: 247, color: '#FF1493', len: 53, dot: 4 },
-    { angle: 270, color: '#FFD700', len: 70, dot: 6 },
-    { angle: 292, color: '#9C27B0', len: 55, dot: 4 },
-    { angle: 315, color: '#FF4444', len: 67, dot: 5 },
-    { angle: 337, color: '#00C853', len: 52, dot: 4 },
-  ];
-
-  return (
-    <svg viewBox="0 0 200 200" width="200" height="200" style={{ transform: flip ? 'scaleX(-1)' : undefined }}>
-      {rays.map((r, i) => {
-        const rad = (r.angle * Math.PI) / 180;
-        const startR = 28;
-        const x1 = 100 + startR * Math.cos(rad);
-        const y1 = 100 + startR * Math.sin(rad);
-        const x2 = 100 + r.len * Math.cos(rad);
-        const y2 = 100 + r.len * Math.sin(rad);
-        return (
-          <g key={i}>
-            <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={r.color} strokeWidth="2.5" strokeLinecap="round" opacity="0.85" />
-            <circle cx={x2} cy={y2} r={r.dot} fill={r.color} opacity="0.9" />
-          </g>
-        );
-      })}
-    </svg>
-  );
+// ─── GSAP count-up number ────────────────────────────────────────────────────
+function CountUp({ value, className, style }: { value: number; className?: string; style?: React.CSSProperties }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    if (!ref.current) return;
+    const obj = { n: 0 };
+    gsap.to(obj, {
+      n: value, duration: 1, ease: 'power3.out',
+      onUpdate() { if (ref.current) ref.current.textContent = Math.round(obj.n).toLocaleString(); },
+    });
+  }, [value]);
+  return <span ref={ref} className={className} style={style}>0</span>;
 }
 
-// ─── Form pill ───────────────────────────────────────────────────────────────
-
+// ─── Form pill ────────────────────────────────────────────────────────────────
 function FormPill({ result }: { result: 'W' | 'L' }) {
   return (
-    <span className={`w-7 h-7 rounded-full text-xs font-bold flex items-center justify-center shadow-sm ${
-      result === 'W' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+    <span className={`w-6 h-6 rounded text-[10px] font-black flex items-center justify-center ${
+      result === 'W'
+        ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-200'
+        : 'bg-red-500/10 text-red-500 border border-red-200'
     }`}>{result}</span>
   );
 }
 
-// ─── Side card ───────────────────────────────────────────────────────────────
-
-function SideCard({ side, label, color }: { side: ReturnType<typeof computeSideStats>; label: string; color: string }) {
-  const streak = side.currentStreak;
+// ─── Section header ───────────────────────────────────────────────────────────
+function SectionHeader({ children, live }: { children: React.ReactNode; live?: boolean }) {
   return (
-    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-      className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex-1 overflow-hidden relative">
-      <div className="absolute top-0 left-0 right-0 h-1 rounded-t-2xl" style={{ background: color }} />
-      <h2 className="text-lg font-extrabold mb-4" style={{ color }}>{label}</h2>
-      <div className="grid grid-cols-3 gap-2 mb-5">
+    <div className="flex items-center gap-2 mb-3">
+      {live && <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />}
+      <h2 className="text-[11px] font-bold text-gray-400 uppercase tracking-[0.2em]">{children}</h2>
+    </div>
+  );
+}
+
+// ─── Stat row ─────────────────────────────────────────────────────────────────
+function StatRow({ label, value, color, dot, small }: {
+  label: string; value: string; color: string; dot?: string; small?: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between py-1.5 border-b border-gray-50 last:border-0">
+      <span className="text-[13px] text-gray-500 flex items-center gap-2">
+        {dot && <span style={{ width: 6, height: 6, background: dot, borderRadius: 2, flexShrink: 0, display: 'inline-block' }} />}
+        {label}
+      </span>
+      <span className={`font-bold ml-2 truncate ${small ? 'text-[12px]' : 'text-[13px]'}`} style={{ color }}>{value}</span>
+    </div>
+  );
+}
+
+// ─── Side card ────────────────────────────────────────────────────────────────
+function SideCard({ side, label, isLads }: { side: ReturnType<typeof computeSideStats>; label: string; isLads: boolean }) {
+  const color = isLads ? LADS : GILS;
+  const streak = side.currentStreak;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, ease: 'easeOut' }}
+      className="flex-1 bg-white rounded-2xl overflow-hidden"
+      style={{ border: `1px solid ${color}28`, boxShadow: `0 1px 8px ${color}10` }}>
+
+      {/* 3px accent bar */}
+      <div style={{ height: 3, background: color }} />
+
+      {/* Label + form */}
+      <div className="px-5 pt-4 pb-3 flex items-center justify-between">
+        <h2 style={{
+          fontFamily: 'var(--font-barlow-condensed), system-ui, sans-serif',
+          fontSize: 20, fontWeight: 900, letterSpacing: '0.1em',
+          color, textTransform: 'uppercase', lineHeight: 1,
+        }}>{label}</h2>
+        <div className="flex gap-1">
+          {side.form.map((r, i) => <FormPill key={i} result={r} />)}
+          {side.form.length === 0 && <span className="text-xs text-gray-300 italic">No matches yet</span>}
+        </div>
+      </div>
+
+      {/* W / L / PTS stat grid */}
+      <div className="grid grid-cols-3 border-t border-b border-gray-100">
         {[
-          { val: side.wins, label: 'Wins', color: '#22c55e' },
-          { val: side.losses, label: 'Losses', color: '#ef4444' },
-          { val: side.totalPoints, label: 'Points', color: '#f7a500' },
-        ].map(s => (
-          <div key={s.label} className="text-center rounded-xl py-3" style={{ background: `${s.color}12` }}>
-            <div className="text-2xl font-black" style={{ color: s.color }}>{s.val.toLocaleString()}</div>
-            <div className="text-xs text-gray-400 mt-0.5">{s.label}</div>
+          { val: side.wins,        label: 'Wins',   textColor: '#059669' },
+          { val: side.losses,      label: 'Losses', textColor: '#dc2626' },
+          { val: side.totalPoints, label: 'Points', textColor: color },
+        ].map((s, i) => (
+          <div key={s.label} className={`py-4 text-center ${i < 2 ? 'border-r border-gray-100' : ''}`}>
+            <div style={{
+              fontFamily: 'var(--font-barlow-condensed), system-ui, sans-serif',
+              fontSize: 30, fontWeight: 900, color: s.textColor, lineHeight: 1,
+            }}>
+              {s.val.toLocaleString()}
+            </div>
+            <div className="text-[10px] text-gray-400 mt-1 uppercase tracking-widest font-semibold">{s.label}</div>
           </div>
         ))}
       </div>
-      <div className="flex gap-1.5 mb-4 flex-wrap">
-        {side.form.map((r, i) => <FormPill key={i} result={r} />)}
-        {side.form.length === 0 && <span className="text-xs text-gray-400">No matches played yet</span>}
-      </div>
-      <div className="space-y-2 text-sm border-t border-gray-100 pt-3">
-        <div className="flex justify-between text-gray-500">
-          <span>Current Streak</span>
-          <span className={`font-bold ${streak > 0 ? 'text-green-600' : streak < 0 ? 'text-red-600' : 'text-gray-400'}`}>
-            {streak > 0 ? `${streak}W` : streak < 0 ? `${Math.abs(streak)}L` : '—'}
-          </span>
-        </div>
-        <div className="flex justify-between text-gray-500">
-          <span className="flex items-center gap-1.5"><span style={{ width: 8, height: 8, background: '#9333ea', display: 'inline-block', borderRadius: 2, flexShrink: 0 }} />Purple Hits</span>
-          <span className="font-bold text-purple-600">{side.purpleHits}</span>
-        </div>
-        <div className="flex justify-between text-gray-500">
-          <span className="flex items-center gap-1.5"><span style={{ width: 8, height: 8, background: '#ef4444', display: 'inline-block', borderRadius: 2, flexShrink: 0 }} />All-in Used</span>
-          <span className="font-bold text-red-500">{side.allInUsed}/4</span>
-        </div>
+
+      {/* Detail stats */}
+      <div className="px-5 py-2">
+        <StatRow
+          label="Current Streak"
+          value={streak > 0 ? `${streak}W` : streak < 0 ? `${Math.abs(streak)}L` : '—'}
+          color={streak > 0 ? '#059669' : streak < 0 ? '#dc2626' : '#9ca3af'}
+        />
+        <StatRow label="Purple Hits" value={String(side.purpleHits)} color="#7c3aed" dot="#7c3aed" />
+        <StatRow label="All-in Used" value={`${side.allInUsed}/4`} color="#ef4444" dot="#ef4444" />
         {side.orangeCapRuns && (
-          <div className="flex justify-between text-gray-500 text-xs">
-            <span className="flex items-center gap-1.5"><span style={{ width: 8, height: 8, background: '#ea580c', display: 'inline-block', borderRadius: 2, flexShrink: 0 }} />Orange Cap</span>
-            <span className="font-semibold text-orange-600 truncate ml-2">{side.orangeCapRuns.player} — {side.orangeCapRuns.runs} runs</span>
-          </div>
+          <StatRow label="Orange Cap"
+            value={`${side.orangeCapRuns.player} — ${side.orangeCapRuns.runs} runs`}
+            color="#ea580c" dot="#ea580c" small />
         )}
         {side.purpleCapWickets && (
-          <div className="flex justify-between text-gray-500 text-xs">
-            <span className="flex items-center gap-1.5"><span style={{ width: 8, height: 8, background: '#7c3aed', display: 'inline-block', borderRadius: 2, flexShrink: 0 }} />Purple Cap</span>
-            <span className="font-semibold text-purple-600 truncate ml-2">{side.purpleCapWickets.player} — {side.purpleCapWickets.wickets}w</span>
-          </div>
+          <StatRow label="Purple Cap"
+            value={`${side.purpleCapWickets.player} — ${side.purpleCapWickets.wickets}w`}
+            color="#7c3aed" dot="#7c3aed" small />
         )}
       </div>
     </motion.div>
@@ -117,7 +136,6 @@ function SideCard({ side, label, color }: { side: ReturnType<typeof computeSideS
 }
 
 // ─── Match row ────────────────────────────────────────────────────────────────
-
 function MatchRow({ fixture, hasEntry, isComplete, ladsTotal, gilsTotal, winner, isToday: today }: {
   fixture: typeof fixtures[0]; hasEntry: boolean; isComplete: boolean;
   ladsTotal?: number; gilsTotal?: number; winner?: 'lads' | 'gils' | null;
@@ -125,60 +143,64 @@ function MatchRow({ fixture, hasEntry, isComplete, ladsTotal, gilsTotal, winner,
 }) {
   return (
     <Link href={`/match/${fixture.match}`}>
-      <motion.div whileHover={{ y: -1, boxShadow: '0 4px 20px rgba(0,48,135,0.08)' }}
-        className={`rounded-xl border px-4 py-3 flex items-center gap-4 transition-all cursor-pointer ${
-          today ? 'bg-orange-50 border-orange-200' : 'bg-white border-gray-100'
-        }`}>
-        {/* Match badge */}
-        <div className="shrink-0 text-center" style={{ minWidth: 52 }}>
-          <div className={`text-xs font-bold border rounded px-1.5 py-0.5 inline-block ${
-            today ? 'border-orange-400 text-orange-600 bg-orange-100' : 'border-orange-300 text-orange-600'
-          }`}>
+      <motion.div
+        whileHover={{ y: -1, boxShadow: '0 4px 16px rgba(0,48,135,0.07)' }}
+        transition={{ duration: 0.15 }}
+        className="rounded-xl border px-4 py-3 flex items-center gap-3 cursor-pointer transition-colors"
+        style={{
+          background: today ? `${NAVY}08` : 'white',
+          borderColor: today ? `${NAVY}20` : '#f3f4f6',
+        }}>
+
+        {/* Match ID */}
+        <div className="shrink-0" style={{ minWidth: 40 }}>
+          <span className="text-[11px] font-bold border border-orange-300 text-orange-600 px-1.5 py-0.5 rounded">
             M{fixture.match}
-          </div>
+          </span>
         </div>
 
-        {/* Teams with logos */}
+        {/* Teams */}
         <div className="flex items-center gap-3 flex-1 min-w-0">
           <div className="flex items-center gap-2 min-w-0">
-            <TeamLogo team={fixture.home as TeamName} size={34} />
-            <span className="font-bold text-sm text-gray-800 hidden sm:block truncate">{fixture.home}</span>
+            <TeamLogo team={fixture.home as TeamName} size={30} />
+            <span className="font-semibold text-sm text-gray-700 hidden sm:block truncate">{fixture.home}</span>
           </div>
-          <div className="flex flex-col items-center shrink-0 mx-1">
-            <div className="w-7 h-7 rounded-full border-2 border-gray-200 flex items-center justify-center bg-white shadow-sm">
-              <span className="text-xs font-black text-gray-400">vs</span>
-            </div>
+          <div className="flex flex-col items-center shrink-0">
+            <span className="text-[9px] font-black text-gray-300 border border-gray-200 rounded-full w-6 h-6 flex items-center justify-center">vs</span>
             {isComplete && ladsTotal !== undefined && gilsTotal !== undefined && (
-              <span className="text-xs text-gray-400 mt-0.5">{ladsTotal}–{gilsTotal}</span>
+              <span className="text-[10px] text-gray-400 mt-0.5 tabular-nums">{ladsTotal}–{gilsTotal}</span>
             )}
           </div>
           <div className="flex items-center gap-2 min-w-0">
-            <TeamLogo team={fixture.away as TeamName} size={34} />
-            <span className="font-bold text-sm text-gray-800 hidden sm:block truncate">{fixture.away}</span>
+            <TeamLogo team={fixture.away as TeamName} size={30} />
+            <span className="font-semibold text-sm text-gray-700 hidden sm:block truncate">{fixture.away}</span>
           </div>
         </div>
 
         {/* Date */}
         <div className="text-right shrink-0 hidden md:block">
           <div className="text-xs font-semibold text-gray-600">{formatDate(fixture.date)}</div>
-          <div className="text-xs text-gray-400">{fixture.time} · {fixture.venue}</div>
+          <div className="text-[11px] text-gray-400">{fixture.time} · {fixture.venue}</div>
         </div>
 
-        {/* CTA */}
+        {/* CTA / result */}
         <div className="shrink-0">
           {isComplete ? (
-            <span className={`text-xs font-bold px-2 py-1 rounded-lg ${
-              winner === 'lads' ? 'bg-blue-100 text-blue-700' :
-              winner === 'gils' ? 'bg-pink-100 text-pink-700' : 'bg-gray-100 text-gray-600'
-            }`}>
+            <span className="text-[11px] font-bold px-2.5 py-1 rounded-lg border" style={
+              winner === 'lads'
+                ? { background: `${LADS}12`, color: '#b45309', borderColor: `${LADS}40` }
+                : winner === 'gils'
+                  ? { background: `${GILS}12`, color: '#5b21b6', borderColor: `${GILS}40` }
+                  : { background: '#f9fafb', color: '#6b7280', borderColor: '#e5e7eb' }
+            }>
               {winner ? `${winner === 'lads' ? 'Lads' : 'Gils'} win` : 'Tie'}
             </span>
           ) : hasEntry ? (
-            <span className="text-xs font-bold px-3 py-1.5 rounded-lg text-white" style={{ background: 'var(--ipl-navy)' }}>
+            <span className="text-[11px] font-bold px-3 py-1.5 rounded-lg text-white" style={{ background: NAVY }}>
               Enter Stats
             </span>
           ) : (
-            <span className="text-xs font-bold px-3 py-1.5 rounded-lg text-white" style={{ background: 'var(--ipl-orange)' }}>
+            <span className="text-[11px] font-bold px-3 py-1.5 rounded-lg text-white" style={{ background: 'var(--ipl-orange)' }}>
               Select Picks
             </span>
           )}
@@ -189,96 +211,131 @@ function MatchRow({ fixture, hasEntry, isComplete, ladsTotal, gilsTotal, winner,
 }
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
-
 export default function Dashboard() {
   const { state, loaded } = useSeasonState();
   const lads = computeSideStats(state, 'lads');
   const gils = computeSideStats(state, 'gils');
-  const todayMatches = fixtures.filter(f => isToday(f.date));
+  const todayMatches  = fixtures.filter(f => isToday(f.date));
   const upcomingMatches = fixtures.filter(f => isUpcoming(f.date) && !isToday(f.date)).slice(0, 6);
   const played = Object.values(state.matches).filter(m => m.isComplete).length;
 
   if (!loaded) return (
     <div className="flex items-center justify-center min-h-[60vh]">
-      <div className="animate-spin rounded-full h-10 w-10 border-4 border-orange-500 border-t-transparent" />
+      <div className="animate-spin rounded-full h-10 w-10 border-[3px] border-t-transparent"
+        style={{ borderColor: `${LADS} ${LADS} ${LADS} transparent` }} />
     </div>
   );
 
+  const totalPts    = lads.totalPoints + gils.totalPoints;
+  const ladsPct     = totalPts > 0 ? (lads.totalPoints / totalPts) * 100 : 50;
+
   return (
     <div className="space-y-8 pb-12">
-      {/* Hero — IPL style with burst decorations */}
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-        className="rounded-2xl overflow-hidden shadow-lg relative"
-        style={{ background: 'linear-gradient(135deg, #001f6b 0%, var(--ipl-navy) 50%, #0a4fa8 100%)' }}>
 
-        {/* Left burst */}
-        <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/4 opacity-80 pointer-events-none select-none">
-          <BurstDecoration />
-        </div>
-        {/* Right burst */}
-        <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/4 opacity-80 pointer-events-none select-none">
-          <BurstDecoration flip />
-        </div>
+      {/* ══ Hero ══ */}
+      <motion.div
+        initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: 'easeOut' }}
+        className="rounded-2xl overflow-hidden relative"
+        style={{
+          background: 'linear-gradient(160deg, #001857 0%, #003087 55%, #0044b0 100%)',
+          boxShadow: '0 4px 32px rgba(0,48,135,0.25)',
+        }}>
 
-        <div className="relative z-10 px-8 py-10 text-center">
-          <div className="inline-block bg-white/10 border border-white/20 text-white text-xs font-bold uppercase tracking-widest px-4 py-1.5 rounded-full mb-4">
+        {/* Subtle gradient texture */}
+        <div className="absolute inset-0 pointer-events-none" style={{
+          background: 'radial-gradient(ellipse at 20% 50%, rgba(245,158,11,0.07) 0%, transparent 60%), radial-gradient(ellipse at 80% 50%, rgba(124,58,237,0.07) 0%, transparent 60%)',
+        }} />
+        {/* Bottom accent rule */}
+        <div className="absolute bottom-0 left-0 right-0 h-px" style={{
+          background: `linear-gradient(to right, transparent 0%, ${LADS}60 30%, transparent 50%, ${GILS}60 70%, transparent 100%)`,
+        }} />
+
+        <div className="relative z-10 px-6 py-10 text-center">
+          {/* Badge */}
+          <div className="inline-block text-white/50 text-[9px] font-bold uppercase tracking-[0.3em] border border-white/15 px-3 py-1 rounded mb-5">
             TATA IPL 2026
           </div>
 
-          <h1 className="text-4xl font-black text-white mb-1 tracking-tight">
-            Lads <span style={{ color: '#f7a500' }}>vs</span> Gils
+          {/* Title */}
+          <h1 style={{
+            fontFamily: 'var(--font-barlow-condensed), system-ui, sans-serif',
+            fontSize: 'clamp(2.2rem, 5vw, 3.8rem)',
+            fontWeight: 900, letterSpacing: '0.04em',
+            color: 'white', lineHeight: 1, marginBottom: 8,
+          }}>
+            Lads{' '}
+            <span style={{ color: 'rgba(255,255,255,0.25)', fontWeight: 300 }}>vs</span>
+            {' '}Gils
           </h1>
-          <p className="text-blue-300 text-sm mb-6">{played} of 70 matches played</p>
+          <p className="text-sm font-medium mb-10" style={{ color: 'rgba(255,255,255,0.35)', letterSpacing: '0.08em' }}>
+            {played} / 70 matches played
+          </p>
 
-          <div className="flex items-center justify-center gap-12">
+          {/* Score row */}
+          <div className="flex items-center justify-center gap-8 md:gap-16">
+
             <div className="text-center">
-              <div className="text-5xl font-black text-white">{lads.wins}</div>
-              <div className="text-xs text-blue-300 font-semibold mt-1 uppercase tracking-wide">Lads Wins</div>
+              <CountUp value={lads.wins} style={{
+                fontFamily: 'var(--font-barlow-condensed), system-ui, sans-serif',
+                fontSize: 'clamp(3.5rem, 9vw, 6rem)', fontWeight: 900,
+                color: LADS, lineHeight: 1, letterSpacing: '-0.02em', display: 'block',
+              }} />
+              <div style={{
+                fontSize: 11, fontWeight: 700, letterSpacing: '0.2em',
+                color: `${LADS}80`, textTransform: 'uppercase', marginTop: 4,
+              }}>Lads Wins</div>
             </div>
-            <div className="flex flex-col items-center gap-1">
-              <div className="text-2xl font-black text-orange-400">—</div>
-              <div className="text-xs text-blue-300">Season</div>
+
+            <div className="flex flex-col items-center" style={{ gap: 4 }}>
+              <div style={{ width: 1, height: 28, background: 'rgba(255,255,255,0.12)' }} />
+              <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.25em', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase' }}>
+                Season
+              </div>
+              <div style={{ width: 1, height: 28, background: 'rgba(255,255,255,0.12)' }} />
             </div>
+
             <div className="text-center">
-              <div className="text-5xl font-black text-white">{gils.wins}</div>
-              <div className="text-xs text-blue-300 font-semibold mt-1 uppercase tracking-wide">Gils Wins</div>
+              <CountUp value={gils.wins} style={{
+                fontFamily: 'var(--font-barlow-condensed), system-ui, sans-serif',
+                fontSize: 'clamp(3.5rem, 9vw, 6rem)', fontWeight: 900,
+                color: GILS, lineHeight: 1, letterSpacing: '-0.02em', display: 'block',
+              }} />
+              <div style={{
+                fontSize: 11, fontWeight: 700, letterSpacing: '0.2em',
+                color: `${GILS}80`, textTransform: 'uppercase', marginTop: 4,
+              }}>Gils Wins</div>
             </div>
           </div>
 
-          {/* Total points bar */}
-          {(lads.totalPoints > 0 || gils.totalPoints > 0) && (
-            <div className="mt-6 max-w-xs mx-auto">
-              <div className="flex justify-between text-xs text-blue-300 mb-1.5">
-                <span className="font-semibold text-blue-200">{lads.totalPoints} pts</span>
-                <span className="font-semibold text-blue-200">{gils.totalPoints} pts</span>
+          {/* Points bar */}
+          {totalPts > 0 && (
+            <div className="mt-8 max-w-sm mx-auto">
+              <div className="flex justify-between mb-2">
+                <span style={{ fontSize: 12, fontWeight: 700, color: `${LADS}cc` }}>
+                  {lads.totalPoints.toLocaleString()} pts
+                </span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: `${GILS}cc` }}>
+                  {gils.totalPoints.toLocaleString()} pts
+                </span>
               </div>
-              <div className="h-2 rounded-full bg-white/10 overflow-hidden">
-                {(() => {
-                  const total = lads.totalPoints + gils.totalPoints;
-                  const pct = total > 0 ? (lads.totalPoints / total) * 100 : 50;
-                  return (
-                    <div className="h-full rounded-full" style={{
-                      width: `${pct}%`,
-                      background: 'linear-gradient(to right, #3b82f6, #60a5fa)'
-                    }} />
-                  );
-                })()}
-              </div>
-              <div className="flex justify-between text-xs text-blue-400 mt-1">
-                <span>Lads</span><span>Gils</span>
+              <div className="rounded-full overflow-hidden" style={{ height: 4, background: 'rgba(255,255,255,0.08)' }}>
+                <motion.div
+                  className="h-full rounded-full"
+                  initial={{ width: '50%' }} animate={{ width: `${ladsPct}%` }}
+                  transition={{ duration: 1.2, ease: 'easeOut', delay: 0.4 }}
+                  style={{ background: `linear-gradient(to right, ${LADS}ee, ${LADS}88)` }}
+                />
               </div>
             </div>
           )}
         </div>
       </motion.div>
 
-      {/* Today's matches */}
+      {/* ══ Today ══ */}
       {todayMatches.length > 0 && (
-        <div>
-          <h2 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3 flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse inline-block" />
-            Today — Select Your Picks
-          </h2>
+        <section>
+          <SectionHeader live>Today — Select Your Picks</SectionHeader>
           <div className="space-y-2">
             {todayMatches.map(f => {
               const m = state.matches[f.match];
@@ -289,55 +346,64 @@ export default function Dashboard() {
                 winner={m?.winner} isToday />;
             })}
           </div>
-        </div>
+        </section>
       )}
 
-      {/* Standings */}
-      <div>
-        <h2 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Season Standings</h2>
+      {/* ══ Season standings ══ */}
+      <section>
+        <SectionHeader>Season Standings</SectionHeader>
         <div className="flex gap-4 flex-col sm:flex-row">
-          <SideCard side={lads} label="Lads" color="#3b82f6" />
-          <SideCard side={gils} label="Gils" color="#ec4899" />
+          <SideCard side={lads} label="Lads" isLads={true} />
+          <SideCard side={gils} label="Gils" isLads={false} />
         </div>
-      </div>
+      </section>
 
-      {/* End of season prizes */}
-      <div>
-        <h2 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">End of Season Prizes</h2>
+      {/* ══ End of season prizes ══ */}
+      <section>
+        <SectionHeader>End of Season Prizes</SectionHeader>
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
           {[
-            { abbrev: 'WINS', label: 'Most Wins', pts: 700, color: '#d97706' },
-            { abbrev: 'OC', label: 'Orange Cap', pts: 350, color: '#ea580c' },
-            { abbrev: 'PC', label: 'Purple Cap', pts: 350, color: '#7c3aed' },
-            { abbrev: 'STK', label: 'Longest Streak', pts: 350, color: '#dc2626' },
-            { abbrev: 'PH', label: 'Purple Hits', pts: 350, color: '#9333ea' },
+            { abbrev: 'WINS', label: 'Most Wins',      pts: 700, color: '#d97706' },
+            { abbrev: 'OC',   label: 'Orange Cap',     pts: 350, color: '#ea580c' },
+            { abbrev: 'PC',   label: 'Purple Cap',     pts: 350, color: '#7c3aed' },
+            { abbrev: 'STK',  label: 'Longest Streak', pts: 350, color: NAVY     },
+            { abbrev: 'PH',   label: 'Purple Hits',    pts: 350, color: '#6d28d9' },
           ].map((p, i) => (
-            <motion.div key={p.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.05 }}
-              className="bg-white rounded-xl border border-gray-100 shadow-sm p-3 text-center hover:shadow-md transition-shadow">
-              <div style={{ fontSize: 18, fontWeight: 900, letterSpacing: 1, color: p.color, fontFamily: 'Georgia, "Times New Roman", serif', lineHeight: 1, marginBottom: 6 }}>{p.abbrev}</div>
-              <div className="text-xs text-gray-500 leading-tight">{p.label}</div>
-              <div className="text-sm font-black mt-1" style={{ color: 'var(--ipl-orange)' }}>+{p.pts}</div>
+            <motion.div key={p.label}
+              initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 + i * 0.06, duration: 0.35 }}
+              className="bg-white rounded-xl border border-gray-100 p-4 text-center hover:shadow-sm transition-shadow cursor-default">
+              <div style={{
+                fontFamily: 'var(--font-barlow-condensed), system-ui, sans-serif',
+                fontSize: 20, fontWeight: 900, letterSpacing: '0.1em',
+                color: p.color, lineHeight: 1, marginBottom: 5,
+              }}>{p.abbrev}</div>
+              <div className="text-[11px] text-gray-400 leading-tight">{p.label}</div>
+              <div className="text-sm font-black mt-2 tabular-nums" style={{ color: 'var(--ipl-orange)' }}>+{p.pts}</div>
             </motion.div>
           ))}
         </div>
-      </div>
+      </section>
 
-      {/* Upcoming fixtures */}
+      {/* ══ Upcoming fixtures ══ */}
       {upcomingMatches.length > 0 && (
-        <div>
-          <h2 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Upcoming Fixtures</h2>
+        <section>
+          <SectionHeader>Upcoming Fixtures</SectionHeader>
           <div className="space-y-2">
-            {upcomingMatches.map(f => (
-              <MatchRow key={f.match} fixture={f}
-                hasEntry={false} isComplete={false} />
+            {upcomingMatches.map((f, i) => (
+              <motion.div key={f.match}
+                initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.04, duration: 0.3 }}>
+                <MatchRow fixture={f} hasEntry={false} isComplete={false} />
+              </motion.div>
             ))}
           </div>
-          <Link href="/fixtures" className="block text-center mt-4 text-sm font-semibold"
+          <Link href="/fixtures"
+            className="block text-center mt-4 text-sm font-semibold hover:opacity-75 transition-opacity"
             style={{ color: 'var(--ipl-orange)' }}>
             View all 70 fixtures →
           </Link>
-        </div>
+        </section>
       )}
     </div>
   );
