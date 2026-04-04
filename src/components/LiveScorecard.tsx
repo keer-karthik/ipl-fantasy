@@ -191,12 +191,12 @@ function PlayerTradingCard({ b, isLads }: { b: BreakdownItem; isLads: boolean })
       className={`rounded-2xl overflow-hidden shadow-md bg-white ${topBorder}`}
     >
       {/* ── Photo zone ── */}
-      <div className="relative w-full" style={{ height: '160px' }}>
+      <div className="relative w-full bg-gray-50" style={{ height: '220px' }}>
         {iplUrl && imgOk ? (
           <img
             src={iplUrl}
             alt={b.activeName}
-            className="w-full h-full object-cover object-top"
+            className="w-full h-full object-contain object-top"
             onError={() => setImgOk(false)}
           />
         ) : (
