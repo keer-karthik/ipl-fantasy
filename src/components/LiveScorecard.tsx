@@ -239,7 +239,7 @@ function seqToLabel(seq: number): string {
 }
 
 function ProgressChart({ history }: { history: HistoryPoint[] }) {
-  if (history.length < 2) return null;
+  if (history.length < 1) return null;
 
   const W = 500, H = 110, PAD = { l: 36, r: 8, t: 10, b: 20 };
   const inner = { w: W - PAD.l - PAD.r, h: H - PAD.t - PAD.b };
@@ -251,12 +251,13 @@ function ProgressChart({ history }: { history: HistoryPoint[] }) {
   const minV = rawMin - vPad, maxV = rawMax + vPad;
   const range = maxV - minV || 1;
 
-  const seqMin = history[0].seq;
-  const seqMax = history[history.length - 1].seq;
-  const seqRange = seqMax - seqMin || 1;
+  // Fixed x-domain: always span the full 20 overs (seq 0 → 19.6).
+  // This prevents x-axis collapsing to "20 ov / 20 ov" when only 1-2 snapshots exist.
+  const SEQ_START = 0;
+  const SEQ_END = 19.6; // last ball of over 20 in ESPN seq notation
 
   // Map a seq value to an X pixel position
-  const toX = (seq: number) => PAD.l + ((seq - seqMin) / seqRange) * inner.w;
+  const toX = (seq: number) => PAD.l + ((seq - SEQ_START) / (SEQ_END - SEQ_START)) * inner.w;
   const toY = (v: number) => PAD.t + (1 - (v - minV) / range) * inner.h;
   const zeroY = toY(0);
 
@@ -265,18 +266,19 @@ function ProgressChart({ history }: { history: HistoryPoint[] }) {
   }
 
   const last = history[history.length - 1];
-  const first = history[0];
   const ladsLast = last.lads;
   const gilsLast = last.gils;
   const ticks = [rawMin, 0, rawMax].filter((v, i, a) => a.indexOf(v) === i && Math.abs(v) > 5);
 
-  // Pick a few evenly-spaced over labels for X-axis
-  const xLabels: { seq: number; label: string }[] = [];
-  const step = seqRange / 4;
-  for (let i = 0; i <= 4; i++) {
-    const seq = seqMin + i * step;
-    xLabels.push({ seq, label: seqToLabel(seq) });
-  }
+  // Fixed over labels: 0, 5, 10, 15, 20 overs
+  // seq = over-1 (0-indexed), so over 5 = seq 4, over 10 = seq 9, etc.
+  const xLabels = [
+    { seq: 0,    label: '1 ov' },
+    { seq: 4,    label: '5 ov' },
+    { seq: 9,    label: '10 ov' },
+    { seq: 14,   label: '15 ov' },
+    { seq: 19,   label: '20 ov' },
+  ];
 
   return (
     <div className="rounded-2xl bg-white border border-gray-200 overflow-hidden shadow-sm">
@@ -313,10 +315,10 @@ function ProgressChart({ history }: { history: HistoryPoint[] }) {
             stroke="#d1d5db" strokeWidth="1" strokeDasharray="4,4" />
           {/* Area fills */}
           <path
-            d={`${path(history, 'lads')} L${toX(last.seq)},${zeroY} L${toX(first.seq)},${zeroY} Z`}
+            d={`${path(history, 'lads')} L${toX(last.seq)},${zeroY} L${toX(SEQ_START)},${zeroY} Z`}
             fill="#f59e0b" opacity="0.12" />
           <path
-            d={`${path(history, 'gils')} L${toX(last.seq)},${zeroY} L${toX(first.seq)},${zeroY} Z`}
+            d={`${path(history, 'gils')} L${toX(last.seq)},${zeroY} L${toX(SEQ_START)},${zeroY} Z`}
             fill="#7c3aed" opacity="0.12" />
           {/* Lines */}
           <path d={path(history, 'lads')} fill="none"
