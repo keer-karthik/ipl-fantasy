@@ -1,11 +1,11 @@
 'use client';
 import Link from 'next/link';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { gsap } from 'gsap';
 import { useSeasonState } from '@/lib/store';
 import { computeSideStats } from '@/lib/stats';
-import { fixtures, formatDate, isToday, isUpcoming } from '@/lib/data';
+import { fixtures, formatDate, isToday, isUpcoming, getMatchStartIST } from '@/lib/data';
 import { TeamLogo } from '@/components/TeamBadge';
 import type { TeamName } from '@/lib/types';
 
@@ -132,6 +132,76 @@ function SideCard({ side, label, isLads }: { side: ReturnType<typeof computeSide
         )}
       </div>
     </motion.div>
+  );
+}
+
+// ─── Next match countdown ─────────────────────────────────────────────────────
+function NextMatchCountdown() {
+  const [, setTick] = useState(0);
+
+  // Re-render every second
+  useEffect(() => {
+    const iv = setInterval(() => setTick(t => t + 1), 1000);
+    return () => clearInterval(iv);
+  }, []);
+
+  const now = new Date();
+  const next = fixtures.find(f => getMatchStartIST(f) > now);
+  if (!next) return null;
+
+  const msLeft = getMatchStartIST(next).getTime() - now.getTime();
+  const totalSecs = Math.max(0, Math.floor(msLeft / 1000));
+  const days  = Math.floor(totalSecs / 86400);
+  const hours = Math.floor((totalSecs % 86400) / 3600);
+  const mins  = Math.floor((totalSecs % 3600) / 60);
+  const secs  = totalSecs % 60;
+
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const timeStr = days > 0
+    ? `${days}d ${pad(hours)}:${pad(mins)}:${pad(secs)}`
+    : `${pad(hours)}:${pad(mins)}:${pad(secs)}`;
+
+  return (
+    <section>
+      <SectionHeader>Next Match</SectionHeader>
+      <motion.div
+        initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+        className="bg-white rounded-2xl border border-gray-100 px-5 py-4 flex flex-col sm:flex-row items-center gap-4"
+        style={{ boxShadow: '0 1px 8px rgba(0,48,135,0.06)' }}>
+
+        {/* Teams */}
+        <div className="flex items-center gap-4 flex-1 min-w-0">
+          <div className="flex flex-col items-center gap-1">
+            <TeamLogo team={next.home as TeamName} size={40} />
+            <span className="text-[11px] font-bold text-gray-500 hidden sm:block">{(next.home as string).split(' ').pop()}</span>
+          </div>
+          <div className="flex flex-col items-center gap-0.5">
+            <span className="text-[10px] font-black text-gray-300 border border-gray-200 rounded-full w-6 h-6 flex items-center justify-center">vs</span>
+            <span className="text-[10px] text-gray-400 font-semibold">M{next.match}</span>
+          </div>
+          <div className="flex flex-col items-center gap-1">
+            <TeamLogo team={next.away as TeamName} size={40} />
+            <span className="text-[11px] font-bold text-gray-500 hidden sm:block">{(next.away as string).split(' ').pop()}</span>
+          </div>
+          <div className="hidden sm:block ml-2">
+            <div className="text-xs font-semibold text-gray-600">{formatDate(next.date)} · {next.time} IST</div>
+            <div className="text-[11px] text-gray-400">{next.venue}</div>
+          </div>
+        </div>
+
+        {/* Countdown */}
+        <div className="text-center shrink-0">
+          <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400 mb-1">Starts in</div>
+          <div className="font-mono font-black tabular-nums" style={{
+            fontSize: 'clamp(1.6rem, 4vw, 2.2rem)',
+            color: NAVY,
+            letterSpacing: '0.04em',
+          }}>
+            {timeStr}
+          </div>
+        </div>
+      </motion.div>
+    </section>
   );
 }
 
@@ -384,6 +454,9 @@ export default function Dashboard() {
           ))}
         </div>
       </section>
+
+      {/* ══ Next match countdown ══ */}
+      <NextMatchCountdown />
 
       {/* ══ Upcoming fixtures ══ */}
       {upcomingMatches.length > 0 && (
