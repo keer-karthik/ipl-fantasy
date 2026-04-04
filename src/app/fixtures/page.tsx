@@ -27,6 +27,7 @@ export default function FixturesPage() {
         <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-amber-400 inline-block" /> Picks set</span>
         <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-red-500 animate-pulse inline-block" /> Today</span>
         <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-gray-300 inline-block" /> Upcoming</span>
+        <span className="flex items-center gap-1.5 opacity-40"><span className="w-2 h-2 rounded-full bg-gray-300 inline-block" /> Skipped</span>
       </div>
 
       <div className="space-y-2">
@@ -36,6 +37,7 @@ export default function FixturesPage() {
           const hasPicks = m?.lads.picks.length > 0;
           const today = isToday(f.date);
           const upcoming = isUpcoming(f.date);
+          const skipped = !done && !hasPicks && !today && !upcoming;
 
           let dotColor = 'bg-gray-300';
           let dotExtra = '';
@@ -47,10 +49,13 @@ export default function FixturesPage() {
             <motion.div key={f.match}
               initial={{ opacity: 0, y: 4 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: idx * 0.01 }}>
+              transition={{ delay: idx * 0.01 }}
+              className={skipped ? 'opacity-40' : undefined}>
               <Link href={`/match/${f.match}`}
                 className={`flex items-center justify-between rounded-xl p-3 border transition-all hover:shadow-md ${
-                  today
+                  skipped
+                    ? 'bg-gray-50 border-gray-100 pointer-events-none'
+                    : today
                     ? 'bg-orange-50 border-orange-200 hover:border-orange-300'
                     : done
                     ? 'bg-white border-gray-200 hover:border-gray-300'
