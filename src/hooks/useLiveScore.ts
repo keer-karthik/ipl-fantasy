@@ -12,7 +12,7 @@ export interface LiveData {
     total: string;
     runs: string;
   }>;
-  commentaries: Array<{ text: string; over: string }>;
+  commentaries: Array<{ text: string; over: string; sequence?: number }>;
   headline: string;
   actualWinner: string | null;
 }

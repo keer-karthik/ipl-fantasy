@@ -127,32 +127,29 @@ export function calcLiveFantasyTotal(
   bowlers: LiveBowler[],
   picks: PlayerPick[]
 ): LiveFantasyTotal {
-  const seen = new Set<string>();
+  // Iterate by pick to avoid ESPN-name vs pick-name deduplication bugs.
+  // Combine batting + bowling raw points before applying multiplier (required
+  // because applyMultiplier is non-linear for losses).
   const breakdown: { name: string; pts: number; multiplier: Multiplier | null }[] = [];
 
-  for (const b of batsmen.filter(b => b.isFantasyPick)) {
-    if (!seen.has(b.playerName)) {
-      seen.add(b.playerName);
-      breakdown.push({ name: b.playerName, pts: b.finalPoints, multiplier: b.multiplier });
-    }
-  }
-  for (const b of bowlers.filter(b => b.isFantasyPick)) {
-    if (!seen.has(b.playerName)) {
-      seen.add(b.playerName);
-      breakdown.push({ name: b.playerName, pts: b.finalPoints, multiplier: b.multiplier });
-    }
-  }
-
-  // Add picks that haven't batted/bowled yet (0 pts)
   for (const pick of picks) {
-    if (!seen.has(pick.playerName)) {
-      seen.add(pick.playerName);
-      breakdown.push({ name: pick.playerName, pts: 0, multiplier: pick.multiplier });
+    const pn = normalizeName(pick.playerName);
+    function nameMatch(espn: string) {
+      const en = normalizeName(espn);
+      return en === pn || en.includes(pn) || pn.includes(en) ||
+        (pn.length > 4 && en.slice(-pn.length) === pn) ||
+        (en.length > 4 && pn.slice(-en.length) === en);
     }
+    const batter = batsmen.find(b => nameMatch(b.playerName));
+    const bowler = bowlers.find(b => nameMatch(b.playerName));
+    // Apply multiplier once to combined raw total (not separately per discipline)
+    const combinedRaw = (batter?.fantasyPoints ?? 0) + (bowler?.fantasyPoints ?? 0);
+    const finalPts = pick.multiplier ? applyMultiplier(combinedRaw, pick.multiplier) : combinedRaw;
+    breakdown.push({ name: pick.playerName, pts: finalPts, multiplier: pick.multiplier });
   }
 
   const rawTotal = breakdown.reduce((s, p) => s + p.pts, 0);
-  return { rawTotal, picksFound: seen.size, breakdown };
+  return { rawTotal, picksFound: picks.length, breakdown };
 }
 
 export function autoResultFromLive(

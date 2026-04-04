@@ -146,8 +146,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ mat
     const commDict: Record<string, { shortText?: string; sequence?: number }> = headerComp.commentaries ?? {};
     const commentaries = Object.values(commDict)
       .sort((a, b) => (b.sequence ?? 0) - (a.sequence ?? 0))
-      .slice(0, 15)
-      .map(c => ({ over: '', text: c.shortText ?? '' }))
+      .slice(0, 40)
+      .map(c => ({ over: '', text: c.shortText ?? '', sequence: c.sequence }))
       .filter(c => c.text);
 
     return NextResponse.json({
