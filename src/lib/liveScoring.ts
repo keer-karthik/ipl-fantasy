@@ -40,16 +40,8 @@ function normalizeName(name: string): string {
   return name.toLowerCase().replace(/[^a-z]/g, '');
 }
 
-function lastName(name: string): string {
-  const parts = name.trim().split(/\s+/);
-  return normalizeName(parts[parts.length - 1]);
-}
-
 function nameMatches(a: string, b: string): boolean {
   const na = normalizeName(a), nb = normalizeName(b);
-  const la = lastName(a), lb = lastName(b);
-  // Last-name match catches nickname/full-name mismatches (e.g. "Lungi" vs "Lungisani")
-  if (la === lb && la.length > 3) return true;
   return na === nb || na.includes(nb) || nb.includes(na) ||
     (na.length > 4 && nb.slice(-na.length) === na) ||
     (nb.length > 4 && na.slice(-nb.length) === nb);
