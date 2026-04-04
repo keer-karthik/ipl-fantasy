@@ -229,7 +229,7 @@ function SidePanel({
 // innings 1 occupies 0–19.6, innings 2 occupies 20–39.6.
 interface HistoryPoint { seq: number; lads: number; gils: number }
 
-function ProgressChart({ history }: { history: HistoryPoint[] }) {
+function ProgressChart({ history, onRegenerate }: { history: HistoryPoint[]; onRegenerate: () => void }) {
   if (history.length < 1) return null;
 
   const W = 500, H = 110, PAD = { l: 36, r: 8, t: 10, b: 20 };
@@ -281,7 +281,12 @@ function ProgressChart({ history }: { history: HistoryPoint[] }) {
       <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between"
         style={{ background: 'var(--ipl-navy)' }}>
         <span className="text-white font-bold text-xs uppercase tracking-widest">Points Race</span>
-        <div className="flex gap-3 text-xs font-bold">
+        <div className="flex items-center gap-3">
+          <button onClick={onRegenerate}
+            className="text-[10px] font-bold px-2 py-1 rounded bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-colors uppercase tracking-wide">
+            ↻ Regenerate
+          </button>
+          <div className="flex gap-3 text-xs font-bold">
           <span className="flex items-center gap-1.5 text-amber-300">
             <span className="w-3 h-0.5 bg-amber-400 inline-block rounded" />
             Lads {ladsLast > 0 ? '+' : ''}{Math.round(ladsLast)}
@@ -290,6 +295,7 @@ function ProgressChart({ history }: { history: HistoryPoint[] }) {
             <span className="w-3 h-0.5 bg-violet-400 inline-block rounded" />
             Gils {gilsLast > 0 ? '+' : ''}{Math.round(gilsLast)}
           </span>
+        </div>
         </div>
       </div>
       <div className="px-2 py-3">
@@ -394,6 +400,24 @@ export default function LiveScorecard({
       .catch(() => { /* network error — use localStorage */ });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [matchId]);
+
+  const [regenerating, setRegenerating] = useState(false);
+
+  function handleRegenerate() {
+    setRegenerating(true);
+    fetch(`/api/reconstruct/${matchId}`)
+      .then(r => r.ok ? r.json() : null)
+      .then((remote: HistoryPoint[] | null) => {
+        if (!Array.isArray(remote) || remote.length === 0) return;
+        const valid = remote.filter(p => isValidSeq(p.seq));
+        if (valid.length === 0) return;
+        const sorted = [...valid].sort((a, b) => a.seq - b.seq);
+        setHistory(sorted);
+        try { localStorage.setItem(historyKey, JSON.stringify(sorted)); } catch { /* quota */ }
+      })
+      .catch(() => {})
+      .finally(() => setRegenerating(false));
+  }
 
   // Compute totals unconditionally (hooks must all come before any return)
   const allPicks = [...ladsPicks, ...gilsPicks];
@@ -539,7 +563,15 @@ export default function LiveScorecard({
       <div className="space-y-4">
 
           {/* Points Race chart — show once we have 2+ history points */}
-          {showSidePanels && <ProgressChart history={history} />}
+          {showSidePanels && (
+            <ProgressChart
+              history={history}
+              onRegenerate={handleRegenerate}
+            />
+          )}
+          {regenerating && (
+            <div className="text-center text-xs text-gray-400 animate-pulse py-1">Rebuilding chart from ESPN…</div>
+          )}
 
           {Object.entries(innings).map(([teamName, inning]) => {
             const batsmen = calcLiveBatsmen(inning.batting, allPicks);
