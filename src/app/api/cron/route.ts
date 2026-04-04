@@ -126,10 +126,12 @@ export async function GET(req: NextRequest) {
       if (reconstructed.length === 0) { results[matchId] = 'no data points'; continue; }
 
       // Merge: reconstruction always wins (fresh algorithm with fielding);
-      // existing points only fill gaps not covered by reconstruction.
+      // prune stale future points beyond the latest reconstructed over so
+      // live matches don't accumulate chart data from previous runs.
       const existingCh = (state.chartHistory as Record<string, typeof reconstructed> | undefined) ?? {};
       const existing = existingCh[String(matchId)] ?? [];
-      const seqMap = new Map(existing.map(p => [p.seq, p]));
+      const maxReconSeq = Math.max(...reconstructed.map(p => p.seq));
+      const seqMap = new Map(existing.filter(p => p.seq <= maxReconSeq).map(p => [p.seq, p]));
       for (const p of reconstructed) {
         const prev = seqMap.get(p.seq);
         seqMap.set(p.seq, { ...p, events: p.events ?? prev?.events });

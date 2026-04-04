@@ -113,9 +113,18 @@ export async function GET(
   const existingCh = (state.chartHistory as Record<string, ChartPoint[]> | undefined) ?? {};
   const existingPts: ChartPoint[] = existingCh[String(numId)] ?? [];
 
+  // Prune stale future points: only keep existing data up to the latest reconstructed
+  // over so live matches don't accumulate stale chart data from previous runs.
+  // If reconstruction returned nothing (match not started yet), return existing data unchanged.
+  if (reconstructed.length === 0) {
+    return NextResponse.json(existingPts);
+  }
+  const maxReconSeq = Math.max(...reconstructed.map(p => p.seq));
   const seqMap = new Map<number, ChartPoint>();
-  for (const p of existingPts) seqMap.set(p.seq, p);   // existing as baseline
-  for (const p of reconstructed) {                       // reconstruction always wins
+  for (const p of existingPts) {
+    if (p.seq <= maxReconSeq) seqMap.set(p.seq, p);  // drop stale future points
+  }
+  for (const p of reconstructed) {                    // reconstruction always wins
     const existing = seqMap.get(p.seq);
     seqMap.set(p.seq, { ...p, events: p.events ?? existing?.events });
   }
