@@ -5,7 +5,7 @@ import { useSeasonState, emptyMatch } from '@/lib/store';
 import { getFixture, teams, formatDate, getMatchStartIST } from '@/lib/data';
 import { multiplierColor, multiplierBadge } from '@/lib/scoring';
 import { TeamLogo } from '@/components/TeamBadge';
-import LiveScorecard, { SidePanel, tieredPtsColor } from '@/components/LiveScorecard';
+import LiveScorecard, { SidePanel, tieredTotalColor } from '@/components/LiveScorecard';
 import { useLiveScore } from '@/hooks/useLiveScore';
 import { autoResultFromLive, calcLiveBatsmen, calcLiveBowlers, calcLiveFantasyTotal } from '@/lib/liveScoring';
 import type { Multiplier, PlayerPick, PlayerStats, TeamName } from '@/lib/types';
@@ -902,7 +902,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
             <SidePanel
               label="LADS" total={ladsDisplayTotal}
               breakdown={ladsBreakdown}
-              textColor={tieredPtsColor(ladsDisplayTotal)}
+              textColor={tieredTotalColor(ladsDisplayTotal)}
               borderColor="border-amber-200" bgColor="bg-amber-50"
             />
           </div>
