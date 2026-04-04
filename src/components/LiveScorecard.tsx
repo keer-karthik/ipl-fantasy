@@ -188,10 +188,11 @@ function PlayerTradingCard({ b, isLads }: { b: BreakdownItem; isLads: boolean })
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2 }}
-      className={`rounded-2xl overflow-hidden shadow-md bg-white ${topBorder}`}
+      className={`flex flex-col rounded-2xl overflow-hidden shadow-md bg-white ${topBorder}`}
+      style={{ flex: '1 1 0', minHeight: 0 }}
     >
-      {/* ── Photo zone ── */}
-      <div className="relative w-full bg-gray-50" style={{ height: '220px' }}>
+      {/* ── Photo zone — grows to fill card, name strip stays fixed ── */}
+      <div className="relative w-full flex-1 min-h-0 bg-gray-50">
         {iplUrl && imgOk ? (
           <img
             src={iplUrl}
@@ -238,8 +239,8 @@ function PlayerTradingCard({ b, isLads }: { b: BreakdownItem; isLads: boolean })
         </motion.div>
       </div>
 
-      {/* ── Name + stats strip ── */}
-      <div className="px-3 pt-2.5 pb-2">
+      {/* ── Name + stats strip — fixed height, never squished ── */}
+      <div className="px-3 pt-2 pb-2 shrink-0">
         {/* Full name ALL CAPS */}
         <div className="text-[18px] text-gray-900 leading-tight uppercase truncate" style={PLAYER_FONT}>
           {b.activeName}
@@ -315,8 +316,8 @@ function SidePanel({
         <div className="text-[10px] text-gray-400 mt-1 font-medium tracking-wide uppercase">pts this game</div>
       </div>
 
-      {/* ── Player cards ── */}
-      <div className={`flex-1 overflow-y-auto border-t ${dividerColor} px-3 py-3 space-y-3`}>
+      {/* ── Player cards — flex column so all 5 share available height equally ── */}
+      <div className={`flex-1 overflow-y-auto border-t ${dividerColor} px-3 py-3 flex flex-col gap-2`}>
         {breakdown.map(b => (
           <PlayerTradingCard key={b.name} b={b} isLads={isLads} />
         ))}
