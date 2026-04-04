@@ -194,7 +194,7 @@ function PlayerTradingCard({ b, isLads }: { b: BreakdownItem; isLads: boolean })
       {/* ══ LEFT: photo + name ══ */}
       <div className="relative flex flex-col bg-gray-50 overflow-hidden" style={{ width: '44%' }}>
 
-        {/* Photo fills all remaining height */}
+        {/* Photo zone */}
         <div className="relative flex-1 min-h-0">
           {iplUrl && imgOk ? (
             <img
@@ -209,18 +209,23 @@ function PlayerTradingCard({ b, isLads }: { b: BreakdownItem; isLads: boolean })
             </div>
           )}
 
-          {/* Multiplier badge — top left over photo */}
+          {/* Multiplier badge — bold pill, impossible to miss */}
           {b.multiplier && (
-            <span className={`absolute top-1.5 left-1.5 text-[10px] px-1.5 py-0.5 rounded-md shadow-md ${badgeBg}`}
-              style={PLAYER_FONT}>
+            <span
+              className={`absolute top-2 left-2 rounded-lg shadow-lg ${badgeBg}`}
+              style={{ ...PLAYER_FONT, fontSize: '15px', padding: '3px 9px', lineHeight: 1.4 }}
+            >
               {multiplierBadge(b.multiplier)}
             </span>
           )}
         </div>
 
-        {/* Name — pinned below photo */}
-        <div className="shrink-0 px-2 py-1.5 bg-white border-t border-gray-100">
-          <div className="text-[12px] leading-tight uppercase truncate text-gray-900" style={PLAYER_FONT}>
+        {/* Name strip — larger, fills the strip */}
+        <div className="shrink-0 px-2.5 py-1.5 bg-white border-t-2 border-gray-100">
+          <div
+            className="uppercase leading-tight truncate text-gray-900"
+            style={{ ...PLAYER_FONT, fontSize: '15px' }}
+          >
             {b.activeName}
           </div>
           {b.isSubstituted && (
@@ -232,49 +237,52 @@ function PlayerTradingCard({ b, isLads }: { b: BreakdownItem; isLads: boolean })
       </div>
 
       {/* Divider */}
-      <div className="w-px bg-gray-100 shrink-0" />
+      <div className={`w-[2px] shrink-0 ${isLads ? 'bg-amber-100' : 'bg-violet-100'}`} />
 
-      {/* ══ RIGHT: stats + total ══ */}
+      {/* ══ RIGHT: emoji stats + total ══ */}
       <div className="flex-1 flex flex-col justify-between px-3 py-2.5 min-w-0">
 
-        {/* Stat rows */}
-        <div className="space-y-1">
+        {/* Stat rows — emoji icon + value */}
+        <div className="space-y-1.5">
           {b.batPts !== 0 && (
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-blue-400 uppercase tracking-wide">Bat</span>
-              <span className={`text-[13px] font-black ${ptsColor(b.batPts)}`} style={PLAYER_FONT}>
+            <div className="flex items-center gap-2">
+              <span className="text-[17px] leading-none select-none">🏏</span>
+              <span className={`ml-auto font-black leading-none ${ptsColor(b.batPts)}`}
+                style={{ ...PLAYER_FONT, fontSize: '16px' }}>
                 {ptsStr(b.batPts)}
               </span>
             </div>
           )}
           {b.bowlPts !== 0 && (
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-orange-400 uppercase tracking-wide">Bowl</span>
-              <span className={`text-[13px] font-black ${ptsColor(b.bowlPts)}`} style={PLAYER_FONT}>
+            <div className="flex items-center gap-2">
+              <span className="text-[17px] leading-none select-none">🎱</span>
+              <span className={`ml-auto font-black leading-none ${ptsColor(b.bowlPts)}`}
+                style={{ ...PLAYER_FONT, fontSize: '16px' }}>
                 {ptsStr(b.bowlPts)}
               </span>
             </div>
           )}
           {b.fieldPts !== 0 && (
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-green-500 uppercase tracking-wide">Field</span>
-              <span className={`text-[13px] font-black ${ptsColor(b.fieldPts)}`} style={PLAYER_FONT}>
+            <div className="flex items-center gap-2">
+              <span className="text-[17px] leading-none select-none">🤲</span>
+              <span className={`ml-auto font-black leading-none ${ptsColor(b.fieldPts)}`}
+                style={{ ...PLAYER_FONT, fontSize: '16px' }}>
                 {ptsStr(b.fieldPts)}
               </span>
             </div>
           )}
           {b.batPts === 0 && b.bowlPts === 0 && b.fieldPts === 0 && (
-            <span className="text-[11px] text-gray-300 font-medium">—</span>
+            <span className="text-[11px] text-gray-200">—</span>
           )}
         </div>
 
-        {/* Total — bottom right, large */}
+        {/* Total — hero number, bottom-right */}
         <motion.div
           key={b.pts}
           initial={{ scale: 1.3, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          className={`text-right text-[28px] leading-none ${ptsColor(b.pts)}`}
-          style={PLAYER_FONT}
+          className={`text-right leading-none ${ptsColor(b.pts)}`}
+          style={{ ...PLAYER_FONT, fontSize: '32px' }}
         >
           {ptsStr(b.pts)}
         </motion.div>
