@@ -242,11 +242,11 @@ function PlayerTradingCard({ b, isLads }: { b: BreakdownItem; isLads: boolean })
       {/* ══ RIGHT: emoji stats + total ══ */}
       <div className="flex-1 flex flex-col justify-between px-3 py-2.5 min-w-0">
 
-        {/* Stat rows — emoji icon + value */}
+        {/* Stat rows — label + value */}
         <div className="space-y-1.5">
           {b.batPts !== 0 && (
             <div className="flex items-center gap-2">
-              <span className="text-[17px] leading-none select-none">🏏</span>
+              <span style={{ fontSize: 9, fontWeight: 900, letterSpacing: 1, textTransform: 'uppercase', color: '#94a3b8' }}>BAT</span>
               <span className={`ml-auto font-black leading-none ${ptsColor(b.batPts)}`}
                 style={{ ...PLAYER_FONT, fontSize: '16px' }}>
                 {ptsStr(b.batPts)}
@@ -255,7 +255,7 @@ function PlayerTradingCard({ b, isLads }: { b: BreakdownItem; isLads: boolean })
           )}
           {b.bowlPts !== 0 && (
             <div className="flex items-center gap-2">
-              <span className="text-[17px] leading-none select-none">🎱</span>
+              <span style={{ fontSize: 9, fontWeight: 900, letterSpacing: 1, textTransform: 'uppercase', color: '#94a3b8' }}>BWL</span>
               <span className={`ml-auto font-black leading-none ${ptsColor(b.bowlPts)}`}
                 style={{ ...PLAYER_FONT, fontSize: '16px' }}>
                 {ptsStr(b.bowlPts)}
@@ -264,7 +264,7 @@ function PlayerTradingCard({ b, isLads }: { b: BreakdownItem; isLads: boolean })
           )}
           {b.fieldPts !== 0 && (
             <div className="flex items-center gap-2">
-              <span className="text-[17px] leading-none select-none">🤲</span>
+              <span style={{ fontSize: 9, fontWeight: 900, letterSpacing: 1, textTransform: 'uppercase', color: '#94a3b8' }}>FLD</span>
               <span className={`ml-auto font-black leading-none ${ptsColor(b.fieldPts)}`}
                 style={{ ...PLAYER_FONT, fontSize: '16px' }}>
                 {ptsStr(b.fieldPts)}
