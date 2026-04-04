@@ -171,9 +171,9 @@ function buildFieldingMap(allBatsmen: LiveBatsman[]): Map<string, number> {
     // Fallback: parse dismissal text (e.g. "c Bumrah b Ngidi")
     const d = (b.dismissal ?? '').trim();
     if (!d || d === 'not out') continue;
-    const catchM = d.match(/^c\s+(?![&†])([^b]+?)\s+b\s+/i);
+    const catchM = d.match(/^c\s+[↑†]?(?!&)(.+?)\s+b\s+/i);
     if (catchM) { add(catchM[1].trim()); continue; }
-    const stM = d.match(/^st\s+([^b]+?)\s+b\s+/i);
+    const stM = d.match(/^st\s+[↑†]?(.+?)\s+b\s+/i);
     if (stM) { add(stM[1].trim()); continue; }
     const roM = d.match(/run out\s*\(([^)]+)\)/i);
     if (roM) { add(roM[1].split('/')[0].trim()); continue; }
@@ -260,9 +260,9 @@ export function autoResultFromLive(
     // Fallback: parse dismissal text (e.g. "c Axar Patel b Kuldeep", "run out (Bumrah)")
     const d = (b.dismissal ?? '').trim();
     if (!d || d === 'not out') continue;
-    const catchM = d.match(/^c\s+(?![&†])([^b]+?)\s+b\s+/i);
+    const catchM = d.match(/^c\s+[↑†]?(?!&)(.+?)\s+b\s+/i);
     if (catchM) { addFielder(catchM[1].trim()); continue; }
-    const stM = d.match(/^st\s+[†]?([^b]+?)\s+b\s+/i);
+    const stM = d.match(/^st\s+[↑†]?(.+?)\s+b\s+/i);
     if (stM) { addFielder(stM[1].trim()); continue; }
     const roM = d.match(/run out\s*\(([^)]+)\)/i);
     if (roM) { addFielder(roM[1].split('/')[0].trim()); continue; }
