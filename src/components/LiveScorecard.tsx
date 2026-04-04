@@ -548,7 +548,7 @@ function ProgressChart({ history, onRegenerate }: { history: HistoryPoint[]; onR
             boxShadow: '0 8px 28px rgba(0,0,0,0.28)',
             border: '1px solid rgba(255,255,255,0.07)',
           }}>
-            <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 1.8, color: '#475569', marginBottom: 9, fontFamily: 'ui-monospace, monospace' }}>
+            <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 1.8, color: '#64748b', marginBottom: 9, fontFamily: 'ui-monospace, monospace' }}>
               Inn {hpOver.inn} · Over {hpOver.ov}
             </div>
             <div style={{ display: 'flex', gap: 18, marginBottom: hp.events?.length ? 10 : 0 }}>
@@ -556,24 +556,24 @@ function ProgressChart({ history, onRegenerate }: { history: HistoryPoint[]; onR
                 <div style={{ fontSize: 22, fontWeight: 900, color: hp.lads >= 0 ? '#fbbf24' : '#f87171', lineHeight: 1, fontFamily: 'ui-monospace, monospace' }}>
                   {fmtPts(hp.lads)}
                 </div>
-                <div style={{ fontSize: 10, color: '#475569', marginTop: 3 }}>
-                  Lads{prevHp && <span style={{ color: '#334155' }}> ({fmtPts(hp.lads - prevHp.lads)} ov)</span>}
+                <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 3 }}>
+                  Lads{prevHp && <span style={{ color: '#64748b' }}> ({fmtPts(hp.lads - prevHp.lads)} ov)</span>}
                 </div>
               </div>
               <div>
                 <div style={{ fontSize: 22, fontWeight: 900, color: hp.gils >= 0 ? '#a78bfa' : '#f87171', lineHeight: 1, fontFamily: 'ui-monospace, monospace' }}>
                   {fmtPts(hp.gils)}
                 </div>
-                <div style={{ fontSize: 10, color: '#475569', marginTop: 3 }}>
-                  Gils{prevHp && <span style={{ color: '#334155' }}> ({fmtPts(hp.gils - prevHp.gils)} ov)</span>}
+                <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 3 }}>
+                  Gils{prevHp && <span style={{ color: '#64748b' }}> ({fmtPts(hp.gils - prevHp.gils)} ov)</span>}
                 </div>
               </div>
             </div>
             {hp.events && hp.events.length > 0 && (
-              <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
                 {hp.events.map((ev, i) => (
-                  <div key={i} style={{ fontSize: 10, color: '#94a3b8', display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ color: '#475569', fontSize: 12 }}>·</span>{ev}
+                  <div key={i} style={{ fontSize: 10, color: '#cbd5e1', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ color: '#64748b', fontSize: 12 }}>·</span>{ev}
                   </div>
                 ))}
               </div>
