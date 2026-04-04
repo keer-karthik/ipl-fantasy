@@ -116,7 +116,7 @@ function PtsChip({ pts }: { pts: number }) {
   );
 }
 
-// ─── Side panel ───────────────────────────────────────────────────────────────
+// ─── Side panel (full-height fill) ───────────────────────────────────────────
 function SidePanel({
   label, total, breakdown, color, textColor, borderColor, bgColor,
 }: {
@@ -124,26 +124,37 @@ function SidePanel({
   breakdown: { name: string; pts: number; multiplier: Multiplier | null }[];
   color: string; textColor: string; borderColor: string; bgColor: string;
 }) {
+  const isLads = label === 'LADS';
   return (
-    <div className={`rounded-2xl border-2 ${borderColor} ${bgColor} p-4 flex flex-col gap-3`}>
-      <div className="text-xs font-black uppercase tracking-widest" style={{ color }}>{label}</div>
-      <motion.div key={total} initial={{ scale: 1.1 }} animate={{ scale: 1 }}
-        className={`text-5xl font-black ${textColor} leading-none`}>
-        {total > 0 ? `+${total}` : total}
-      </motion.div>
-      <div className="text-xs font-medium text-gray-400">pts this game</div>
-      <div className="border-t border-gray-100 pt-2 space-y-1.5">
+    <div className={`flex-1 rounded-2xl border-2 ${borderColor} ${bgColor} flex flex-col overflow-hidden`}>
+      {/* Header */}
+      <div className="px-4 pt-5 pb-2">
+        <div className="text-xs font-black uppercase tracking-widest" style={{ color }}>{label}</div>
+      </div>
+      {/* Big total — centered in remaining space */}
+      <div className="flex-1 flex flex-col items-center justify-center px-4 py-4">
+        <motion.div key={total} initial={{ scale: 1.15, opacity: 0.6 }} animate={{ scale: 1, opacity: 1 }}
+          className={`font-black ${textColor} leading-none text-center`}
+          style={{ fontSize: 'clamp(3rem, 5vw, 5rem)' }}>
+          {total > 0 ? `+${total}` : total}
+        </motion.div>
+        <div className="text-xs font-medium text-gray-400 mt-2">pts this game</div>
+      </div>
+      {/* Per-pick breakdown */}
+      <div className="border-t border-gray-200 px-4 py-4 space-y-2.5">
         {breakdown.map(b => (
-          <div key={b.name} className="flex items-center justify-between gap-1">
-            <div className="text-xs text-gray-600 truncate flex-1">{b.name.split(' ').pop()}</div>
+          <div key={b.name} className="flex items-center gap-2">
+            <div className="text-sm text-gray-700 truncate flex-1 font-medium">
+              {b.name.split(' ').pop()}
+            </div>
             {b.multiplier && (
-              <span className={`text-[10px] font-bold px-1 rounded ${
-                label === 'LADS' ? 'bg-amber-100 text-amber-700' : 'bg-violet-100 text-violet-700'
+              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border shrink-0 ${
+                isLads ? 'bg-amber-100 text-amber-700 border-amber-200' : 'bg-violet-100 text-violet-700 border-violet-200'
               }`}>
                 {multiplierBadge(b.multiplier)}
               </span>
             )}
-            <span className={`text-xs font-bold w-10 text-right ${
+            <span className={`text-sm font-bold w-10 text-right shrink-0 ${
               b.pts > 0 ? 'text-green-600' : b.pts < 0 ? 'text-red-500' : 'text-gray-400'
             }`}>
               {b.pts > 0 ? `+${b.pts}` : b.pts}
@@ -221,10 +232,12 @@ export default function LiveScorecard({
         )}
       </div>
 
-      {/* Fixed side panels — float in viewport margins at 2xl (1536px+) */}
+      {/* Fixed side panels — fill viewport margins at 2xl (1536px+).
+          max-w-5xl = 64rem = 1024px, so each side has calc(50vw - 32rem) available. */}
       {showSidePanels && (
         <>
-          <div className="fixed left-3 top-32 w-52 hidden 2xl:block z-30">
+          <div className="fixed left-0 bottom-0 hidden 2xl:flex flex-col z-30 p-2"
+            style={{ top: '56px', width: 'calc(50vw - 32rem)' }}>
             <SidePanel
               label="LADS" total={Math.round(ladsAgg.rawTotal)}
               breakdown={ladsAgg.breakdown}
@@ -232,7 +245,8 @@ export default function LiveScorecard({
               borderColor="border-amber-200" bgColor="bg-amber-50"
             />
           </div>
-          <div className="fixed right-3 top-32 w-52 hidden 2xl:block z-30">
+          <div className="fixed right-0 bottom-0 hidden 2xl:flex flex-col z-30 p-2"
+            style={{ top: '56px', width: 'calc(50vw - 32rem)' }}>
             <SidePanel
               label="GILS" total={Math.round(gilsAgg.rawTotal)}
               breakdown={gilsAgg.breakdown}

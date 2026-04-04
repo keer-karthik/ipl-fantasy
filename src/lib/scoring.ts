@@ -47,8 +47,8 @@ export function calcBowlingPoints(
   let pts = wickets * 25;
   pts += maidens * 40;
 
-  // Economy counts after 2+ overs
-  if (overs >= 2) {
+  // Economy only counts after 3+ overs
+  if (overs >= 3) {
     const eco = runsConceded / overs;
     if (eco <= 4)       pts += 80;
     else if (eco <= 6)  pts += 60;
