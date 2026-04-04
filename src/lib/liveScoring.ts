@@ -150,6 +150,45 @@ export function calcLiveBowlers(
   });
 }
 
+// Parse fielding credits (catches, stumpings, run-outs) from dismissal text.
+// ESPN includes the fielder name in the dismissal string, e.g.:
+//   "c Bumrah b Ngidi"          → catch credit to Bumrah
+//   "st Iyer b Kuldeep"         → stumping credit to Iyer
+//   "run out (Bumrah/Bosch)"    → run-out credit to Bumrah (first named)
+// Returns a map of normalized dismissal name → fielding points.
+function buildFieldingMap(allBatsmen: LiveBatsman[]): Map<string, number> {
+  const map = new Map<string, number>();
+  const add = (name: string) => {
+    const k = normalizeName(name);
+    if (k.length >= 3) map.set(k, (map.get(k) ?? 0) + 10);
+  };
+  for (const b of allBatsmen) {
+    const d = (b.dismissal ?? '').trim();
+    if (!d || d === 'not out' || d.toLowerCase().startsWith('batting')) continue;
+    // catch: "c Fielder b Bowler" (not "c & b")
+    const catchM = d.match(/^c\s+(?!&)(.+?)\s+b\s+/i);
+    if (catchM) { add(catchM[1].trim()); continue; }
+    // stumping: "st Keeper b Bowler"
+    const stM = d.match(/^st\s+(.+?)\s+b\s+/i);
+    if (stM) { add(stM[1].trim()); continue; }
+    // run out: "run out (Name)" or "run out (Name1/Name2)"
+    const roM = d.match(/run out\s*\(([^)]+)\)/i);
+    if (roM) { add(roM[1].split('/')[0].trim()); continue; }
+  }
+  return map;
+}
+
+// Look up fielding points for a player by checking if the dismissal surname
+// is contained within the full player name (handles "Bumrah" → "Jasprit Bumrah").
+function lookupFieldingPts(playerName: string, fieldingMap: Map<string, number>): number {
+  const norm = normalizeName(playerName);
+  let pts = 0;
+  for (const [key, val] of fieldingMap) {
+    if (norm.includes(key) || key.includes(norm)) pts += val;
+  }
+  return pts;
+}
+
 export function calcLiveFantasyTotal(
   batsmen: LiveBatsman[],
   bowlers: LiveBowler[],
@@ -157,6 +196,8 @@ export function calcLiveFantasyTotal(
   playingEleven: string[] = [],
 ): LiveFantasyTotal {
   const breakdown: BreakdownEntry[] = [];
+  // Build fielding map once from all batsmen dismissal texts
+  const fieldingMap = buildFieldingMap(batsmen);
 
   for (const pick of picks) {
     const subName = pick.substituteName;
@@ -175,7 +216,7 @@ export function calcLiveFantasyTotal(
     // Apply multiplier once to combined raw total (non-linear loss multiplier)
     const batPts = batter?.fantasyPoints ?? 0;
     const bowlPts = bowler?.fantasyPoints ?? 0;
-    const fieldPts = 0; // ESPN live data doesn't expose fielding stats
+    const fieldPts = lookupFieldingPts(activeName, fieldingMap);
     const combinedRaw = batPts + bowlPts + fieldPts;
     const finalPts = pick.multiplier ? applyMultiplier(combinedRaw, pick.multiplier) : combinedRaw;
 
