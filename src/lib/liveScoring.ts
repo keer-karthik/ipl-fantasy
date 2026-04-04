@@ -91,7 +91,7 @@ export function calcLiveBatsmen(
     const balls = parseInt(p.ballsFaced ?? '0') || 0;
     const isOut = !!p.dismissal && p.dismissal !== 'not out' && p.dismissal !== '';
     const sr = balls > 0 ? (runs / balls) * 100 : 0;
-    const battingPos = i + 1;
+    const battingPos = parseInt(p.battingPosition ?? '0') || (i + 1);
 
     // Live scoring: don't apply failure penalty while batter is still in —
     // they may still build a score. Penalty locks in only on dismissal.
@@ -248,13 +248,24 @@ export function autoResultFromLive(
   const allBatting = Object.values(innings).flatMap(inning => inning.batting);
   const allBowling = Object.values(innings).flatMap(inning => inning.bowling);
 
-  // Build fielding credit map from dismissalFielder on each batting record
+  // Build fielding credit map from dismissalFielder + dismissal text fallback
   const fieldingMap = new Map<string, number>();
+  const addFielder = (name: string) => {
+    const k = normalizeName(name);
+    if (k.length >= 3) fieldingMap.set(k, (fieldingMap.get(k) ?? 0) + 10);
+  };
   for (const b of allBatting) {
     const fielder = b.dismissalFielder ?? '';
-    if (!fielder) continue;
-    const k = normalizeName(fielder);
-    if (k.length >= 3) fieldingMap.set(k, (fieldingMap.get(k) ?? 0) + 10);
+    if (fielder) { addFielder(fielder); continue; }
+    // Fallback: parse dismissal text (e.g. "c Axar Patel b Kuldeep", "run out (Bumrah)")
+    const d = (b.dismissal ?? '').trim();
+    if (!d || d === 'not out') continue;
+    const catchM = d.match(/^c\s+(?![&†])([^b]+?)\s+b\s+/i);
+    if (catchM) { addFielder(catchM[1].trim()); continue; }
+    const stM = d.match(/^st\s+[†]?([^b]+?)\s+b\s+/i);
+    if (stM) { addFielder(stM[1].trim()); continue; }
+    const roM = d.match(/run out\s*\(([^)]+)\)/i);
+    if (roM) { addFielder(roM[1].split('/')[0].trim()); continue; }
   }
 
   return picks.map(pick => {

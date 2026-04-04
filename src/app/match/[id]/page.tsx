@@ -274,6 +274,11 @@ function PicksEditor({
 
 // ─── Result Display ───────────────────────────────────────────────────────────
 
+function pts(n: number, fallback = '—') {
+  if (n === 0) return fallback;
+  return n > 0 ? `+${n}` : String(n);
+}
+
 function ResultsDisplay({ match }: { match: ReturnType<typeof emptyMatch> }) {
   const winner = match.winner;
 
@@ -299,45 +304,106 @@ function ResultsDisplay({ match }: { match: ReturnType<typeof emptyMatch> }) {
         })}
       </div>
 
-      {/* Player Breakdown */}
-      {(['lads', 'gils'] as const).map(side => (
-        <div key={side}>
-          <h3 className={`font-bold mb-3 ${side === 'lads' ? 'text-blue-600' : 'text-pink-600'}`}>
-            {side === 'lads' ? 'Lads' : 'Gils'} — Breakdown
-          </h3>
-          <div className="space-y-2">
-            {match[side].results.map(r => (
-              <div key={r.playerName} className="bg-white border border-gray-200 rounded-xl p-3 shadow-sm">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold text-sm text-gray-800">{r.playerName}</span>
-                    <span className={`text-xs px-1.5 py-0.5 rounded font-bold ${multiplierColor(r.multiplier)}`}>
-                      {multiplierBadge(r.multiplier)}
-                    </span>
-                  </div>
-                  <span className={`font-bold text-sm ${r.finalTotal >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {r.finalTotal > 0 ? '+' : ''}{r.finalTotal}
-                  </span>
-                </div>
-                <div className="flex gap-4 text-xs text-gray-400">
-                  {r.didBat && <span>Bat: <span className="text-gray-600 font-medium">{r.battingPoints}</span> ({r.runs}r {r.balls}b)</span>}
-                  {r.didBowl && <span>Bowl: <span className="text-gray-600 font-medium">{r.bowlingPoints}</span> ({r.wickets}w {r.overs}ov)</span>}
-                  {r.fieldingPoints > 0 && <span>Field: <span className="text-gray-600 font-medium">+{r.fieldingPoints}</span></span>}
-                  {r.isMOM && <span className="text-amber-500 font-semibold">MOM +10</span>}
-                  {r.rawTotal !== r.finalTotal && <span className="text-gray-400">Raw: {r.rawTotal}</span>}
-                </div>
-              </div>
-            ))}
-            {/* Prediction bonus row */}
-            {match[side].predictedWinner && match.actualWinner === match[side].predictedWinner && (
-              <div className="bg-white border border-gray-200 rounded-xl p-3 shadow-sm flex items-center justify-between">
-                <span className="text-sm font-semibold text-gray-800">Correct prediction</span>
-                <span className="font-bold text-sm text-green-600">+50</span>
-              </div>
-            )}
+      {/* Per-side breakdown tables */}
+      {(['lads', 'gils'] as const).map(side => {
+        const data = match[side];
+        const hasWinnerBonus = data.predictedWinner !== null && match.actualWinner === data.predictedWinner;
+
+        return (
+          <div key={side}>
+            <h3 className={`font-bold mb-3 ${side === 'lads' ? 'text-blue-600' : 'text-pink-600'}`}>
+              {side === 'lads' ? 'Lads' : 'Gils'} — Breakdown
+            </h3>
+            <div className="overflow-x-auto rounded-2xl border border-gray-200 shadow-sm bg-white">
+              <table className="w-full text-sm" style={{ minWidth: 540 }}>
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-100 text-xs text-gray-400 uppercase tracking-wide">
+                    <th className="text-left px-3 py-2.5 font-semibold">Player</th>
+                    <th className="text-right px-2 py-2.5 font-semibold">Bat</th>
+                    <th className="text-right px-2 py-2.5 font-semibold">Bowl</th>
+                    <th className="text-right px-2 py-2.5 font-semibold">Field</th>
+                    <th className="text-right px-2 py-2.5 font-semibold">MOM</th>
+                    <th className="text-right px-2 py-2.5 font-semibold">Raw</th>
+                    <th className="text-center px-2 py-2.5 font-semibold">Mult</th>
+                    <th className="text-right px-3 py-2.5 font-semibold">Total</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {data.results.map(r => (
+                    <tr key={r.playerName} className="hover:bg-gray-50/50 transition-colors">
+                      <td className="px-3 py-3">
+                        <div className="font-semibold text-gray-800">{r.playerName}</div>
+                        <div className="flex gap-2 text-xs text-gray-400 mt-0.5">
+                          {r.didBat && <span>{r.runs}r · {r.balls}b</span>}
+                          {r.didBowl && <span>{r.wickets}w · {r.overs}ov</span>}
+                          {!r.didBat && !r.didBowl && <span>DNP</span>}
+                        </div>
+                      </td>
+                      <td className={`text-right px-2 py-3 font-medium tabular-nums ${
+                        !r.didBat ? 'text-gray-300' :
+                        r.battingPoints > 0 ? 'text-green-600' : r.battingPoints < 0 ? 'text-red-500' : 'text-gray-400'
+                      }`}>
+                        {r.didBat ? pts(r.battingPoints, '0') : '—'}
+                      </td>
+                      <td className={`text-right px-2 py-3 font-medium tabular-nums ${
+                        !r.didBowl ? 'text-gray-300' :
+                        r.bowlingPoints > 0 ? 'text-green-600' : r.bowlingPoints < 0 ? 'text-red-500' : 'text-gray-400'
+                      }`}>
+                        {r.didBowl ? pts(r.bowlingPoints, '0') : '—'}
+                      </td>
+                      <td className={`text-right px-2 py-3 font-medium tabular-nums ${
+                        r.fieldingPoints > 0 ? 'text-green-600' : 'text-gray-300'
+                      }`}>
+                        {pts(r.fieldingPoints)}
+                      </td>
+                      <td className={`text-right px-2 py-3 font-medium tabular-nums ${
+                        r.momPoints > 0 ? 'text-amber-500' : 'text-gray-300'
+                      }`}>
+                        {pts(r.momPoints)}
+                      </td>
+                      <td className="text-right px-2 py-3 tabular-nums text-gray-500 font-medium">
+                        {pts(r.rawTotal, '0')}
+                      </td>
+                      <td className="text-center px-2 py-3">
+                        <span className={`text-xs px-1.5 py-0.5 rounded font-bold ${multiplierColor(r.multiplier)}`}>
+                          {multiplierBadge(r.multiplier)}
+                        </span>
+                      </td>
+                      <td className={`text-right px-3 py-3 font-bold tabular-nums text-base ${
+                        r.finalTotal > 0 ? 'text-green-600' : r.finalTotal < 0 ? 'text-red-600' : 'text-gray-400'
+                      }`}>
+                        {pts(r.finalTotal, '0')}
+                      </td>
+                    </tr>
+                  ))}
+                  {hasWinnerBonus && (
+                    <tr className="bg-amber-50/70 border-t border-amber-100">
+                      <td className="px-3 py-2.5 font-semibold text-amber-700 text-sm" colSpan={5}>
+                        Correct prediction — {data.predictedWinner}
+                      </td>
+                      <td className="text-right px-2 py-2.5 font-medium text-gray-500 tabular-nums">+50</td>
+                      <td className="text-center px-2 py-2.5">
+                        <span className="text-xs px-1.5 py-0.5 rounded font-bold bg-yellow-400 text-yellow-900">1×</span>
+                      </td>
+                      <td className="text-right px-3 py-2.5 font-bold text-green-600 tabular-nums text-base">+50</td>
+                    </tr>
+                  )}
+                  <tr className="bg-gray-50 border-t-2 border-gray-200">
+                    <td className="px-3 py-3 font-black text-gray-700 text-sm uppercase tracking-wide" colSpan={7}>
+                      Total
+                    </td>
+                    <td className={`text-right px-3 py-3 font-black text-xl tabular-nums ${
+                      data.total >= 0 ? 'text-gray-900' : 'text-red-600'
+                    }`}>
+                      {data.total}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
