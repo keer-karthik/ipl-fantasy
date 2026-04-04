@@ -679,13 +679,14 @@ export default function LiveScorecard({
 
   function applyRemote(remote: HistoryPoint[], replaceAll = false) {
     const valid = remote.filter(p => isValidSeq(p.seq));
-    if (valid.length === 0) return;
     if (replaceAll) {
+      // Full replace: trust the API completely (clears stale data even if result is empty)
       const sorted = [...valid].sort((a, b) => a.seq - b.seq);
       setHistory(sorted);
       try { localStorage.setItem(historyKey, JSON.stringify(sorted)); } catch { /* quota */ }
       return;
     }
+    if (valid.length === 0) return;
     setHistory(prev => {
       const validPrev = prev.filter(p => isValidSeq(p.seq));
       // Reconstruction always wins — local cache only fills in events that remote lacks
@@ -727,7 +728,7 @@ export default function LiveScorecard({
       fetch(`/api/reconstruct/${matchId}`)
         .then(r => r.ok ? r.json() : null)
         .then((remote: HistoryPoint[] | null) => {
-          if (Array.isArray(remote) && remote.length > 0) applyRemote(remote, true);
+          applyRemote(Array.isArray(remote) ? remote : [], true);
         })
         .catch(() => {})
         .finally(() => setRegenerating(false));
@@ -740,7 +741,7 @@ export default function LiveScorecard({
     fetch(`/api/reconstruct/${matchId}`)
       .then(r => r.ok ? r.json() : null)
       .then((remote: HistoryPoint[] | null) => {
-        if (Array.isArray(remote) && remote.length > 0) applyRemote(remote, true);
+        applyRemote(Array.isArray(remote) ? remote : [], true);
       })
       .catch(() => {})
       .finally(() => setRegenerating(false));
