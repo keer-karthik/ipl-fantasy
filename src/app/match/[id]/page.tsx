@@ -16,7 +16,7 @@ const MULT_CFG: Record<Multiplier, { short: string; label: string; active: strin
   yellow: { short: '1×', label: 'Yellow 1×', active: '#f59e0b', idle: '#fef3c7', activeText: '#fff', idleText: '#92400e' },
   green:  { short: '2×', label: 'Green 2×',  active: '#16a34a', idle: '#dcfce7', activeText: '#fff', idleText: '#166534' },
   purple: { short: '3×', label: 'Purple 3×', active: '#7c3aed', idle: '#ede9fe', activeText: '#fff', idleText: '#5b21b6' },
-  allin:  { short: '5×', label: 'All-in 5×', active: '#ea580c', idle: '#fff7ed', activeText: '#fff', idleText: '#9a3412' },
+  allin:  { short: '5×', label: 'All-in 5×', active: '#be185d', idle: '#fdf2f8', activeText: '#fff', idleText: '#9d174d' },
 };
 
 function MultiplierPicker({ value, onChange, canUse }: {
@@ -100,8 +100,8 @@ function PlayerComboBox({
   }, []);
 
   const inputCls = small
-    ? 'w-full bg-gray-50 border border-gray-200 rounded px-2 py-1 text-xs text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500/30'
-    : 'w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500/30';
+    ? 'w-full bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs text-gray-700 focus:outline-none focus:border-gray-400 focus:ring-1 focus:ring-gray-300 placeholder:text-gray-400'
+    : 'w-full bg-white border border-gray-200 rounded-xl px-3.5 py-2 text-sm font-medium text-gray-900 focus:outline-none focus:border-gray-400 focus:ring-1 focus:ring-gray-300 placeholder:text-gray-400';
 
   return (
     <div ref={containerRef} className={`relative ${className ?? ''}`}>
@@ -125,7 +125,7 @@ function PlayerComboBox({
         />
       )}
       {open && (
-        <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-56 overflow-y-auto">
+        <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg max-h-56 overflow-y-auto">
           {filtered.length === 0 ? (
             <div className="px-3 py-2 text-xs text-gray-400">No players found</div>
           ) : (
@@ -139,10 +139,10 @@ function PlayerComboBox({
                   setOpen(false);
                   setQuery('');
                 }}
-                className={`w-full text-left px-3 py-1.5 text-sm hover:bg-blue-50 transition-colors
-                  ${o.name === value ? 'bg-blue-50 font-medium text-blue-700' : 'text-gray-800'}
+                className={`w-full text-left px-3.5 transition-colors
+                  ${o.name === value ? 'bg-gray-100 font-semibold text-gray-900' : 'text-gray-700 hover:bg-gray-50'}
                   ${o.disabled ? 'opacity-40 cursor-not-allowed' : ''}
-                  ${small ? 'text-xs py-1' : ''}`}
+                  ${small ? 'text-xs py-1.5' : 'text-sm py-2'}`}
               >
                 {o.label}
               </button>
