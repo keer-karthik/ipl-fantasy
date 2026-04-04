@@ -351,6 +351,7 @@ function ProgressChart({ history, onRegenerate }: { history: HistoryPoint[]; onR
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function LiveScorecard({
   matchId, ladsPicks, gilsPicks, liveData, loading, lastUpdated,
+  savedLadsBreakdown, savedGilsBreakdown,
 }: {
   matchId: number;
   ladsPicks: PlayerPick[];
@@ -358,6 +359,8 @@ export default function LiveScorecard({
   liveData: LiveData | null;
   loading: boolean;
   lastUpdated: Date | null;
+  savedLadsBreakdown?: Array<{ name: string; activeName: string; pts: number; batPts: number; bowlPts: number; fieldPts: number; multiplier: import('@/lib/types').Multiplier | null; isSubstituted: boolean }>;
+  savedGilsBreakdown?: Array<{ name: string; activeName: string; pts: number; batPts: number; bowlPts: number; fieldPts: number; multiplier: import('@/lib/types').Multiplier | null; isSubstituted: boolean }>;
 }) {
   const historyKey = `ipl-chart-${matchId}`;
 
@@ -430,6 +433,10 @@ export default function LiveScorecard({
   const playingEleven = liveData?.playingEleven ?? [];
   const ladsAgg = calcLiveFantasyTotal(aggBatsmen, aggBowlers, ladsPicks, playingEleven);
   const gilsAgg = calcLiveFantasyTotal(aggBatsmen, aggBowlers, gilsPicks, playingEleven);
+
+  // Use saved breakdown as fallback when live breakdown is all-zero (e.g. completed matches)
+  const ladsBreakdown = (ladsAgg.breakdown.some(b => b.pts !== 0) ? ladsAgg.breakdown : null) ?? savedLadsBreakdown ?? ladsAgg.breakdown;
+  const gilsBreakdown = (gilsAgg.breakdown.some(b => b.pts !== 0) ? gilsAgg.breakdown : null) ?? savedGilsBreakdown ?? gilsAgg.breakdown;
 
   // When live innings data is absent (ESPN returns "Scheduled" for completed matches),
   // fall back to the final point in chart history for the headline totals.
@@ -528,7 +535,7 @@ export default function LiveScorecard({
             style={{ top: '56px', width: 'calc(50vw - 32rem)' }}>
             <SidePanel
               label="LADS" total={ladsDisplayTotal}
-              breakdown={ladsAgg.breakdown}
+              breakdown={ladsBreakdown}
               color="#d97706" textColor={ladsDisplayTotal >= 0 ? 'text-green-600' : 'text-red-500'}
               borderColor="border-amber-200" bgColor="bg-amber-50"
             />
@@ -537,7 +544,7 @@ export default function LiveScorecard({
             style={{ top: '56px', width: 'calc(50vw - 32rem)' }}>
             <SidePanel
               label="GILS" total={gilsDisplayTotal}
-              breakdown={gilsAgg.breakdown}
+              breakdown={gilsBreakdown}
               color="#7c3aed" textColor={gilsDisplayTotal >= 0 ? 'text-green-600' : 'text-red-500'}
               borderColor="border-violet-200" bgColor="bg-violet-50"
             />

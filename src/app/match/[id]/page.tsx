@@ -352,6 +352,19 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
 
   // ALL hooks must be declared before any conditional return
   const [activeTab, setActiveTab] = useState<'studio' | 'live' | 'result'>('studio');
+
+  // Read URL hash on mount and keep hash in sync when switching tabs
+  useEffect(() => {
+    const hash = window.location.hash.replace('#', '') as 'studio' | 'live' | 'result';
+    if (hash === 'studio' || hash === 'live' || hash === 'result') {
+      setActiveTab(hash);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function switchTab(tab: 'studio' | 'live' | 'result') {
+    setActiveTab(tab);
+    if (typeof window !== 'undefined') window.location.hash = tab;
+  }
   const [ladsPicks, setLadsPicks] = useState<PlayerPick[]>([]);
   const [gilsPicks, setGilsPicks] = useState<PlayerPick[]>([]);
   const [ladsPrediction, setLadsPrediction] = useState<TeamName | ''>('');
@@ -397,7 +410,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
       lads: { ...m.lads, picks: ladsPicks, stats: [], results: ladsResults, total: ladsTotal, predictedWinner: ladsPrediction as TeamName || null, allInUsed: ladsAllin },
       gils: { ...m.gils, picks: gilsPicks, stats: [], results: gilsResults, total: gilsTotal, predictedWinner: gilsPrediction as TeamName || null, allInUsed: gilsAllin },
     }));
-    setActiveTab('result');
+    switchTab('result');
   }, [liveData, ladsPicks, gilsPicks, ladsPrediction, gilsPrediction, matchId, updateMatch]);
 
   // Auto-save when ESPN reports match complete
@@ -423,6 +436,27 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
 
   const match = state.matches[matchId] ?? emptyMatch(matchId);
 
+  const savedLadsBreakdown = match.lads.results.length > 0 ? match.lads.results.map(r => ({
+    name: r.playerName,
+    activeName: r.playerName,
+    pts: r.finalTotal,
+    batPts: r.battingPoints,
+    bowlPts: r.bowlingPoints,
+    fieldPts: r.fieldingPoints,
+    multiplier: r.multiplier,
+    isSubstituted: false,
+  })) : undefined;
+  const savedGilsBreakdown = match.gils.results.length > 0 ? match.gils.results.map(r => ({
+    name: r.playerName,
+    activeName: r.playerName,
+    pts: r.finalTotal,
+    batPts: r.battingPoints,
+    bowlPts: r.bowlingPoints,
+    fieldPts: r.fieldingPoints,
+    multiplier: r.multiplier,
+    isSubstituted: false,
+  })) : undefined;
+
   function savePicks() {
     updateMatch(matchId, m => ({
       ...m,
@@ -433,7 +467,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
         ? { ...m.gils, picks: gilsPicks, predictedWinner: (gilsPrediction as TeamName) || null }
         : m.gils,
     }));
-    setActiveTab('live');
+    switchTab('live');
   }
 
   const tabs: { key: 'studio' | 'live' | 'result'; label: string; disabled?: boolean }[] = [
@@ -500,13 +534,60 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
           <div className="text-xs text-blue-300 text-center">
             {fixture.venue}
           </div>
+
+          {/* Live / completed scores */}
+          {liveData && (liveData.status.isLive || liveData.status.isComplete) && (() => {
+            // Get innings in order
+            const inningsKeys = Object.keys(liveData.innings);
+            return (
+              <div className="w-full max-w-sm space-y-1">
+                {inningsKeys.map(team => {
+                  const inn = liveData.innings[team];
+                  return (
+                    <div key={team} className="flex justify-between items-center bg-white/10 rounded-lg px-3 py-1">
+                      <span className="text-white text-xs font-bold">{team.split(' ').map(w => w[0]).join('')}</span>
+                      <span className="text-white text-sm font-black">{inn.total}</span>
+                    </div>
+                  );
+                })}
+
+                {/* Recent balls from last 6 commentaries */}
+                {liveData.commentaries.length > 0 && (
+                  <div className="flex gap-1 justify-center pt-1 flex-wrap">
+                    {liveData.commentaries.slice(-6).map((c, i) => {
+                      const txt = (c.text ?? '').toLowerCase();
+                      const isWicket = txt.includes('out') || txt.includes('wicket') || txt.includes('w');
+                      const isFour = txt.includes('four') || txt.includes('4');
+                      const isSix = txt.includes('six') || txt.includes('6');
+                      const label = isSix ? '6' : isFour ? '4' : isWicket ? 'W' : c.text.replace(/[^0-9.W]/gi,'').trim() || '·';
+                      return (
+                        <span key={i} className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black ${
+                          isWicket ? 'bg-red-500 text-white' :
+                          isSix ? 'bg-purple-500 text-white' :
+                          isFour ? 'bg-orange-400 text-white' :
+                          'bg-white/20 text-white'
+                        }`}>{label}</span>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Result */}
+                {liveData.status.isComplete && liveData.status.description && (
+                  <div className="bg-white/20 rounded-lg px-3 py-1 text-center">
+                    <span className="text-white text-xs font-bold">{liveData.status.description}</span>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </div>
       </motion.div>
 
       {/* Tabs */}
       <div className="flex gap-1 bg-white rounded-xl p-1 border border-gray-200 shadow-sm">
         {tabs.map(t => (
-          <button key={t.key} onClick={() => !t.disabled && setActiveTab(t.key)}
+          <button key={t.key} onClick={() => !t.disabled && switchTab(t.key)}
             disabled={t.disabled}
             className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${
               activeTab === t.key
@@ -618,6 +699,8 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
             liveData={liveData}
             loading={liveLoading}
             lastUpdated={lastUpdated}
+            savedLadsBreakdown={savedLadsBreakdown}
+            savedGilsBreakdown={savedGilsBreakdown}
           />
         </motion.div>
       )}
