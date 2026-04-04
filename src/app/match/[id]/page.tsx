@@ -1,5 +1,5 @@
 'use client';
-import { use, useState } from 'react';
+import { use, useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useSeasonState, emptyMatch } from '@/lib/store';
 import { getFixture, teams, formatDate } from '@/lib/data';
@@ -334,31 +334,44 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
   const matchId = parseInt(id);
   const fixture = getFixture(matchId);
   const { state, updateMatch, loaded } = useSeasonState();
+
+  // ALL hooks must be declared before any conditional return
   const [activeTab, setActiveTab] = useState<'picks' | 'live' | 'stats' | 'result'>('picks');
+  const [ladsPicks, setLadsPicks] = useState<PlayerPick[]>([]);
+  const [gilsPicks, setGilsPicks] = useState<PlayerPick[]>([]);
+  const [ladsStats, setLadsStats] = useState<PlayerStats[]>([]);
+  const [gilsStats, setGilsStats] = useState<PlayerStats[]>([]);
+  const [ladsPrediction, setLadsPrediction] = useState<TeamName | ''>('');
+  const [gilsPrediction, setGilsPrediction] = useState<TeamName | ''>('');
+  const [actualWinner, setActualWinner] = useState<TeamName | ''>('');
+  const [initialized, setInitialized] = useState(false);
+
+  // Initialise local state from persisted match data once loaded
+  useEffect(() => {
+    if (!loaded || initialized) return;
+    const match = state.matches[matchId] ?? emptyMatch(matchId);
+    setLadsPicks(match.lads.picks);
+    setGilsPicks(match.gils.picks);
+    setLadsStats(
+      match.lads.picks.length > 0
+        ? (match.lads.stats.length > 0 ? match.lads.stats : match.lads.picks.map(p => emptyStats(p.playerName)))
+        : []
+    );
+    setGilsStats(
+      match.gils.picks.length > 0
+        ? (match.gils.stats.length > 0 ? match.gils.stats : match.gils.picks.map(p => emptyStats(p.playerName)))
+        : []
+    );
+    setLadsPrediction(match.lads.predictedWinner ?? '');
+    setGilsPrediction(match.gils.predictedWinner ?? '');
+    setActualWinner(match.actualWinner ?? '');
+    setInitialized(true);
+  }, [loaded, initialized, matchId, state.matches]);
 
   if (!loaded) return <div className="text-gray-400 text-center py-20">Loading...</div>;
   if (!fixture) return <div className="text-red-500 text-center py-20">Match {matchId} not found.</div>;
 
   const match = state.matches[matchId] ?? emptyMatch(matchId);
-
-  // Local stats state (before saving)
-  const [ladsPicks, setLadsPicks] = useState<PlayerPick[]>(match.lads.picks);
-  const [gilsPicks, setGilsPicks] = useState<PlayerPick[]>(match.gils.picks);
-
-  const [ladsStats, setLadsStats] = useState<PlayerStats[]>(
-    match.lads.picks.length > 0
-      ? (match.lads.stats.length > 0 ? match.lads.stats : match.lads.picks.map(p => emptyStats(p.playerName)))
-      : []
-  );
-  const [gilsStats, setGilsStats] = useState<PlayerStats[]>(
-    match.gils.picks.length > 0
-      ? (match.gils.stats.length > 0 ? match.gils.stats : match.gils.picks.map(p => emptyStats(p.playerName)))
-      : []
-  );
-
-  const [ladsPrediction, setLadsPrediction] = useState<TeamName | ''>(match.lads.predictedWinner ?? '');
-  const [gilsPrediction, setGilsPrediction] = useState<TeamName | ''>(match.gils.predictedWinner ?? '');
-  const [actualWinner, setActualWinner] = useState<TeamName | ''>(match.actualWinner ?? '');
 
   function savePicks() {
     updateMatch(matchId, m => ({
