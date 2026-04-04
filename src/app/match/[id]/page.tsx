@@ -328,6 +328,13 @@ function ResultsDisplay({ match }: { match: ReturnType<typeof emptyMatch> }) {
                 </div>
               </div>
             ))}
+            {/* Prediction bonus row */}
+            {match[side].predictedWinner && match.actualWinner === match[side].predictedWinner && (
+              <div className="bg-white border border-gray-200 rounded-xl p-3 shadow-sm flex items-center justify-between">
+                <span className="text-sm font-semibold text-gray-800">Correct prediction</span>
+                <span className="font-bold text-sm text-green-600">+50</span>
+              </div>
+            )}
           </div>
         </div>
       ))}
@@ -374,10 +381,10 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
     const ladsCorrect = ladsPrediction !== '' && ladsPrediction === actualWinner;
     const gilsCorrect = gilsPrediction !== '' && gilsPrediction === actualWinner;
 
-    const ladsResults = autoResultFromLive(liveData.innings, ladsPicks, ladsCorrect, liveData.playingEleven ?? []);
-    const gilsResults = autoResultFromLive(liveData.innings, gilsPicks, gilsCorrect, liveData.playingEleven ?? []);
-    const ladsTotal = ladsResults.reduce((s, r) => s + r.finalTotal, 0);
-    const gilsTotal = gilsResults.reduce((s, r) => s + r.finalTotal, 0);
+    const ladsResults = autoResultFromLive(liveData.innings, ladsPicks, liveData.playingEleven ?? []);
+    const gilsResults = autoResultFromLive(liveData.innings, gilsPicks, liveData.playingEleven ?? []);
+    const ladsTotal = ladsResults.reduce((s, r) => s + r.finalTotal, 0) + (ladsCorrect ? 50 : 0);
+    const gilsTotal = gilsResults.reduce((s, r) => s + r.finalTotal, 0) + (gilsCorrect ? 50 : 0);
     const winner = ladsTotal > gilsTotal ? 'lads' : gilsTotal > ladsTotal ? 'gils' : null;
     const ladsAllin = ladsPicks.some(p => p.multiplier === 'allin');
     const gilsAllin = gilsPicks.some(p => p.multiplier === 'allin');

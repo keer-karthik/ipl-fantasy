@@ -242,7 +242,6 @@ export function calcLiveFantasyTotal(
 export function autoResultFromLive(
   innings: LiveData['innings'],
   picks: PlayerPick[],
-  correctPrediction: boolean,
   playingEleven: string[] = [],
 ): PlayerResult[] {
   // Flatten all batting and bowling records across all innings
@@ -298,12 +297,11 @@ export function autoResultFromLive(
 
     const isMOM = false;
     const momPoints = 0;
-    const predPoints = correctPrediction ? 50 : 0;
 
     const battingPoints = calcBattingPoints(runs, balls, dismissed, battingPosition);
     const bowlingPoints = calcBowlingPoints(wickets, overs, runsConceded, maidens);
     const rawTotal = battingPoints + bowlingPoints + fieldingPoints;
-    const finalTotal = applyMultiplier(rawTotal, pick.multiplier) + predPoints;
+    const finalTotal = applyMultiplier(rawTotal, pick.multiplier);
 
     return {
       playerName: pick.playerName,
