@@ -64,8 +64,11 @@ export function calcLiveBatsmen(
     const sr = balls > 0 ? (runs / balls) * 100 : 0;
     const battingPos = i + 1;
 
-    // Fantasy calc using live stats (treat as not out if still batting)
-    const fantasyPoints = calcBattingPoints(runs, balls, isOut, battingPos);
+    // Live scoring: don't apply failure penalty while batter is still in —
+    // they may still build a score. Penalty locks in only on dismissal.
+    const fantasyPoints = (!isOut && runs <= 10)
+      ? 0
+      : calcBattingPoints(runs, balls, isOut, battingPos);
     const pick = findPick(p.playerName, picks);
     const multiplier = pick?.multiplier ?? null;
     const finalPoints = multiplier ? applyMultiplier(fantasyPoints, multiplier) : fantasyPoints;
