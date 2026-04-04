@@ -7,7 +7,7 @@ import { useSession } from '@/lib/session';
 const links = [
   { href: '/', label: 'Dashboard', icon: 'D' },
   { href: '/fixtures', label: 'Fixtures', icon: 'F' },
-  { href: '/players', label: 'Players', icon: 'P' },
+  { href: '/players', label: 'Stats', icon: 'S' },
   { href: '/rules', label: 'Rules', icon: 'R' },
 ];
 
