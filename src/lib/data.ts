@@ -44,16 +44,24 @@ export function formatDate(dateStr: string): string {
   return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
 }
 
-export function isUpcoming(dateStr: string): boolean {
-  return parseMatchDate(dateStr) >= new Date(new Date().setHours(0, 0, 0, 0));
+// Returns today's date components in IST (UTC+5:30)
+function todayIST(): { day: number; month: number; year: number } {
+  const now = new Date();
+  const ist = new Date(now.getTime() + (5.5 * 60 * 60 * 1000));
+  return { day: ist.getUTCDate(), month: ist.getUTCMonth(), year: ist.getUTCFullYear() };
 }
 
 export function isToday(dateStr: string): boolean {
   const d = parseMatchDate(dateStr);
-  const today = new Date();
-  return d.getDate() === today.getDate() &&
-    d.getMonth() === today.getMonth() &&
-    d.getFullYear() === today.getFullYear();
+  const { day, month, year } = todayIST();
+  return d.getDate() === day && d.getMonth() === month && d.getFullYear() === year;
+}
+
+export function isUpcoming(dateStr: string): boolean {
+  const d = parseMatchDate(dateStr);
+  const { day, month, year } = todayIST();
+  const todayMidnight = new Date(year, month, day);
+  return d >= todayMidnight;
 }
 
 const IST_MONTHS: Record<string, string> = {
