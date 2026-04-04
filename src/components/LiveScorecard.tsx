@@ -431,6 +431,12 @@ export default function LiveScorecard({
   const ladsAgg = calcLiveFantasyTotal(aggBatsmen, aggBowlers, ladsPicks, playingEleven);
   const gilsAgg = calcLiveFantasyTotal(aggBatsmen, aggBowlers, gilsPicks, playingEleven);
 
+  // When live innings data is absent (ESPN returns "Scheduled" for completed matches),
+  // fall back to the final point in chart history for the headline totals.
+  const lastHistoryPt = history.length > 0 ? history[history.length - 1] : null;
+  const ladsDisplayTotal = ladsAgg.rawTotal !== 0 ? Math.round(ladsAgg.rawTotal) : (lastHistoryPt?.lads ?? 0);
+  const gilsDisplayTotal = gilsAgg.rawTotal !== 0 ? Math.round(gilsAgg.rawTotal) : (lastHistoryPt?.gils ?? 0);
+
   // Append a history point whenever liveData updates, keyed by commentary sequence (ball number).
   // Saves to both localStorage (instant) and Supabase (durable, cross-session).
   useEffect(() => {
@@ -521,18 +527,18 @@ export default function LiveScorecard({
           <div className="fixed left-0 bottom-0 hidden 2xl:flex flex-col z-30 p-2"
             style={{ top: '56px', width: 'calc(50vw - 32rem)' }}>
             <SidePanel
-              label="LADS" total={Math.round(ladsAgg.rawTotal)}
+              label="LADS" total={ladsDisplayTotal}
               breakdown={ladsAgg.breakdown}
-              color="#d97706" textColor={ladsAgg.rawTotal >= 0 ? 'text-green-600' : 'text-red-500'}
+              color="#d97706" textColor={ladsDisplayTotal >= 0 ? 'text-green-600' : 'text-red-500'}
               borderColor="border-amber-200" bgColor="bg-amber-50"
             />
           </div>
           <div className="fixed right-0 bottom-0 hidden 2xl:flex flex-col z-30 p-2"
             style={{ top: '56px', width: 'calc(50vw - 32rem)' }}>
             <SidePanel
-              label="GILS" total={Math.round(gilsAgg.rawTotal)}
+              label="GILS" total={gilsDisplayTotal}
               breakdown={gilsAgg.breakdown}
-              color="#7c3aed" textColor={gilsAgg.rawTotal >= 0 ? 'text-green-600' : 'text-red-500'}
+              color="#7c3aed" textColor={gilsDisplayTotal >= 0 ? 'text-green-600' : 'text-red-500'}
               borderColor="border-violet-200" bgColor="bg-violet-50"
             />
           </div>
@@ -544,16 +550,16 @@ export default function LiveScorecard({
         <div className="flex gap-3 2xl:hidden">
           <div className="flex-1 rounded-xl border-2 border-amber-200 bg-amber-50 p-3 text-center">
             <div className="text-[10px] font-black uppercase tracking-widest text-amber-600">Lads</div>
-            <motion.div key={ladsAgg.rawTotal} initial={{ scale: 1.1 }} animate={{ scale: 1 }}
-              className={`text-3xl font-black ${ladsAgg.rawTotal >= 0 ? 'text-green-600' : 'text-red-500'}`}>
-              {ladsAgg.rawTotal > 0 ? `+${Math.round(ladsAgg.rawTotal)}` : Math.round(ladsAgg.rawTotal)}
+            <motion.div key={ladsDisplayTotal} initial={{ scale: 1.1 }} animate={{ scale: 1 }}
+              className={`text-3xl font-black ${ladsDisplayTotal >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+              {ladsDisplayTotal > 0 ? `+${ladsDisplayTotal}` : ladsDisplayTotal}
             </motion.div>
           </div>
           <div className="flex-1 rounded-xl border-2 border-violet-200 bg-violet-50 p-3 text-center">
             <div className="text-[10px] font-black uppercase tracking-widest text-violet-600">Gils</div>
-            <motion.div key={gilsAgg.rawTotal} initial={{ scale: 1.1 }} animate={{ scale: 1 }}
-              className={`text-3xl font-black ${gilsAgg.rawTotal >= 0 ? 'text-green-600' : 'text-red-500'}`}>
-              {gilsAgg.rawTotal > 0 ? `+${Math.round(gilsAgg.rawTotal)}` : Math.round(gilsAgg.rawTotal)}
+            <motion.div key={gilsDisplayTotal} initial={{ scale: 1.1 }} animate={{ scale: 1 }}
+              className={`text-3xl font-black ${gilsDisplayTotal >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+              {gilsDisplayTotal > 0 ? `+${gilsDisplayTotal}` : gilsDisplayTotal}
             </motion.div>
           </div>
         </div>
