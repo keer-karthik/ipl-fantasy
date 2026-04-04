@@ -129,6 +129,14 @@ function PtsChip({ pts }: { pts: number }) {
 // ─── Side panel (full-height, number at top) ─────────────────────────────────
 function ptsStr(n: number) { return n > 0 ? `+${n}` : n === 0 ? '—' : String(n); }
 function ptsColor(n: number) { return n > 0 ? 'text-green-600' : n < 0 ? 'text-red-500' : 'text-gray-300'; }
+// Tiered color for final totals: yellow → green → purple → magenta
+export function tieredPtsColor(n: number): string {
+  if (n < 0)   return 'text-red-500';
+  if (n < 100) return 'text-amber-400';
+  if (n < 200) return 'text-green-500';
+  if (n < 300) return 'text-violet-600';
+  return 'text-fuchsia-500';
+}
 function shortName(n: string) {
   const parts = n.trim().split(' ');
   return parts.length > 1 ? `${parts[parts.length - 1]}, ${parts[0][0]}.` : n;
@@ -314,7 +322,7 @@ function PlayerTradingCard({ b, isLads }: { b: BreakdownItem; isLads: boolean })
           key={b.pts}
           initial={{ scale: 1.25, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          className={`text-right leading-none shrink-0 ${ptsColor(b.pts)}`}
+          className={`text-right leading-none shrink-0 ${tieredPtsColor(b.pts)}`}
           style={{ ...PLAYER_FONT, fontSize: '38px' }}
         >
           {ptsStr(b.pts)}
@@ -864,14 +872,14 @@ export default function LiveScorecard({
           <div className="flex-1 rounded-xl border-2 border-amber-200 bg-amber-50 p-3 text-center">
             <div className="text-[10px] font-black uppercase tracking-widest text-amber-600">Lads</div>
             <motion.div key={ladsDisplayTotal} initial={{ scale: 1.1 }} animate={{ scale: 1 }}
-              className={`text-3xl font-black ${ladsDisplayTotal >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+              className={`text-3xl font-black ${tieredPtsColor(ladsDisplayTotal)}`}>
               {ladsDisplayTotal > 0 ? `+${ladsDisplayTotal}` : ladsDisplayTotal}
             </motion.div>
           </div>
           <div className="flex-1 rounded-xl border-2 border-violet-200 bg-violet-50 p-3 text-center">
             <div className="text-[10px] font-black uppercase tracking-widest text-violet-600">Gils</div>
             <motion.div key={gilsDisplayTotal} initial={{ scale: 1.1 }} animate={{ scale: 1 }}
-              className={`text-3xl font-black ${gilsDisplayTotal >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+              className={`text-3xl font-black ${tieredPtsColor(gilsDisplayTotal)}`}>
               {gilsDisplayTotal > 0 ? `+${gilsDisplayTotal}` : gilsDisplayTotal}
             </motion.div>
           </div>
