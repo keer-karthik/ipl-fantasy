@@ -121,7 +121,7 @@ export function multiplierLabel(m: Multiplier): string {
 export function multiplierColor(m: Multiplier): string {
   return {
     yellow: 'bg-gray-200 text-gray-500',
-    green: 'bg-emerald-500 text-white',
+    green: 'bg-green-600 text-white',
     purple: 'bg-violet-600 text-white',
     allin: 'bg-orange-500 text-white',
   }[m];

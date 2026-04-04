@@ -6,27 +6,7 @@ import { decodeSeq, seqToOverPos } from '@/lib/espnSeq';
 import type { PlayerPick, Multiplier } from '@/lib/types';
 import type { LiveData } from '@/hooks/useLiveScore';
 import { multiplierBadge } from '@/lib/scoring';
-import iplPlayerIds from '../../data/player_images.json';
-
-// IPL CDN headshot URL — looks up player ID from player_images.json
-const _iplIds = iplPlayerIds as Record<string, string>;
-const _n = (s: string) => s.toLowerCase().replace(/[^a-z]/g, '');
-function iplImageUrl(name: string): string | undefined {
-  const n = _n(name);
-  for (const [k, id] of Object.entries(_iplIds)) {
-    if (_n(k) === n) return `/api/player-image/${id}`;
-  }
-  // Fuzzy: last-name-only match
-  const lastName = name.trim().split(' ').pop()?.toLowerCase().replace(/[^a-z]/g, '') ?? '';
-  if (lastName.length >= 4) {
-    for (const [k, id] of Object.entries(_iplIds)) {
-      if (k.trim().split(' ').pop()?.toLowerCase().replace(/[^a-z]/g, '') === lastName) {
-        return `/api/player-image/${id}`;
-      }
-    }
-  }
-  return undefined;
-}
+import { iplImageUrl } from '@/lib/playerImage';
 
 // ─── Dismissal formatting ─────────────────────────────────────────────────────
 // ESPN can return short codes ("c", "b", "lbw") or richer text like "c Axar Patel b Kuldeep Yadav".
@@ -223,7 +203,7 @@ function PlayerTradingCard({ b, isLads }: { b: BreakdownItem; isLads: boolean })
   const topBorder  = isLads ? 'border-t-[3px] border-amber-400' : 'border-t-[3px] border-violet-500';
   const multBadgeBg: Record<string, string> = {
     yellow: 'bg-gray-200 text-gray-500',
-    green:  'bg-emerald-500 text-white',
+    green:  'bg-green-600 text-white',
     purple: 'bg-violet-600 text-white',
     allin:  'bg-orange-500 text-white',
   };
