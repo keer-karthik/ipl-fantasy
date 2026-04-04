@@ -402,6 +402,9 @@ export default function Dashboard() {
         </div>
       </motion.div>
 
+      {/* ══ Next match countdown ══ */}
+      <NextMatchCountdown />
+
       {/* ══ Today ══ */}
       {todayMatches.length > 0 && (
         <section>
@@ -454,9 +457,6 @@ export default function Dashboard() {
           ))}
         </div>
       </section>
-
-      {/* ══ Next match countdown ══ */}
-      <NextMatchCountdown />
 
       {/* ══ Upcoming fixtures ══ */}
       {upcomingMatches.length > 0 && (
