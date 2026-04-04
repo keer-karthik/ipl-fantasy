@@ -68,8 +68,7 @@ export async function PATCH(request: NextRequest) {
   const service = createServiceClient();
   const { error } = await service
     .from('season_state')
-    .update({ state: newState, updated_at: new Date().toISOString() })
-    .eq('id', 1);
+    .upsert({ id: 1, state: newState, updated_at: new Date().toISOString() });
 
   if (error) return NextResponse.json({ error: 'Failed to save state' }, { status: 500 });
   return NextResponse.json({ ok: true });

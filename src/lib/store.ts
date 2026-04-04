@@ -64,8 +64,11 @@ export function useSeasonState() {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ state: next }),
-      }).catch(() => {
-        // Silent fail — state already updated locally
+      }).then(r => {
+        if (r.status === 401) window.location.href = '/login';
+        if (!r.ok) r.json().then(b => console.error('[state] PATCH failed:', r.status, b)).catch(() => {});
+      }).catch(err => {
+        console.error('[state] PATCH network error:', err);
       });
       return next;
     });
