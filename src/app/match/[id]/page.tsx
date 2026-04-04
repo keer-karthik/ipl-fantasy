@@ -12,6 +12,56 @@ import type { Multiplier, PlayerPick, PlayerStats, TeamName } from '@/lib/types'
 
 const MULTIPLIERS: Multiplier[] = ['yellow', 'green', 'purple', 'allin'];
 
+const MULT_CFG: Record<Multiplier, { short: string; label: string; active: string; idle: string; activeText: string; idleText: string }> = {
+  yellow: { short: '1×', label: 'Yellow 1×', active: '#f59e0b', idle: '#fef3c7', activeText: '#fff', idleText: '#92400e' },
+  green:  { short: '2×', label: 'Green 2×',  active: '#16a34a', idle: '#dcfce7', activeText: '#fff', idleText: '#166534' },
+  purple: { short: '3×', label: 'Purple 3×', active: '#7c3aed', idle: '#ede9fe', activeText: '#fff', idleText: '#5b21b6' },
+  allin:  { short: '5×', label: 'All-in 5×', active: '#ea580c', idle: '#fff7ed', activeText: '#fff', idleText: '#9a3412' },
+};
+
+function MultiplierPicker({ value, onChange, canUse }: {
+  value: Multiplier;
+  onChange: (m: Multiplier) => void;
+  canUse: (m: Multiplier) => boolean;
+}) {
+  return (
+    <div className="flex gap-1">
+      {MULTIPLIERS.map(m => {
+        const cfg = MULT_CFG[m];
+        const active = value === m;
+        const available = canUse(m);
+        return (
+          <button
+            key={m}
+            type="button"
+            title={cfg.label}
+            disabled={!available && !active}
+            onClick={() => available && onChange(m)}
+            style={{
+              background: active ? cfg.active : cfg.idle,
+              color: active ? cfg.activeText : cfg.idleText,
+              border: `1.5px solid ${active ? cfg.active : 'transparent'}`,
+              fontFamily: 'var(--font-barlow-condensed), system-ui, sans-serif',
+              fontWeight: 900,
+              fontSize: 13,
+              letterSpacing: '0.04em',
+              padding: '4px 9px',
+              borderRadius: 8,
+              opacity: !available && !active ? 0.35 : 1,
+              cursor: !available && !active ? 'not-allowed' : 'pointer',
+              lineHeight: 1,
+              transition: 'all 0.12s',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {cfg.short}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 // Searchable player combobox — text input filters the dropdown in real-time
 function PlayerComboBox({
   value,
@@ -193,81 +243,93 @@ function PicksEditor({
   }
 
   const isLads = sideLabel === 'Lads';
+  const accent = isLads ? '#f59e0b' : '#7c3aed';
+  const accentTextCls = isLads ? 'text-amber-500' : 'text-violet-600';
 
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h3 className={`font-bold text-sm ${isLads ? 'text-blue-600' : 'text-pink-600'}`}>
+        <h3 className="font-black text-sm" style={{
+          fontFamily: 'var(--font-barlow-condensed), system-ui, sans-serif',
+          fontSize: 15, letterSpacing: '0.08em', textTransform: 'uppercase', color: accent,
+        }}>
           {sideLabel} — Picks ({picks.length}/5)
         </h3>
         {picks.length < 5 && (
           <button onClick={addPick}
-            className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-gray-600 font-medium transition-colors shadow-sm">
-            + Add Player
+            className="text-xs px-3 py-1.5 rounded-lg bg-white border border-gray-200 hover:bg-gray-50 text-gray-600 font-semibold transition-colors shadow-sm">
+            + Add
           </button>
         )}
       </div>
-      {picks.map((pick, i) => (
-        <div key={i} className="bg-white border border-gray-200 rounded-xl p-3 space-y-2 shadow-sm">
-          <div className="flex gap-2 items-start">
-            <div className="flex-1 space-y-2">
-              <div className="flex gap-2">
-                <PlayerComboBox
-                  value={pick.playerName}
-                  options={allPlayers.map(p => ({
+      {picks.map((pick, i) => {
+        const cfg = MULT_CFG[pick.multiplier];
+        return (
+          <motion.div key={i} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
+            className="bg-white rounded-xl shadow-sm overflow-hidden"
+            style={{ border: `1.5px solid ${cfg.idle}`, borderTopColor: cfg.active }}>
+            {/* Top row: player + remove */}
+            <div className="flex items-center gap-2 px-3 pt-3 pb-2">
+              <PlayerComboBox
+                value={pick.playerName}
+                options={allPlayers.map(p => ({
+                  name: p.name,
+                  label: `${p.name} (${p.role.charAt(0)}) — ${teams[p.team]?.shortName}`,
+                  disabled: picks.some((pk, idx) => idx !== i && pk.playerName === p.name),
+                }))}
+                onChange={name => {
+                  const player = allPlayers.find(p => p.name === name);
+                  const next = picks.map((p, idx) =>
+                    idx === i ? { ...p, playerName: name, ...(player ? { team: player.team } : {}) } : p
+                  );
+                  onChange(next);
+                }}
+                className="flex-1"
+              />
+              <button onClick={() => removePick(i)}
+                className="w-6 h-6 flex items-center justify-center rounded-full text-gray-300 hover:text-red-400 hover:bg-red-50 transition-colors text-lg leading-none flex-shrink-0">
+                ×
+              </button>
+            </div>
+
+            {/* Multiplier chips */}
+            <div className="px-3 pb-2 flex items-center justify-between">
+              <MultiplierPicker
+                value={pick.multiplier}
+                onChange={m => updatePick(i, 'multiplier', m)}
+                canUse={m => canUseMultiplier(m, i)}
+              />
+              {pick.multiplier === 'allin' && (
+                <span className="text-[10px] text-gray-400 font-semibold">{allInUsedSeason}/4 used</span>
+              )}
+            </div>
+
+            {/* Sub row */}
+            <div className="border-t border-gray-50 px-3 py-1.5 flex gap-2 items-center bg-gray-50/50">
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest shrink-0">Sub</span>
+              <PlayerComboBox
+                small
+                value={pick.substituteName ?? ''}
+                options={[
+                  { name: '', label: '— No substitute —' },
+                  ...allPlayers.filter(p => p.name !== pick.playerName).map(p => ({
                     name: p.name,
                     label: `${p.name} (${p.role.charAt(0)}) — ${teams[p.team]?.shortName}`,
-                    disabled: picks.some((pk, idx) => idx !== i && pk.playerName === p.name),
-                  }))}
-                  onChange={name => {
-                    const player = allPlayers.find(p => p.name === name);
-                    const next = picks.map((p, idx) =>
-                      idx === i ? { ...p, playerName: name, ...(player ? { team: player.team } : {}) } : p
-                    );
-                    onChange(next);
-                  }}
-                  className="flex-1"
-                />
-                <select
-                  value={pick.multiplier}
-                  onChange={e => updatePick(i, 'multiplier', e.target.value)}
-                  className="bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
-                >
-                  {MULTIPLIERS.map(m => (
-                    <option key={m} value={m} disabled={!canUseMultiplier(m, i)}>
-                      {m === 'yellow' ? 'Yellow 1×' : m === 'green' ? 'Green 2×' : m === 'purple' ? 'Purple 3×' : `All-in 5× (${allInUsedSeason}/4 used)`}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex gap-2 items-center text-xs text-gray-500">
-                <span className="font-medium">Sub:</span>
-                <PlayerComboBox
-                  small
-                  value={pick.substituteName ?? ''}
-                  options={[
-                    { name: '', label: '— No substitute —' },
-                    ...allPlayers.filter(p => p.name !== pick.playerName).map(p => ({
-                      name: p.name,
-                      label: `${p.name} (${p.role.charAt(0)}) — ${teams[p.team]?.shortName}`,
-                    })),
-                  ]}
-                  onChange={name => {
-                    const player = allPlayers.find(p => p.name === name);
-                    const next = picks.map((p, idx) =>
-                      idx === i ? { ...p, substituteName: name || undefined, ...(player ? { substituteTeam: player.team } : { substituteTeam: undefined }) } : p
-                    );
-                    onChange(next);
-                  }}
-                  className="flex-1"
-                />
-              </div>
+                  })),
+                ]}
+                onChange={name => {
+                  const player = allPlayers.find(p => p.name === name);
+                  const next = picks.map((p, idx) =>
+                    idx === i ? { ...p, substituteName: name || undefined, ...(player ? { substituteTeam: player.team } : { substituteTeam: undefined }) } : p
+                  );
+                  onChange(next);
+                }}
+                className="flex-1"
+              />
             </div>
-            <button onClick={() => removePick(i)}
-              className="text-gray-300 hover:text-red-400 text-xl leading-none pt-1 transition-colors">×</button>
-          </div>
-        </div>
-      ))}
+          </motion.div>
+        );
+      })}
     </div>
   );
 }
@@ -699,13 +761,13 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
           {/* Show only the logged-in user's picks editor */}
           {side === 'lads' && (
-            <div className="bg-blue-50/60 rounded-2xl p-4 border border-blue-100">
+            <div className="bg-amber-50/40 rounded-2xl p-4 border border-amber-100">
               <PicksEditor picks={ladsPicks} onChange={setLadsPicks} fixture={fixture}
                 sideLabel="Lads" allInUsedSeason={state.ladsAllInUsed} />
             </div>
           )}
           {side === 'gils' && (
-            <div className="bg-pink-50/60 rounded-2xl p-4 border border-pink-100">
+            <div className="bg-violet-50/40 rounded-2xl p-4 border border-violet-100">
               <PicksEditor picks={gilsPicks} onChange={setGilsPicks} fixture={fixture}
                 sideLabel="Gils" allInUsedSeason={state.gilsAllInUsed} />
             </div>
@@ -713,29 +775,53 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
 
           {/* Winner prediction — only for current side */}
           <div className="bg-white border border-gray-200 rounded-2xl p-4 space-y-3 shadow-sm">
-            <h3 className="font-bold text-gray-700 text-sm">Winner Prediction <span className="text-amber-500 font-semibold">(+50 pts if correct)</span></h3>
-            {side === 'lads' && (
-              <label className="block">
-                <span className="block text-xs font-semibold mb-1.5 text-blue-600">Lads</span>
-                <select value={ladsPrediction} onChange={e => setLadsPrediction(e.target.value as TeamName | '')}
-                  className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500/30">
-                  <option value="">— No prediction —</option>
-                  <option value={fixture.home}>{fixture.home}</option>
-                  <option value={fixture.away}>{fixture.away}</option>
-                </select>
-              </label>
-            )}
-            {side === 'gils' && (
-              <label className="block">
-                <span className="block text-xs font-semibold mb-1.5 text-pink-600">Gils</span>
-                <select value={gilsPrediction} onChange={e => setGilsPrediction(e.target.value as TeamName | '')}
-                  className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500/30">
-                  <option value="">— No prediction —</option>
-                  <option value={fixture.home}>{fixture.home}</option>
-                  <option value={fixture.away}>{fixture.away}</option>
-                </select>
-              </label>
-            )}
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-gray-700 text-sm">Winner Prediction</h3>
+              <span className="text-xs font-semibold text-amber-500 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">+50 pts if correct</span>
+            </div>
+            {(side === 'lads' || side === 'gils') && (() => {
+              const pred = side === 'lads' ? ladsPrediction : gilsPrediction;
+              const setPred = side === 'lads' ? setLadsPrediction : setGilsPrediction;
+              const accentColor = side === 'lads' ? '#f59e0b' : '#7c3aed';
+              return (
+                <div className="space-y-2">
+                  <div className="text-[10px] font-bold uppercase tracking-widest"
+                    style={{ color: accentColor }}>
+                    {side === 'lads' ? 'Lads' : 'Gils'} pick
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {/* No prediction */}
+                    <button type="button" onClick={() => setPred('')}
+                      className="py-2.5 rounded-xl border-2 text-xs font-bold transition-all"
+                      style={{
+                        borderColor: pred === '' ? accentColor : '#e5e7eb',
+                        background: pred === '' ? accentColor : '#f9fafb',
+                        color: pred === '' ? '#fff' : '#9ca3af',
+                      }}>
+                      —
+                    </button>
+                    {[fixture.home, fixture.away].map(team => {
+                      const teamData = teams[team as TeamName];
+                      const selected = pred === team;
+                      return (
+                        <button key={team} type="button" onClick={() => setPred(team as TeamName)}
+                          className="py-2.5 px-1 rounded-xl border-2 text-xs font-bold transition-all flex flex-col items-center gap-0.5"
+                          style={{
+                            borderColor: selected ? accentColor : '#e5e7eb',
+                            background: selected ? accentColor : '#f9fafb',
+                            color: selected ? '#fff' : '#374151',
+                          }}>
+                          <span className="text-sm font-black" style={{ fontFamily: 'var(--font-barlow-condensed), system-ui, sans-serif', letterSpacing: '0.05em' }}>
+                            {teamData?.shortName ?? team}
+                          </span>
+                          <span className="truncate max-w-full opacity-80" style={{ fontSize: 9 }}>{team}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
           </div>
 
           {(() => {
