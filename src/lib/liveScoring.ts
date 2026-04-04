@@ -30,25 +30,44 @@ export interface LiveBowler {
   isFantasyPick: boolean;
 }
 
+export interface BreakdownEntry {
+  name: string;          // original pick name
+  activeName: string;    // substitute name if subbed in, else same as name
+  pts: number;
+  multiplier: Multiplier | null;
+  isSubstituted: boolean;
+}
+
 export interface LiveFantasyTotal {
   rawTotal: number;
   picksFound: number;
-  breakdown: { name: string; pts: number; multiplier: Multiplier | null }[];
+  breakdown: BreakdownEntry[];
 }
 
+// ─── Name matching ────────────────────────────────────────────────────────────
+// Exact full-name match only (normalised: lowercase, letters only).
+// Fixes "Yadav" collision bug — common surnames no longer false-match.
 function normalizeName(name: string): string {
   return name.toLowerCase().replace(/[^a-z]/g, '');
 }
 
 function nameMatches(a: string, b: string): boolean {
-  const na = normalizeName(a), nb = normalizeName(b);
-  return na === nb || na.includes(nb) || nb.includes(na) ||
-    (na.length > 4 && nb.slice(-na.length) === na) ||
-    (nb.length > 4 && na.slice(-nb.length) === nb);
+  return normalizeName(a) === normalizeName(b);
 }
 
 function findPick(espnName: string, picks: PlayerPick[]): PlayerPick | null {
   return picks.find(p => nameMatches(espnName, p.playerName)) ?? null;
+}
+
+// Check if a player appeared in the game (used to decide whether to activate sub)
+function hasActivity(
+  espnName: string,
+  batsmen: Array<{ playerName: string; balls: number; isOut: boolean }>,
+  bowlers: Array<{ playerName: string; overs: number }>,
+): boolean {
+  const b = batsmen.find(x => nameMatches(x.playerName, espnName));
+  const w = bowlers.find(x => nameMatches(x.playerName, espnName));
+  return (!!b && (b.balls > 0 || b.isOut)) || (!!w && w.overs > 0);
 }
 
 export function calcLiveBatsmen(
@@ -125,18 +144,31 @@ export function calcLiveFantasyTotal(
   bowlers: LiveBowler[],
   picks: PlayerPick[]
 ): LiveFantasyTotal {
-  // Iterate by pick to avoid ESPN-name vs pick-name deduplication bugs.
-  // Combine batting + bowling raw points before applying multiplier (required
-  // because applyMultiplier is non-linear for losses).
-  const breakdown: { name: string; pts: number; multiplier: Multiplier | null }[] = [];
+  const breakdown: BreakdownEntry[] = [];
 
   for (const pick of picks) {
-    const batter = batsmen.find(b => nameMatches(b.playerName, pick.playerName));
-    const bowler = bowlers.find(b => nameMatches(b.playerName, pick.playerName));
-    // Apply multiplier once to combined raw total (not separately per discipline)
+    // Determine which player's stats to use: main pick or substitute
+    const mainActive = hasActivity(pick.playerName, batsmen, bowlers);
+    const subName = pick.substituteName;
+
+    // Activate substitute if: main player has zero activity AND substitute has appeared
+    const useSubstitute = !mainActive && !!subName && hasActivity(subName, batsmen, bowlers);
+
+    const activeName = useSubstitute ? subName! : pick.playerName;
+    const batter = batsmen.find(b => nameMatches(b.playerName, activeName));
+    const bowler = bowlers.find(b => nameMatches(b.playerName, activeName));
+
+    // Apply multiplier once to combined raw total (non-linear loss multiplier)
     const combinedRaw = (batter?.fantasyPoints ?? 0) + (bowler?.fantasyPoints ?? 0);
     const finalPts = pick.multiplier ? applyMultiplier(combinedRaw, pick.multiplier) : combinedRaw;
-    breakdown.push({ name: pick.playerName, pts: finalPts, multiplier: pick.multiplier });
+
+    breakdown.push({
+      name: pick.playerName,
+      activeName,
+      pts: finalPts,
+      multiplier: pick.multiplier,
+      isSubstituted: useSubstitute,
+    });
   }
 
   const rawTotal = breakdown.reduce((s, p) => s + p.pts, 0);
@@ -153,8 +185,16 @@ export function autoResultFromLive(
   const allBowling = Object.values(innings).flatMap(inning => inning.bowling);
 
   return picks.map(pick => {
-    const batter = allBatting.find(b => nameMatches(b.playerName ?? '', pick.playerName)) ?? null;
-    const bowler = allBowling.find(b => nameMatches(b.playerName ?? '', pick.playerName)) ?? null;
+    // Use substitute if main player never appeared
+    const mainBat = allBatting.find(b => nameMatches(b.playerName ?? '', pick.playerName));
+    const mainBowl = allBowling.find(b => nameMatches(b.playerName ?? '', pick.playerName));
+    const mainActive = (mainBat && (parseInt(mainBat.ballsFaced ?? '0') > 0 || (mainBat.dismissal !== 'not out' && mainBat.dismissal !== ''))) ||
+                       (mainBowl && parseFloat(mainBowl.overs ?? '0') > 0);
+    const subName = (!mainActive && pick.substituteName) ? pick.substituteName : null;
+    const activeName = subName ?? pick.playerName;
+
+    const batter = allBatting.find(b => nameMatches(b.playerName ?? '', activeName)) ?? null;
+    const bowler = allBowling.find(b => nameMatches(b.playerName ?? '', activeName)) ?? null;
 
     const didBat = !!batter && (
       parseInt(batter.ballsFaced ?? '0') > 0 ||

@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { calcLiveBatsmen, calcLiveBowlers, calcLiveFantasyTotal } from '@/lib/liveScoring';
 import type { PlayerPick, Multiplier } from '@/lib/types';
@@ -20,21 +20,22 @@ function formatDismissal(raw: string): string {
   return codes[r.toLowerCase()] ?? r;
 }
 
-// ─── Name normalisation ───────────────────────────────────────────────────────
+// ─── Name matching — exact full name only ─────────────────────────────────────
 function norm(s: string) { return s.toLowerCase().replace(/[^a-z]/g, ''); }
-function matchName(a: string, b: string) {
-  const na = norm(a), nb = norm(b);
-  return na === nb || na.includes(nb) || nb.includes(na) ||
-    (na.length > 4 && nb.slice(-na.length) === na) ||
-    (nb.length > 4 && na.slice(-nb.length) === nb);
+function matchName(a: string, b: string) { return norm(a) === norm(b); }
+
+// Match against pick name OR substitute name (so sub player shows correct dots)
+function isLadsPick(name: string, lads: PlayerPick[]) {
+  return lads.some(p => matchName(name, p.playerName) || (p.substituteName && matchName(name, p.substituteName)));
 }
-function isLadsPick(name: string, lads: PlayerPick[]) { return lads.some(p => matchName(name, p.playerName)); }
-function isGilsPick(name: string, gils: PlayerPick[]) { return gils.some(p => matchName(name, p.playerName)); }
+function isGilsPick(name: string, gils: PlayerPick[]) {
+  return gils.some(p => matchName(name, p.playerName) || (p.substituteName && matchName(name, p.substituteName)));
+}
 function getLadsMultiplier(name: string, lads: PlayerPick[]): Multiplier | null {
-  return lads.find(p => matchName(name, p.playerName))?.multiplier ?? null;
+  return (lads.find(p => matchName(name, p.playerName) || (p.substituteName && matchName(name, p.substituteName))))?.multiplier ?? null;
 }
 function getGilsMultiplier(name: string, gils: PlayerPick[]): Multiplier | null {
-  return gils.find(p => matchName(name, p.playerName))?.multiplier ?? null;
+  return (gils.find(p => matchName(name, p.playerName) || (p.substituteName && matchName(name, p.substituteName))))?.multiplier ?? null;
 }
 
 // ─── Commentary helpers ───────────────────────────────────────────────────────
@@ -118,7 +119,7 @@ function SidePanel({
   label, total, breakdown, color, textColor, borderColor, bgColor,
 }: {
   label: string; total: number;
-  breakdown: { name: string; pts: number; multiplier: Multiplier | null }[];
+  breakdown: { name: string; activeName: string; pts: number; multiplier: Multiplier | null; isSubstituted: boolean }[];
   color: string; textColor: string; borderColor: string; bgColor: string;
 }) {
   const isLads = label === 'LADS';
@@ -144,16 +145,20 @@ function SidePanel({
 
       {/* ── BOTTOM: picks list — stacked directly below, no gaps ── */}
       <div className="border-t border-gray-200/80 px-4 py-3 space-y-1 overflow-y-auto">
-        {breakdown.map(b => (
+        {breakdown.map(b => {
+          const displayName = (n: string) => {
+            const parts = n.trim().split(' ');
+            return parts.length > 1 ? `${parts[parts.length - 1]}, ${parts[0][0]}.` : n;
+          };
+          return (
           <div key={b.name} className="flex items-center gap-2 py-2 border-b border-gray-100 last:border-0">
             <div className="text-sm font-semibold text-gray-700 truncate flex-1 min-w-0">
-              {/* Show last name + first initial */}
-              {(() => {
-                const parts = b.name.trim().split(' ');
-                return parts.length > 1
-                  ? `${parts[parts.length - 1]}, ${parts[0][0]}.`
-                  : b.name;
-              })()}
+              {b.isSubstituted ? (
+                <span className="flex flex-col leading-tight">
+                  <span>{displayName(b.activeName)}</span>
+                  <span className="text-[10px] text-gray-400 font-normal">↑ sub for {displayName(b.name)}</span>
+                </span>
+              ) : displayName(b.activeName)}
             </div>
             {b.multiplier && (
               <span className={`text-xs font-bold px-1.5 py-0.5 rounded border shrink-0 ${
@@ -170,7 +175,8 @@ function SidePanel({
               {b.pts > 0 ? `+${b.pts}` : b.pts}
             </span>
           </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
