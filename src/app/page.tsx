@@ -196,11 +196,11 @@ function MatchRow({ fixture, hasEntry, isComplete, ladsTotal, gilsTotal, winner,
         transition={{ duration: 0.15 }}
         className="rounded-xl border px-4 py-3 flex items-center gap-3 cursor-pointer transition-colors"
         style={{
-          background: isComplete && winner === 'lads' ? `${LADS}0d`
-            : isComplete && winner === 'gils' ? `${GILS}0d`
+          background: isComplete && winner === 'lads' ? `${LADS}18`
+            : isComplete && winner === 'gils' ? `${GILS}18`
             : today ? `${NAVY}08` : 'white',
-          borderColor: isComplete && winner === 'lads' ? `${LADS}30`
-            : isComplete && winner === 'gils' ? `${GILS}30`
+          borderColor: isComplete && winner === 'lads' ? `${LADS}50`
+            : isComplete && winner === 'gils' ? `${GILS}50`
             : today ? `${NAVY}20` : '#f3f4f6',
         }}>
         <div className="shrink-0" style={{ minWidth: 40 }}>
@@ -230,12 +230,12 @@ function MatchRow({ fixture, hasEntry, isComplete, ladsTotal, gilsTotal, winner,
         </div>
         <div className="shrink-0">
           {isComplete ? (
-            <span className="text-[11px] font-bold px-2.5 py-1 rounded-lg border" style={
+            <span className="text-[11px] font-bold px-2.5 py-1 rounded-lg" style={
               winner === 'lads'
-                ? { background: `${LADS}12`, color: '#b45309', borderColor: `${LADS}40` }
+                ? { background: LADS, color: '#fff' }
                 : winner === 'gils'
-                  ? { background: `${GILS}12`, color: '#5b21b6', borderColor: `${GILS}40` }
-                  : { background: '#f9fafb', color: '#6b7280', borderColor: '#e5e7eb' }
+                  ? { background: GILS, color: '#fff' }
+                  : { background: '#e5e7eb', color: '#6b7280' }
             }>
               {winner ? `${winner === 'lads' ? 'Lads' : 'Gils'} win` : 'Tie'}
             </span>
