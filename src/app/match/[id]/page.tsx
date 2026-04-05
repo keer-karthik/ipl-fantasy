@@ -419,10 +419,15 @@ function ResultsDisplay({ match, matchId, updateMatch }: {
       const res = await fetch(`/api/live/${matchId}`);
       const liveData: LiveData = await res.json();
       updateMatch(matchId, m => {
+        const actualWinner = liveData.actualWinner as TeamName | null;
         const refreshSide = (se: SideEntry): SideEntry => {
           const momSet = new Set(se.results.filter(r => r.isMOM).map(r => r.playerName));
-          const newResults = autoResultFromLive(liveData.innings, se.picks, [], liveData.manOfTheMatch ?? null);
-          return { ...se, results: newResults.map(r => ({ ...r, isMOM: momSet.has(r.playerName) || r.isMOM })) };
+          const newResults = autoResultFromLive(liveData.innings, se.picks, liveData.playingEleven ?? [], liveData.manOfTheMatch ?? null);
+          const results = newResults.map(r => ({ ...r, isMOM: momSet.has(r.playerName) || r.isMOM }));
+          const hasWinnerBonus = se.predictedWinner !== null && se.predictedWinner === actualWinner;
+          const momBonus = results.filter(r => r.isMOM).length * 10;
+          const total = results.reduce((s, r) => s + Math.round(applyMultiplier(r.battingPoints + r.bowlingPoints + r.fieldingPoints, r.multiplier)), 0) + (hasWinnerBonus ? 50 : 0) + momBonus;
+          return { ...se, results, total };
         };
         return { ...m, lads: refreshSide(m.lads), gils: refreshSide(m.gils) };
       });
