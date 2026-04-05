@@ -6,9 +6,9 @@ import { getFixture, teams, formatDate, getMatchStartIST } from '@/lib/data';
 import { multiplierColor, multiplierBadge, applyMultiplier } from '@/lib/scoring';
 import { TeamLogo } from '@/components/TeamBadge';
 import LiveScorecard, { SidePanel, tieredTotalColor } from '@/components/LiveScorecard';
-import { useLiveScore } from '@/hooks/useLiveScore';
+import { useLiveScore, type LiveData } from '@/hooks/useLiveScore';
 import { autoResultFromLive, calcLiveBatsmen, calcLiveBowlers, calcLiveFantasyTotal } from '@/lib/liveScoring';
-import type { Multiplier, PlayerPick, PlayerStats, TeamName } from '@/lib/types';
+import type { Multiplier, PlayerPick, PlayerStats, PlayerResult, SideEntry, MatchEntry, TeamName } from '@/lib/types';
 
 const MULTIPLIERS: Multiplier[] = ['yellow', 'green', 'purple', 'allin'];
 
@@ -341,16 +341,63 @@ function pts(n: number, fallback = '—') {
   return n > 0 ? `+${n}` : String(n);
 }
 
-function ResultsDisplay({ match }: { match: ReturnType<typeof emptyMatch> }) {
+function ResultsDisplay({ match, matchId, updateMatch }: {
+  match: ReturnType<typeof emptyMatch>;
+  matchId: number;
+  updateMatch: (id: number, updater: (m: MatchEntry) => MatchEntry) => void;
+}) {
   const winner = match.winner;
+  const [refreshing, setRefreshing] = useState(false);
 
   // Recompute display totals from raw stats — stored finalTotal may be stale from old bugs
   function sideDisplayTotal(side: 'lads' | 'gils') {
     const data = match[side];
     const hasBonus = data.predictedWinner !== null && match.actualWinner === data.predictedWinner;
+    const momBonus = data.results.filter(r => r.isMOM).length * 10;
     return data.results.reduce((s, r) => s + Math.round(applyMultiplier(r.rawTotal, r.multiplier)), 0)
-      + (hasBonus ? 50 : 0);
+      + (hasBonus ? 50 : 0)
+      + momBonus;
   }
+
+  async function handleRefreshStats() {
+    setRefreshing(true);
+    try {
+      const res = await fetch(`/api/live/${matchId}`);
+      const liveData: LiveData = await res.json();
+      updateMatch(matchId, m => {
+        const refreshSide = (se: SideEntry): SideEntry => {
+          const momSet = new Set(se.results.filter(r => r.isMOM).map(r => r.playerName));
+          const newResults = autoResultFromLive(liveData.innings, se.picks);
+          return { ...se, results: newResults.map(r => ({ ...r, isMOM: momSet.has(r.playerName) })) };
+        };
+        return { ...m, lads: refreshSide(m.lads), gils: refreshSide(m.gils) };
+      });
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
+  function handleSetMOM(clickedSide: 'lads' | 'gils', playerName: string) {
+    updateMatch(matchId, m => {
+      const isAlreadyMOM = m[clickedSide].results.some(r => r.playerName === playerName && r.isMOM);
+      const clearAndSet = (results: PlayerResult[]) =>
+        results.map(r => ({ ...r, isMOM: !isAlreadyMOM && r.playerName === playerName }));
+      return {
+        ...m,
+        lads: { ...m.lads, results: clearAndSet(m.lads.results) },
+        gils: { ...m.gils, results: clearAndSet(m.gils.results) },
+      };
+    });
+  }
+
+  // Auto-refresh once on mount if match is complete but fielding data is missing
+  useEffect(() => {
+    const allResults = [...match.lads.results, ...match.gils.results];
+    if (match.isComplete && allResults.length > 0 && allResults.every(r => r.fieldingPoints === 0)) {
+      handleRefreshStats();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -373,6 +420,16 @@ function ResultsDisplay({ match }: { match: ReturnType<typeof emptyMatch> }) {
           );
         })}
       </div>
+
+      {/* Refresh button */}
+      {match.isComplete && (
+        <div className="flex justify-end -mt-2">
+          <button onClick={handleRefreshStats} disabled={refreshing}
+            className="text-xs text-blue-500 hover:text-blue-700 disabled:opacity-40 flex items-center gap-1 transition-colors">
+            {refreshing ? 'Refreshing…' : '↻ Refresh stats from ESPN'}
+          </button>
+        </div>
+      )}
 
       {/* Per-side breakdown tables */}
       {(['lads', 'gils'] as const).map(side => {
@@ -405,7 +462,16 @@ function ResultsDisplay({ match }: { match: ReturnType<typeof emptyMatch> }) {
                       <>
                         <tr key={r.playerName} className="hover:bg-gray-50/50 transition-colors">
                           <td className="px-3 py-3">
-                            <div className="font-semibold text-gray-800">{r.playerName}</div>
+                            <div className="flex items-center gap-1">
+                              <span className="font-semibold text-gray-800">{r.playerName}</span>
+                              {match.isComplete && (
+                                <button onClick={() => handleSetMOM(side, r.playerName)}
+                                  title="Set as Man of the Match"
+                                  className="text-amber-400 hover:text-amber-500 transition-colors leading-none text-base">
+                                  {r.isMOM ? '★' : '☆'}
+                                </button>
+                              )}
+                            </div>
                             <div className="flex gap-2 text-xs text-gray-400 mt-0.5">
                               {r.didBat && <span>{r.runs}r · {r.balls}b</span>}
                               {r.didBowl && <span>{r.wickets}w · {r.overs}ov</span>}
@@ -910,7 +976,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
       {/* Result Tab */}
       {activeTab === 'result' && match.isComplete && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-          <ResultsDisplay match={match} />
+          <ResultsDisplay match={match} matchId={matchId} updateMatch={updateMatch} />
         </motion.div>
       )}
 
