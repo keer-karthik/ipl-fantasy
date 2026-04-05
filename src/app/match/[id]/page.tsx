@@ -374,12 +374,17 @@ function getBowlingBreakdown(r: PlayerResult): Array<{ label: string; pts: numbe
     const ecoLabel = `ECO ${eco.toFixed(2)} (${r.runsConceded}r / ${r.overs}ov)`;
     if      (eco <= 4)  items.push({ label: `${ecoLabel} ≤4.0`, pts: 80 });
     else if (eco <= 6)  items.push({ label: `${ecoLabel} ≤6.0`, pts: 60 });
-    else if (eco <= 8)  items.push({ label: `${ecoLabel} ≤8.0`, pts: 30 });
-    else if (eco >= 14) items.push({ label: `${ecoLabel} ≥14.0`, pts: -40 });
-    else if (eco >= 12) items.push({ label: `${ecoLabel} ≥12.0`, pts: -30 });
+    else if (eco <= 8)  items.push({ label: `${ecoLabel} ≤8.0`, pts: 40 });
+    else if (eco <= 9)  items.push({ label: `${ecoLabel} ≤9.0`, pts: 20 });
+    else if (eco >= 14) items.push({ label: `${ecoLabel} ≥14.0`, pts: -60 });
+    else if (eco >= 12) items.push({ label: `${ecoLabel} ≥12.0`, pts: -40 });
     else if (eco >= 10) items.push({ label: `${ecoLabel} ≥10.0`, pts: -20 });
+    // Additional tiered wicketless penalty (only when economy is bad)
+    if (r.wickets === 0) {
+      if      (eco > 12) items.push({ label: 'No wickets (eco>12)', pts: -20 });
+      else if (eco > 10) items.push({ label: 'No wickets (eco>10)', pts: -10 });
+    }
   }
-  if (r.wickets === 0 && r.overs >= 2) items.push({ label: 'No wickets (≥2 overs)', pts: -20 });
   if      (r.wickets >= 5) items.push({ label: '5+ wickets bonus', pts: 35 });
   else if (r.wickets >= 3) items.push({ label: '3+ wickets bonus', pts: 20 });
   return items;
@@ -394,12 +399,16 @@ function ResultsDisplay({ match, matchId, updateMatch }: {
   const [refreshing, setRefreshing] = useState(false);
   const [expandedPlayer, setExpandedPlayer] = useState<string | null>(null);
 
-  // Recompute display totals from raw stats — stored finalTotal may be stale from old bugs
+  // Always recompute from individual discipline points — stored rawTotal may be stale from old scoring runs
+  function computedRaw(r: PlayerResult) {
+    return r.battingPoints + r.bowlingPoints + r.fieldingPoints;
+  }
+
   function sideDisplayTotal(side: 'lads' | 'gils') {
     const data = match[side];
     const hasBonus = data.predictedWinner !== null && match.actualWinner === data.predictedWinner;
     const momBonus = data.results.filter(r => r.isMOM).length * 10;
-    return data.results.reduce((s, r) => s + Math.round(applyMultiplier(r.rawTotal, r.multiplier)), 0)
+    return data.results.reduce((s, r) => s + Math.round(applyMultiplier(computedRaw(r), r.multiplier)), 0)
       + (hasBonus ? 50 : 0)
       + momBonus;
   }
@@ -495,14 +504,15 @@ function ResultsDisplay({ match, matchId, updateMatch }: {
                     <th className="text-right px-2 py-2.5 font-semibold">Bat</th>
                     <th className="text-right px-2 py-2.5 font-semibold">Bowl</th>
                     <th className="text-right px-2 py-2.5 font-semibold">Field</th>
+                    <th className="text-center px-2 py-2.5 font-semibold">MOM</th>
                     <th className="text-right px-2 py-2.5 font-semibold">Raw</th>
-                    <th className="text-center px-2 py-2.5 font-semibold">Mult</th>
                     <th className="text-right px-3 py-2.5 font-semibold">Total</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                   {data.results.map(r => {
-                    const displayFinal = Math.round(applyMultiplier(r.rawTotal, r.multiplier));
+                    const raw = computedRaw(r);
+                    const displayFinal = Math.round(applyMultiplier(raw, r.multiplier));
                     const expandKey = `${side}-${r.playerName}`;
                     const isExpanded = expandedPlayer === expandKey;
                     const batItems = getBattingBreakdown(r);
@@ -549,7 +559,7 @@ function ResultsDisplay({ match, matchId, updateMatch }: {
                             {pts(r.fieldingPoints)}
                           </td>
                           <td className="text-right px-2 py-3 tabular-nums text-gray-500 font-medium">
-                            {pts(r.rawTotal, '0')}
+                            {pts(raw, '0')}
                           </td>
                           <td className="text-center px-2 py-3">
                             <span className={`text-xs px-1.5 py-0.5 rounded font-bold ${multiplierColor(r.multiplier)}`}>
