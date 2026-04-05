@@ -54,16 +54,38 @@ function PrizeTile({
 
   if (filled) {
     // Coloured-background variant (OC = orange, PC = purple)
-    const leaderBg = 'rgba(255,255,255,0.22)';
-    const leaderText = '#fff';
     return (
       <motion.div
         initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-        className="rounded-2xl overflow-hidden w-full"
+        className="rounded-2xl overflow-hidden w-full relative"
         style={{ background: color, boxShadow: `0 4px 24px ${color}60` }}>
+
+        {/* Diagonal corner ribbon stamp */}
+        {leader !== 'tied' && (
+          <div style={{ position: 'absolute', top: 0, right: 0, width: 132, height: 132, overflow: 'hidden', zIndex: 2, pointerEvents: 'none' }}>
+            <div style={{
+              position: 'absolute',
+              top: 30,
+              right: -42,
+              width: 188,
+              background: leader === 'gils' ? '#7c3aed' : 'rgba(255,255,255,0.95)',
+              color: leader === 'gils' ? '#fff' : color,
+              textAlign: 'center',
+              fontSize: 12,
+              fontWeight: 900,
+              letterSpacing: '0.2em',
+              transform: 'rotate(45deg)',
+              padding: '6px 0',
+              boxShadow: '0 2px 12px rgba(0,0,0,0.22)',
+            }}>
+              {leader === 'lads' ? 'LADS' : 'GILS'}
+            </div>
+          </div>
+        )}
+
         <div className="p-5">
           {/* Header */}
-          <div className="flex items-start justify-between mb-4">
+          <div className="flex items-start justify-between mb-4" style={{ paddingRight: leader !== 'tied' ? 32 : 0 }}>
             <div>
               <div style={{
                 fontFamily: 'var(--font-barlow-condensed), system-ui, sans-serif',
@@ -71,20 +93,19 @@ function PrizeTile({
               }}>{abbrev}</div>
               <div className="text-[12px] font-semibold mt-0.5" style={{ color: 'rgba(255,255,255,0.7)' }}>{label}</div>
             </div>
-            {leader === 'tied'
-              ? <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
-                  style={{ background: 'rgba(255,255,255,0.2)', color: 'rgba(255,255,255,0.7)' }}>Tied</span>
-              : <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full"
-                  style={{ background: leaderBg, color: leaderText }}>
-                  {leader === 'lads' ? 'Lads ↑' : 'Gils ↑'}
-                </span>
-            }
+            {leader === 'tied' && (
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                style={{ background: 'rgba(255,255,255,0.2)', color: 'rgba(255,255,255,0.7)' }}>Tied</span>
+            )}
           </div>
 
           {/* Lads */}
           <div className="mb-3">
-            <div className="text-[9px] font-black uppercase tracking-[0.18em] mb-0.5"
-              style={{ color: 'rgba(255,255,255,0.5)' }}>Lads</div>
+            <div className="font-black uppercase tracking-[0.18em] mb-0.5" style={{
+              fontSize: 13,
+              color: leader === 'lads' ? '#fff' : 'rgba(255,255,255,0.45)',
+              fontWeight: leader === 'lads' ? 900 : 700,
+            }}>Lads</div>
             <div style={{
               fontFamily: 'var(--font-barlow-condensed), system-ui, sans-serif',
               fontSize: 40, fontWeight: 900, lineHeight: 1,
@@ -95,8 +116,11 @@ function PrizeTile({
 
           {/* Gils */}
           <div className="mb-5">
-            <div className="text-[9px] font-black uppercase tracking-[0.18em] mb-0.5"
-              style={{ color: 'rgba(255,255,255,0.5)' }}>Gils</div>
+            <div className="font-black uppercase tracking-[0.18em] mb-0.5" style={{
+              fontSize: 13,
+              color: leader === 'gils' ? '#fff' : 'rgba(255,255,255,0.45)',
+              fontWeight: leader === 'gils' ? 900 : 700,
+            }}>Gils</div>
             <div style={{
               fontFamily: 'var(--font-barlow-condensed), system-ui, sans-serif',
               fontSize: 40, fontWeight: 900, lineHeight: 1,
@@ -336,17 +360,17 @@ export default function Dashboard() {
   // Prize tile data
   const ocTile = {
     abbrev: 'OC', label: 'Orange Cap', pts: 350, color: '#ea580c', filled: true,
-    ladsVal: `${lads.totalSeasonRuns}r`, gilsVal: `${gils.totalSeasonRuns}r`,
+    ladsVal: `${lads.totalSeasonRuns} runs`, gilsVal: `${gils.totalSeasonRuns} runs`,
     ladsScore: lads.totalSeasonRuns, gilsScore: gils.totalSeasonRuns,
-    ladsDetail: lads.orangeCapRuns ? `Top: ${lads.orangeCapRuns.player} ${lads.orangeCapRuns.runs}r` : undefined,
-    gilsDetail: gils.orangeCapRuns ? `Top: ${gils.orangeCapRuns.player} ${gils.orangeCapRuns.runs}r` : undefined,
+    ladsDetail: lads.orangeCapRuns ? `Top: ${lads.orangeCapRuns.player} · ${lads.orangeCapRuns.runs} runs` : undefined,
+    gilsDetail: gils.orangeCapRuns ? `Top: ${gils.orangeCapRuns.player} · ${gils.orangeCapRuns.runs} runs` : undefined,
   };
   const pcTile = {
     abbrev: 'PC', label: 'Purple Cap', pts: 350, color: '#7c3aed', filled: true,
-    ladsVal: `${lads.totalSeasonWickets}w`, gilsVal: `${gils.totalSeasonWickets}w`,
+    ladsVal: `${lads.totalSeasonWickets} wkts`, gilsVal: `${gils.totalSeasonWickets} wkts`,
     ladsScore: lads.totalSeasonWickets, gilsScore: gils.totalSeasonWickets,
-    ladsDetail: lads.purpleCapWickets ? `Top: ${lads.purpleCapWickets.player} ${lads.purpleCapWickets.wickets}w` : undefined,
-    gilsDetail: gils.purpleCapWickets ? `Top: ${gils.purpleCapWickets.player} ${gils.purpleCapWickets.wickets}w` : undefined,
+    ladsDetail: lads.purpleCapWickets ? `Top: ${lads.purpleCapWickets.player} · ${lads.purpleCapWickets.wickets} wkts` : undefined,
+    gilsDetail: gils.purpleCapWickets ? `Top: ${gils.purpleCapWickets.player} · ${gils.purpleCapWickets.wickets} wkts` : undefined,
   };
   const stkTile = {
     abbrev: 'STK', label: 'Longest Streak', pts: 350, color: NAVY,
