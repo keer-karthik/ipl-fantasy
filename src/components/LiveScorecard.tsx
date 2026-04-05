@@ -418,7 +418,7 @@ function PlayerTradingCard({ b, isLads }: { b: BreakdownItem; isLads: boolean })
       </div>
 
       {/* ══ MIDDLE flex-1: breakdown ledger ══ */}
-      <div className="flex-1 flex flex-col min-w-0 px-2.5 py-2 overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 px-2.5 py-1.5 overflow-hidden">
         {!hasAnyActivity && (
           <div className="flex-1 flex items-center justify-center text-gray-200" style={{ ...FONT, fontSize: 13 }}>
             —
@@ -427,7 +427,7 @@ function PlayerTradingCard({ b, isLads }: { b: BreakdownItem; isLads: boolean })
 
         {/* ── FULL mode (≤5 rows): one ledger row per item ── */}
         {displayMode === 'full' && (b.batPts !== 0 || batLines.length > 0) && (
-          <div className="mb-1.5">
+          <div className="mb-1">
             <SectionHead title="BATTING" figures={batFigs} />
             {batLines.length > 0
               ? batLines.map((ln, i) => <LedgerRow key={i} label={ln.label} pts={ln.pts} />)
@@ -436,7 +436,7 @@ function PlayerTradingCard({ b, isLads }: { b: BreakdownItem; isLads: boolean })
           </div>
         )}
         {displayMode === 'full' && (b.bowlPts !== 0 || bowlLines.length > 0) && (
-          <div className={`mb-1.5 ${b.batPts !== 0 ? 'pt-1.5 border-t border-gray-100' : ''}`}>
+          <div className={`mb-1 ${b.batPts !== 0 ? 'pt-1 border-t border-gray-100' : ''}`}>
             <SectionHead title="BOWLING" figures={bowlFigs} />
             {bowlLines.length > 0
               ? bowlLines.map((ln, i) => <LedgerRow key={i} label={ln.label} pts={ln.pts} />)
@@ -445,13 +445,13 @@ function PlayerTradingCard({ b, isLads }: { b: BreakdownItem; isLads: boolean })
           </div>
         )}
         {displayMode === 'full' && b.fieldPts !== 0 && (
-          <div className={`mb-1.5 ${(b.batPts !== 0 || b.bowlPts !== 0) ? 'pt-1.5 border-t border-gray-100' : ''}`}>
+          <div className={`mb-1 ${(b.batPts !== 0 || b.bowlPts !== 0) ? 'pt-1 border-t border-gray-100' : ''}`}>
             <SectionHead title="FIELDING" />
             <LedgerRow label={`${b.fieldPts / 10} dismissal${b.fieldPts / 10 !== 1 ? 's' : ''} × 10`} pts={b.fieldPts} />
           </div>
         )}
         {displayMode === 'full' && b.momPts !== 0 && (
-          <div className={`mb-1.5 ${(b.batPts !== 0 || b.bowlPts !== 0 || b.fieldPts !== 0) ? 'pt-1.5 border-t border-gray-100' : ''}`}>
+          <div className={`mb-1 ${(b.batPts !== 0 || b.bowlPts !== 0 || b.fieldPts !== 0) ? 'pt-1 border-t border-gray-100' : ''}`}>
             <SectionHead title="MOM" />
             <LedgerRow label="Man of the Match" pts={10} />
           </div>
@@ -532,44 +532,17 @@ function PlayerTradingCard({ b, isLads }: { b: BreakdownItem; isLads: boolean })
           </div>
         )}
 
-        {/* BASE + multiplier footer */}
-        {hasAnyActivity && (() => {
-          const MULT_COLOR: Record<string, { bg: string; text: string; label: string }> = {
-            yellow: { bg: '#f59e0b', text: '#fff', label: '1×' },
-            green:  { bg: '#16a34a', text: '#fff', label: '2×' },
-            purple: { bg: '#7c3aed', text: '#fff', label: '3×' },
-            allin:  { bg: '#be185d', text: '#fff', label: '5×' },
-          };
-          const mc = b.multiplier ? MULT_COLOR[b.multiplier] : null;
-          const lossFactor = b.multiplier === 'purple' ? 1.5 : b.multiplier === 'allin' ? 2.5 : 1;
-          const appliedX = rawPts >= 0 ? multX : lossFactor;
-          return (
-            <div className="mt-auto pt-1.5 border-t border-gray-200 space-y-1">
-              {/* Base row */}
-              <div className="flex justify-between items-center">
-                <span className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Base</span>
-                <span className="font-black text-gray-500" style={{ ...FONT, fontSize: 17 }}>
-                  {rawPts > 0 ? `+${rawPts}` : rawPts}
-                </span>
-              </div>
-              {/* Multiplier row */}
-              {mc && multX > 1 && (
-                <div className="flex justify-between items-center">
-                  <span
-                    className="rounded-md font-black"
-                    style={{ ...FONT, fontSize: 14, background: mc.bg, color: mc.text, padding: '2px 8px', letterSpacing: '0.06em' }}
-                  >
-                    ×{appliedX} {mc.label}
-                  </span>
-                  <span className={`font-black ${b.pts >= 0 ? 'text-gray-900' : 'text-red-500'}`}
-                    style={{ ...FONT, fontSize: 19 }}>
-                    {b.pts > 0 ? `+${b.pts}` : b.pts}
-                  </span>
-                </div>
-              )}
+        {/* BASE footer — only shown when a multiplier is in play (otherwise base = strip total) */}
+        {hasAnyActivity && b.multiplier && multX > 1 && (
+          <div className="mt-auto pt-1 border-t border-gray-200">
+            <div className="flex justify-between items-center">
+              <span className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Base</span>
+              <span className="font-black text-gray-500" style={{ ...FONT, fontSize: 17 }}>
+                {rawPts > 0 ? `+${rawPts}` : rawPts}
+              </span>
             </div>
-          );
-        })()}
+          </div>
+        )}
       </div>
 
       {/* ══ RIGHT ~16%: colored vertical score strip ══ */}
