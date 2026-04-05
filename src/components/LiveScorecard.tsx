@@ -129,22 +129,23 @@ function PtsChip({ pts }: { pts: number }) {
 // ─── Side panel (full-height, number at top) ─────────────────────────────────
 function ptsStr(n: number) { return n > 0 ? `+${n}` : n === 0 ? '—' : String(n); }
 function ptsColor(n: number) { return n > 0 ? 'text-green-600' : n < 0 ? 'text-red-500' : 'text-gray-300'; }
-// Per-player tiered color (thresholds = total thresholds ÷ 5)
-//   0–59  → yellow  |  60–99  → green  |  100–109 → purple  |  110+ → magenta
+// Per-player tiered color — equal ~32pt bands (÷5 of 160pt team bands, rounded)
+//   <0 red | 0–30 red | 30–65 yellow | 65–95 green | 95–130 purple | 130+ magenta
 export function tieredPtsColor(n: number): string {
-  if (n < 0)   return 'text-red-500';
-  if (n < 60)  return 'text-amber-400';
-  if (n < 100) return 'text-green-500';
-  if (n < 110) return 'text-violet-600';
+  if (n < 30)  return 'text-red-500';
+  if (n < 65)  return 'text-amber-400';
+  if (n < 95)  return 'text-green-500';
+  if (n < 130) return 'text-violet-600';
   return 'text-fuchsia-500';
 }
-// Team total tiered color
-//   0–299 → yellow  |  300–499 → green  |  500–549 → purple  |  550+ → magenta
+// Team total tiered color — equal 160pt bands, 640+ magenta
+//   0–160 red | 160–320 yellow | 320–480 green | 480–640 purple | 640+ magenta
 export function tieredTotalColor(n: number): string {
   if (n < 0)   return 'text-red-500';
-  if (n < 300) return 'text-amber-400';
-  if (n < 500) return 'text-green-500';
-  if (n < 550) return 'text-violet-600';
+  if (n < 160) return 'text-red-500';
+  if (n < 320) return 'text-amber-400';
+  if (n < 480) return 'text-green-500';
+  if (n < 640) return 'text-violet-600';
   return 'text-fuchsia-500';
 }
 function shortName(n: string) {
