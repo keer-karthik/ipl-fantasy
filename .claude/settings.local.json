@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:www.iplt20.com)",
+      "mcp__plugin_vercel-plugin_vercel__list_projects"
+    ]
+  }
+}

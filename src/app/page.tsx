@@ -288,28 +288,6 @@ export default function Dashboard() {
   const todayMatches  = fixtures.filter(f => isToday(f.date));
   const upcomingMatches = fixtures.filter(f => isUpcoming(f.date) && !isToday(f.date)).slice(0, 6);
   const played = Object.values(state.matches).filter(m => m.isComplete).length;
-  const [rescoring, setRescoring] = useState(false);
-  const [rescoreResult, setRescoreResult] = useState<string | null>(null);
-
-  async function handleRescoreAll() {
-    setRescoring(true);
-    setRescoreResult(null);
-    try {
-      const res = await fetch('/api/refinalize-all', { method: 'POST' });
-      const data = await res.json();
-      if (res.ok) {
-        setRescoreResult(`Done — ${data.updated} updated, ${data.skipped} skipped${data.failed ? `, ${data.failed} failed` : ''}`);
-        // Reload page so state reflects new totals
-        setTimeout(() => window.location.reload(), 1500);
-      } else {
-        setRescoreResult('Error: ' + (data.error ?? 'unknown'));
-      }
-    } catch {
-      setRescoreResult('Network error');
-    } finally {
-      setRescoring(false);
-    }
-  }
 
   if (!loaded) return (
     <div className="flex items-center justify-center min-h-[60vh]">
@@ -501,24 +479,6 @@ export default function Dashboard() {
         </section>
       )}
 
-      {/* ══ Admin: re-score all ══ */}
-      <section className="pt-4 border-t border-gray-100">
-        <div className="flex items-center gap-3 flex-wrap">
-          <button
-            onClick={handleRescoreAll}
-            disabled={rescoring}
-            className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-gray-200 text-gray-500 hover:border-gray-400 hover:text-gray-700 disabled:opacity-50 transition-all"
-          >
-            {rescoring ? 'Re-scoring…' : 'Re-score all matches'}
-          </button>
-          {rescoreResult && (
-            <span className="text-xs text-gray-500">{rescoreResult}</span>
-          )}
-        </div>
-        <p className="text-[10px] text-gray-400 mt-1">
-          Re-runs scoring rules across every completed match. Use after changing the rulebook.
-        </p>
-      </section>
     </div>
   );
 }
