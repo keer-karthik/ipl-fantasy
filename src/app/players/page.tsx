@@ -48,7 +48,7 @@ function PlayerAvatar({ name }: { name: string }) {
 function RankBadge({ rank }: { rank: number }) {
   if (rank === 1)
     return (
-      <span className="w-7 h-7 rounded-full bg-amber-400 text-amber-900 text-xs font-black flex items-center justify-center shadow-sm">
+      <span className="w-7 h-7 rounded-full bg-ipl-orange text-white text-xs font-black flex items-center justify-center shadow-sm">
         1
       </span>
     );
@@ -81,7 +81,7 @@ function VenueChart({ venueData }: {
   const BAR_H = 160;
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 overflow-x-auto">
+    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 overflow-x-auto">
       <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-[0.2em] mb-4">Points by Venue</h3>
       <div className="flex items-end gap-4" style={{ minWidth: venueData.length * 72 }}>
         {venueData.map(v => {
@@ -199,7 +199,7 @@ function PerMatchChart({ matchData }: {
     : 0;
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 overflow-x-auto">
+    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 overflow-x-auto">
       <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-[0.2em] mb-3">Cumulative Points</h3>
       <div style={{ minWidth: 400, position: 'relative' }}>
         <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: 200 }}
@@ -374,8 +374,9 @@ export default function StatsPage() {
       <motion.div
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
-        className="rounded-2xl bg-navy px-6 py-5 shadow-md"
+        className="rounded-2xl bg-navy px-6 py-5 shadow-md relative overflow-hidden"
       >
+        <div className="absolute top-0 right-0 bottom-0 w-1.5 bg-ipl-orange" />
         <h1 className="text-2xl font-extrabold text-white tracking-tight">Stats</h1>
         <p className="text-blue-300 text-sm mt-1">Season analytics & player stats</p>
       </motion.div>
@@ -394,7 +395,7 @@ export default function StatsPage() {
 
       {/* Prize Race */}
       <div>
-        <h2 className="text-[11px] font-bold text-gray-400 uppercase tracking-[0.2em] mb-3">End of Season Prize Race</h2>
+        <h2 className="text-[13px] font-black text-gray-500 uppercase tracking-[0.15em] mb-3">End of Season Prize Race</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {prizes.map(p => {
             const leader = p.ladsScore > p.gilsScore ? 'lads' : p.gilsScore > p.ladsScore ? 'gils' : 'tied';
@@ -413,7 +414,7 @@ export default function StatsPage() {
                   </div>
                   <div>
                     {leader === 'tied'
-                      ? <span className="text-[10px] font-semibold text-gray-400 border border-gray-200 px-2 py-0.5 rounded-full">Tied</span>
+                      ? <span className="text-[10px] font-semibold text-orange-400 border border-orange-200 bg-orange-50/50 px-2 py-0.5 rounded-full">Tied</span>
                       : <span className={`text-[10px] font-bold text-white px-2.5 py-0.5 rounded-full ${leader === 'lads' ? 'bg-amber-400' : 'bg-violet-600'}`}>
                           {leader === 'lads' ? 'Lads' : 'Gils'} leading
                         </span>
@@ -433,7 +434,7 @@ export default function StatsPage() {
                   </div>
                 </div>
                 {(p.ladsScore > 0 || p.gilsScore > 0) && (
-                  <div className="h-1 flex">
+                  <div className="h-1.5 flex">
                     <div className="bg-amber-400" style={{ width: `${ladsPct}%` }} />
                     <div className="bg-violet-600" style={{ width: `${100 - ladsPct}%` }} />
                   </div>
@@ -446,7 +447,7 @@ export default function StatsPage() {
 
       {/* Player Stats table */}
       <div>
-        <h2 className="text-[11px] font-bold text-gray-400 uppercase tracking-[0.2em] mb-3">Player Stats</h2>
+        <h2 className="text-[13px] font-black text-gray-500 uppercase tracking-[0.15em] mb-3">Player Stats</h2>
 
         {/* Tab switcher with sliding indicator */}
         <div className="flex bg-white rounded-xl p-1 border border-gray-200 shadow-sm w-fit mb-4">
@@ -503,7 +504,7 @@ export default function StatsPage() {
                   </thead>
                   <tbody className="divide-y divide-gray-50">
                     {players.map((p, i) => (
-                      <tr key={p.name} className="hover:bg-gray-50/60 transition-colors">
+                      <tr key={p.name} className="hover:bg-gray-50/60 hover:-translate-y-px transition-all duration-150 ease-sharp">
                         <td className="px-4 py-2.5">
                           <RankBadge rank={i + 1} />
                         </td>
@@ -514,7 +515,7 @@ export default function StatsPage() {
                           </div>
                         </td>
                         <td className="px-3 py-2.5 text-right text-gray-400 tabular-nums">{p.matches}</td>
-                        <td className={`px-3 py-2.5 text-right font-bold tabular-nums ${p.totalPoints >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                        <td className={`px-3 py-2.5 text-right font-bold tabular-nums ${p.totalPoints >= 0 ? 'text-ipl-orange' : 'text-red-500'}`}>
                           {p.totalPoints > 0 ? '+' : ''}{p.totalPoints}
                         </td>
                         <td className="px-3 py-2.5 text-right text-gray-600 tabular-nums">{p.avgPoints}</td>

@@ -9,7 +9,7 @@ const container: Variants = {
 
 const item: Variants = {
   hidden: { opacity: 0, y: 10 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.22, ease: 'easeOut' } },
+  show: { opacity: 1, y: 0, transition: { duration: 0.22, ease: [0.65, 0.05, 0, 1] } },
 };
 
 function SectionCard({
@@ -29,7 +29,7 @@ function SectionCard({
       className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden"
     >
       <div className={`border-l-4 ${accent} ${tint} px-5 py-3.5`}>
-        <h2 className="font-bold text-gray-900 tracking-tight text-sm">{title}</h2>
+        <h2 className="font-black text-gray-900 uppercase tracking-wide text-[11px]">{title}</h2>
       </div>
       <div className="px-5 pb-4 pt-2.5">{children}</div>
     </motion.section>
@@ -50,7 +50,7 @@ function RuleRow({ metric, pts }: { metric: string; pts: string }) {
 
 function GroupLabel({ label }: { label: string }) {
   return (
-    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pt-3 pb-0.5">
+    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] pt-3 pb-0.5">
       {label}
     </p>
   );
@@ -77,16 +77,17 @@ export default function RulesPage() {
       variants={container}
       initial="hidden"
       animate="show"
-      className="space-y-5 max-w-4xl pb-12"
+      className="space-y-5 pb-12"
     >
       {/* Header */}
-      <motion.div variants={item} className="rounded-2xl bg-navy px-6 py-5 shadow-md">
+      <motion.div variants={item} className="rounded-2xl bg-navy px-6 py-5 shadow-md relative overflow-hidden">
+        <div className="absolute top-0 right-0 bottom-0 w-1.5 bg-ipl-orange" />
         <h1 className="text-2xl font-extrabold text-white tracking-tight">Rules & Scoring</h1>
         <p className="text-blue-300 text-sm mt-1">How points are calculated each match</p>
       </motion.div>
 
       {/* Team Setup — full width */}
-      <SectionCard title="Team Setup" accent="border-gray-300" tint="bg-gray-50/60">
+      <SectionCard title="Team Setup" accent="border-ipl-orange" tint="bg-gray-50/60">
         <ul className="space-y-2 text-sm text-gray-600">
           {([
             <>Pick <span className="font-semibold text-gray-800">5 players</span> from the two playing IPL teams each match.</>,
@@ -198,8 +199,8 @@ export default function RulesPage() {
 
       {/* End-of-Season Prizes — full width card grid */}
       <motion.section variants={item} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="border-l-4 border-yellow-400 bg-yellow-50/50 px-5 py-3.5">
-          <h2 className="font-bold text-gray-900 tracking-tight text-sm">End-of-Season Prizes</h2>
+        <div className="border-l-4 border-ipl-orange bg-gray-50/60 px-5 py-3.5">
+          <h2 className="font-black text-gray-900 uppercase tracking-wide text-[11px]">End-of-Season Prizes</h2>
         </div>
         <div className="p-5">
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
@@ -209,9 +210,9 @@ export default function RulesPage() {
                 className="rounded-xl border border-gray-100 bg-gray-50/50 p-3.5 flex flex-col gap-1.5"
               >
                 <span className={`w-2 h-2 rounded-full ${p.dot}`} />
-                <div className="font-bold text-gray-900 text-sm leading-tight">{p.label}</div>
-                <div className="text-[11px] text-gray-400 leading-snug">{p.sub}</div>
-                <div className="mt-auto pt-2 font-black text-amber-500 tabular-nums">+{p.pts}</div>
+                <div className="font-black text-gray-900 text-sm leading-tight">{p.label}</div>
+                <div className="text-[9px] text-gray-400 uppercase tracking-[0.1em] leading-snug">{p.sub}</div>
+                <div className="mt-auto pt-2 text-2xl font-black text-amber-500 tabular-nums">+{p.pts}</div>
               </div>
             ))}
           </div>
