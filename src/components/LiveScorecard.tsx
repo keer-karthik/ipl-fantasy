@@ -588,8 +588,8 @@ export function SidePanel({
   };
 
   const momCount = breakdown.filter(b => b.momPts > 0).length;
-  const momBonus = momCount * 10;
-  const displayTotal = total + (hasWinnerBonus ? 50 : 0) + momBonus;
+  // MOM points are already included in `total` via calcLiveFantasyTotal — badge is informational only
+  const displayTotal = total + (hasWinnerBonus ? 50 : 0);
 
   const Badges = () => (
     <div className="flex items-center gap-1.5 shrink-0">
