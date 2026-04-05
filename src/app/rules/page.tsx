@@ -77,6 +77,8 @@ export default function RulesPage() {
                 ['Economy ≥ 10.0 (3+ overs)', '−20'],
                 ['Economy ≥ 12.0 (3+ overs)', '−40'],
                 ['Economy ≥ 14.0 (3+ overs)', '−60'],
+                ['Wicketless + eco > 10', '−10 extra'],
+                ['Wicketless + eco > 12', '−20 extra'],
               ].map(([m, p]) => tableRow(m, p))}
             </tbody>
           </table>
