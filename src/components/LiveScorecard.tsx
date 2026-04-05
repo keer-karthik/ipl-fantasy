@@ -258,8 +258,8 @@ function PlayerTradingCard({ b, isLads }: { b: BreakdownItem; isLads: boolean })
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2 }}
-      className={`rounded-2xl overflow-hidden shadow-md bg-white ${topBorder} flex flex-row`}
-      style={{ flex: '0 0 auto', minHeight: 110 }}
+      className={`rounded-2xl overflow-hidden shadow-md bg-white ${topBorder} flex`}
+      style={{ flex: '0 0 auto', minHeight: 110, flexDirection: isLads ? 'row' : 'row-reverse' }}
     >
       {/* ══ LEFT 38%: full-height photo ══ */}
       <div className="relative bg-gray-100 shrink-0 overflow-hidden" style={{ width: '38%' }}>
