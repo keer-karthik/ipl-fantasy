@@ -570,11 +570,12 @@ function PlayerTradingCard({ b, isLads }: { b: BreakdownItem; isLads: boolean })
 
 // ─── Side panel ───────────────────────────────────────────────────────────────
 export function SidePanel({
-  label, total, breakdown, textColor, borderColor, bgColor,
+  label, total, breakdown, textColor, borderColor, bgColor, hasWinnerBonus,
 }: {
   label: string; total: number;
   breakdown: BreakdownItem[];
   textColor: string; borderColor: string; bgColor: string;
+  hasWinnerBonus?: boolean;
 }) {
   const isLads = label === 'LADS';
   const accentText   = isLads ? 'text-amber-600'  : 'text-violet-600';
@@ -586,6 +587,15 @@ export function SidePanel({
     letterSpacing: '0.12em',
   };
 
+  const displayTotal = total + (hasWinnerBonus ? 50 : 0);
+
+  const WinnerBadge = () => (
+    <span title="Correct winner prediction +50"
+      className="inline-flex items-center gap-1 text-[11px] font-black px-1.5 py-0.5 rounded-md bg-amber-400 text-white shrink-0 leading-none">
+      ★ +50
+    </span>
+  );
+
   return (
     <div className={`flex-1 min-h-0 rounded-2xl border-2 ${borderColor} ${bgColor} flex flex-col overflow-hidden`}>
 
@@ -593,35 +603,37 @@ export function SidePanel({
       <div className={`px-4 pt-3 pb-2 flex items-baseline gap-3 ${isLads ? 'justify-end' : ''}`}>
         {isLads ? (
           <>
+            {hasWinnerBonus && <WinnerBadge />}
             <div className={`uppercase ${accentText} shrink-0`}
               style={{ ...HEADER_FONT, fontSize: '16px', letterSpacing: '0.22em' }}>
               {label}
             </div>
             <motion.div
-              key={total}
+              key={displayTotal}
               initial={{ scale: 1.06, opacity: 0.6 }}
               animate={{ scale: 1, opacity: 1 }}
               className={`font-black leading-none ${textColor}`}
               style={{ fontSize: 'clamp(2rem, 3.5vw, 3.5rem)' }}
             >
-              {total > 0 ? `+${total}` : total}
+              {displayTotal > 0 ? `+${displayTotal}` : displayTotal}
             </motion.div>
           </>
         ) : (
           <>
             <motion.div
-              key={total}
+              key={displayTotal}
               initial={{ scale: 1.06, opacity: 0.6 }}
               animate={{ scale: 1, opacity: 1 }}
               className={`font-black leading-none ${textColor}`}
               style={{ fontSize: 'clamp(2rem, 3.5vw, 3.5rem)' }}
             >
-              {total > 0 ? `+${total}` : total}
+              {displayTotal > 0 ? `+${displayTotal}` : displayTotal}
             </motion.div>
             <div className={`uppercase ${accentText} shrink-0`}
               style={{ ...HEADER_FONT, fontSize: '16px', letterSpacing: '0.22em' }}>
               {label}
             </div>
+            {hasWinnerBonus && <WinnerBadge />}
           </>
         )}
       </div>

@@ -817,6 +817,10 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
     ? Math.round(gilsAgg.rawTotal)
     : (match.gils.total ?? 0);
 
+  const panelActualWinner = liveData?.actualWinner ?? match.actualWinner ?? null;
+  const ladsHasWinnerBonus = !!ladsPrediction && ladsPrediction === panelActualWinner;
+  const gilsHasWinnerBonus = !!gilsPrediction && gilsPrediction === panelActualWinner;
+
   const showSidePanels = ladsPicks.length > 0 || gilsPicks.length > 0;
 
   function savePicks() {
@@ -1134,8 +1138,9 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
             <SidePanel
               label="LADS" total={ladsDisplayTotal}
               breakdown={ladsBreakdown}
-              textColor={tieredTotalColor(ladsDisplayTotal)}
+              textColor={tieredTotalColor(ladsDisplayTotal + (ladsHasWinnerBonus ? 50 : 0))}
               borderColor="border-amber-200" bgColor="bg-amber-50"
+              hasWinnerBonus={ladsHasWinnerBonus}
             />
           </div>
           <div className="fixed right-0 bottom-0 hidden 2xl:flex flex-col z-30 p-2"
@@ -1143,8 +1148,9 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
             <SidePanel
               label="GILS" total={gilsDisplayTotal}
               breakdown={gilsBreakdown}
-              textColor={tieredTotalColor(gilsDisplayTotal)}
+              textColor={tieredTotalColor(gilsDisplayTotal + (gilsHasWinnerBonus ? 50 : 0))}
               borderColor="border-violet-200" bgColor="bg-violet-50"
+              hasWinnerBonus={gilsHasWinnerBonus}
             />
           </div>
         </>
