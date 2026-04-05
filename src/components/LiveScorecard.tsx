@@ -129,24 +129,27 @@ function PtsChip({ pts }: { pts: number }) {
 // ─── Side panel (full-height, number at top) ─────────────────────────────────
 function ptsStr(n: number) { return n > 0 ? `+${n}` : n === 0 ? '—' : String(n); }
 function ptsColor(n: number) { return n > 0 ? 'text-green-600' : n < 0 ? 'text-red-500' : 'text-gray-300'; }
-// Per-player tiered color — equal ~32pt bands (÷5 of 160pt team bands, rounded)
-//   <0 red | 0–30 red | 30–65 yellow | 65–95 green | 95–130 purple | 130+ magenta
+// Per-player total — 40pt equal bands: 0–40 red | 40–80 yellow | 80–120 green | 120+ purple
 export function tieredPtsColor(n: number): string {
-  if (n < 30)  return 'text-red-500';
-  if (n < 65)  return 'text-amber-400';
-  if (n < 95)  return 'text-green-500';
-  if (n < 130) return 'text-violet-600';
-  return 'text-fuchsia-500';
+  if (n < 40)  return 'text-red-500';
+  if (n < 80)  return 'text-amber-400';
+  if (n < 120) return 'text-green-500';
+  return 'text-violet-600';
 }
-// Team total tiered color — equal 160pt bands, 640+ magenta
-//   0–160 red | 160–320 yellow | 320–480 green | 480–640 purple | 640+ magenta
+// Team total — 200pt equal bands: 0–200 red | 200–400 yellow | 400–600 green | 600+ purple
 export function tieredTotalColor(n: number): string {
   if (n < 0)   return 'text-red-500';
-  if (n < 160) return 'text-red-500';
-  if (n < 320) return 'text-amber-400';
-  if (n < 480) return 'text-green-500';
-  if (n < 640) return 'text-violet-600';
-  return 'text-fuchsia-500';
+  if (n < 200) return 'text-red-500';
+  if (n < 400) return 'text-amber-400';
+  if (n < 600) return 'text-green-500';
+  return 'text-violet-600';
+}
+// BAT/BWL/FLD component — negative red | 0–20 yellow | 20–50 green | 50+ purple
+function tieredComponentColor(n: number): string {
+  if (n < 0)  return 'text-red-500';
+  if (n < 20) return 'text-amber-400';
+  if (n < 50) return 'text-green-500';
+  return 'text-violet-600';
 }
 function shortName(n: string) {
   const parts = n.trim().split(' ');
@@ -299,7 +302,7 @@ function PlayerTradingCard({ b, isLads }: { b: BreakdownItem; isLads: boolean })
           {b.batPts !== 0 && (
             <div className="flex items-center gap-2">
               <BatIcon size={20} />
-              <span className={`ml-auto font-black leading-none ${ptsColor(b.batPts)}`}
+              <span className={`ml-auto font-black leading-none ${tieredComponentColor(b.batPts)}`}
                 style={{ ...PLAYER_FONT, fontSize: '20px' }}>
                 {ptsStr(b.batPts)}
               </span>
@@ -308,7 +311,7 @@ function PlayerTradingCard({ b, isLads }: { b: BreakdownItem; isLads: boolean })
           {b.bowlPts !== 0 && (
             <div className="flex items-center gap-2">
               <BallIcon size={20} />
-              <span className={`ml-auto font-black leading-none ${ptsColor(b.bowlPts)}`}
+              <span className={`ml-auto font-black leading-none ${tieredComponentColor(b.bowlPts)}`}
                 style={{ ...PLAYER_FONT, fontSize: '20px' }}>
                 {ptsStr(b.bowlPts)}
               </span>
@@ -317,7 +320,7 @@ function PlayerTradingCard({ b, isLads }: { b: BreakdownItem; isLads: boolean })
           {b.fieldPts !== 0 && (
             <div className="flex items-center gap-2">
               <HandsIcon size={20} />
-              <span className={`ml-auto font-black leading-none ${ptsColor(b.fieldPts)}`}
+              <span className={`ml-auto font-black leading-none ${tieredComponentColor(b.fieldPts)}`}
                 style={{ ...PLAYER_FONT, fontSize: '20px' }}>
                 {ptsStr(b.fieldPts)}
               </span>
