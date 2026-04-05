@@ -23,18 +23,36 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ mat
     return NextResponse.json({ error: 'Match not found' }, { status: 404 });
   }
 
+  // IPLT20 CDN match summary: IDs are sequential starting at 2417 for our match 1
+  const iplt20Id = 2416 + parseInt(matchId, 10);
+  const iplt20Url = `https://ipl-stats-sports-mechanic.s3.ap-south-1.amazonaws.com/ipl/feeds/${iplt20Id}-matchsummary.js`;
+
   try {
-    const [summaryRes, scoreboardRes] = await Promise.all([
+    const [summaryRes, scoreboardRes, iplt20Res] = await Promise.all([
       fetch(`https://site.api.espn.com/apis/site/v2/sports/cricket/8048/summary?event=${espnId}`, {
         next: { revalidate: 0 },
       }),
       fetch(`https://site.api.espn.com/apis/site/v2/sports/cricket/8048/scoreboard`, {
         next: { revalidate: 0 },
       }),
+      fetch(iplt20Url, { next: { revalidate: 0 } }).catch(() => null),
     ]);
 
     const summary = await summaryRes.json();
     const scoreboard = await scoreboardRes.json();
+
+    // ── IPLT20 Man of the Match ───────────────────────────────────────────────
+    // MOM field: "Sameer Rizvi (Delhi Capitals)" — strip team in parens
+    let iplt20MOM: string | null = null;
+    if (iplt20Res?.ok) {
+      try {
+        const iplt20Data = await iplt20Res.json();
+        const momRaw: string | undefined = iplt20Data?.MatchSummary?.[0]?.MOM;
+        if (momRaw) {
+          iplt20MOM = momRaw.replace(/\s*\([^)]+\)\s*$/, '').trim() || null;
+        }
+      } catch { /* ignore parse errors */ }
+    }
 
     // ── Status ────────────────────────────────────────────────────────────────
     const sbEvent = scoreboard.events?.find((e: { id: string }) => e.id === espnId);
@@ -223,11 +241,11 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ mat
     }
 
     // ── Man of the Match ──────────────────────────────────────────────────────
-    // ESPN exposes awards in summary.header.competitions[0].awards (when available).
-    // Structure: [{ type?: { text }, name?: string, athletes?: [{ athlete: { displayName } }] }]
+    // Primary: IPLT20 CDN matchsummary (already parsed above as iplt20MOM).
+    // Fallback: ESPN summary.header.competitions[0].awards (rarely populated).
     const headerComp = summary.header?.competitions?.[0] ?? {};
 
-    let manOfTheMatch: string | null = null;
+    let espnMOM: string | null = null;
     const awards: Array<Record<string, unknown>> = headerComp.awards ?? [];
     for (const award of awards) {
       const label = (
@@ -238,13 +256,14 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ mat
         const athletes = (award.athletes ?? award.players ?? []) as Array<Record<string, unknown>>;
         const first = athletes[0];
         if (first) {
-          // Try { athlete: { displayName } } or { displayName } directly
           const athlete = (first.athlete as Record<string, string> | undefined) ?? first;
-          manOfTheMatch = (athlete.displayName as string | undefined) ?? null;
+          espnMOM = (athlete.displayName as string | undefined) ?? null;
         }
         break;
       }
     }
+
+    const manOfTheMatch: string | null = iplt20MOM ?? espnMOM;
 
     // ── Commentary ────────────────────────────────────────────────────────────
     // commentaries is a dict keyed by ID, not an array
