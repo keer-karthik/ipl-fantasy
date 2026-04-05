@@ -125,7 +125,7 @@ function PerMatchChart({ matchData }: {
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 overflow-x-auto">
-      <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-[0.2em] mb-3">Points Per Match</h3>
+      <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-[0.2em] mb-3">Cumulative Points</h3>
       <div style={{ minWidth: 400 }}>
         <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: 200 }}>
           {/* Y gridlines */}
@@ -199,11 +199,18 @@ export default function StatsPage() {
     .map(([venue, pts]) => ({ venue, ...pts }))
     .sort((a, b) => (b.lads + b.gils) - (a.lads + a.gils));
 
-  // Build per-match data
+  // Build cumulative points data
   const matchData = Object.values(state.matches)
     .filter(m => m.isComplete)
     .sort((a, b) => a.matchId - b.matchId)
-    .map(m => ({ matchId: m.matchId, lads: computeSideTotal(m, 'lads'), gils: computeSideTotal(m, 'gils') }));
+    .reduce<{ matchId: number; lads: number; gils: number }[]>((acc, m) => {
+      const prev = acc[acc.length - 1];
+      return [...acc, {
+        matchId: m.matchId,
+        lads: (prev?.lads ?? 0) + computeSideTotal(m, 'lads'),
+        gils: (prev?.gils ?? 0) + computeSideTotal(m, 'gils'),
+      }];
+    }, []);
 
   return (
     <div className="space-y-6">
