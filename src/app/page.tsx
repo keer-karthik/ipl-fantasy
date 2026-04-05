@@ -208,16 +208,23 @@ function NextMatchCountdown() {
           </div>
         </div>
 
-        {/* Countdown */}
-        <div className="text-center shrink-0">
-          <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400 mb-1">Starts in</div>
-          <div className="font-mono font-black tabular-nums" style={{
-            fontSize: 'clamp(1.6rem, 4vw, 2.2rem)',
-            color: NAVY,
-            letterSpacing: '0.04em',
-          }}>
-            {timeStr}
+        {/* Countdown + CTA */}
+        <div className="flex flex-col items-center sm:items-end gap-2 shrink-0">
+          <div className="text-center">
+            <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400 mb-1">Starts in</div>
+            <div className="font-mono font-black tabular-nums" style={{
+              fontSize: 'clamp(1.6rem, 4vw, 2.2rem)',
+              color: NAVY,
+              letterSpacing: '0.04em',
+            }}>
+              {timeStr}
+            </div>
           </div>
+          <Link href={`/match/${next.match}`}
+            className="text-[12px] font-bold px-4 py-2 rounded-xl text-white transition-opacity hover:opacity-85"
+            style={{ background: 'var(--ipl-orange)' }}>
+            Select Picks
+          </Link>
         </div>
       </motion.div>
     </section>
@@ -372,7 +379,7 @@ export default function Dashboard() {
               }} />
               <div style={{
                 fontSize: 11, fontWeight: 700, letterSpacing: '0.2em',
-                color: `${LADS}80`, textTransform: 'uppercase', marginTop: 4,
+                color: LADS, textTransform: 'uppercase', marginTop: 4,
               }}>Lads Wins</div>
             </div>
 
@@ -392,7 +399,7 @@ export default function Dashboard() {
               }} />
               <div style={{
                 fontSize: 11, fontWeight: 700, letterSpacing: '0.2em',
-                color: `${GILS}80`, textTransform: 'uppercase', marginTop: 4,
+                color: GILS, textTransform: 'uppercase', marginTop: 4,
               }}>Gils Wins</div>
             </div>
           </div>
@@ -401,10 +408,10 @@ export default function Dashboard() {
           {totalPts > 0 && (
             <div className="mt-8 max-w-sm mx-auto">
               <div className="flex justify-between mb-2">
-                <span style={{ fontSize: 12, fontWeight: 700, color: `${LADS}cc` }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: LADS }}>
                   {lads.totalPoints.toLocaleString()} pts
                 </span>
-                <span style={{ fontSize: 12, fontWeight: 700, color: `${GILS}cc` }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: GILS }}>
                   {gils.totalPoints.toLocaleString()} pts
                 </span>
               </div>
@@ -447,6 +454,37 @@ export default function Dashboard() {
           </div>
         </section>
       )}
+
+      {/* ══ Recent matches ══ */}
+      {(() => {
+        const recent = fixtures
+          .filter(f => state.matches[f.match]?.isComplete)
+          .slice(-5)
+          .reverse();
+        if (recent.length === 0) return null;
+        return (
+          <section>
+            <SectionHeader>Recent Matches</SectionHeader>
+            <div className="space-y-2">
+              {recent.map((f, i) => {
+                const m = state.matches[f.match];
+                return (
+                  <motion.div key={f.match}
+                    initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.04, duration: 0.3 }}>
+                    <MatchRow fixture={f}
+                      hasEntry={m?.lads.picks.length > 0}
+                      isComplete={true}
+                      ladsTotal={m ? computeSideTotal(m, 'lads') : undefined}
+                      gilsTotal={m ? computeSideTotal(m, 'gils') : undefined}
+                      winner={m?.winner} />
+                  </motion.div>
+                );
+              })}
+            </div>
+          </section>
+        );
+      })()}
 
       {/* ══ Season standings ══ */}
       <section>
