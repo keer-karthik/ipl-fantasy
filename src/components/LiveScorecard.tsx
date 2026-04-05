@@ -158,7 +158,7 @@ export type BreakdownItem = {
   name: string; activeName: string; pts: number;
   batPts: number; bowlPts: number; fieldPts: number;
   multiplier: Multiplier | null; isSubstituted: boolean;
-  batStats?: { runs: number; balls: number; fours: number; sixes: number; strikeRate: number; isOut: boolean };
+  batStats?: { runs: number; balls: number; fours: number; sixes: number; strikeRate: number; isOut: boolean; battingPosition: number };
   bowlStats?: { overs: number; maidens: number; runs: number; wickets: number; economy: number };
 };
 
@@ -264,7 +264,7 @@ function PlayerTradingCard({ b, isLads }: { b: BreakdownItem; isLads: boolean })
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2 }}
       className={`rounded-2xl overflow-hidden shadow-md bg-white ${topBorder} flex`}
-      style={{ flex: '1 1 0', minHeight: 0, flexDirection: isLads ? 'row' : 'row-reverse' }}
+      style={{ minHeight: 0, flexDirection: isLads ? 'row' : 'row-reverse' }}
     >
       {/* ══ LEFT 28%: full-height photo ══ */}
       <div className="relative bg-gray-100 shrink-0 overflow-hidden" style={{ width: '28%' }}>
@@ -466,8 +466,9 @@ export function SidePanel({
         )}
       </div>
 
-      {/* ── Player cards — sorted best→worst, all 5 share height equally ── */}
-      <div className={`flex-1 min-h-0 overflow-hidden border-t ${dividerColor} px-3 py-2 flex flex-col gap-1.5`}>
+      {/* ── Player cards — grid forces exactly equal row heights regardless of content ── */}
+      <div className={`flex-1 min-h-0 overflow-hidden border-t ${dividerColor} px-3 py-2 grid gap-1.5`}
+        style={{ gridTemplateRows: 'repeat(5, 1fr)' }}>
         {[...breakdown].sort((a, b) => b.pts - a.pts).map(b => (
           <PlayerTradingCard key={b.name} b={b} isLads={isLads} />
         ))}
