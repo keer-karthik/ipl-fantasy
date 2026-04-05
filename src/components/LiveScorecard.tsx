@@ -129,27 +129,26 @@ function PtsChip({ pts }: { pts: number }) {
 // ─── Side panel (full-height, number at top) ─────────────────────────────────
 function ptsStr(n: number) { return n > 0 ? `+${n}` : n === 0 ? '—' : String(n); }
 function ptsColor(n: number) { return n > 0 ? 'text-green-600' : n < 0 ? 'text-red-500' : 'text-gray-300'; }
-// Per-player total — 40pt equal bands: 0–40 red | 40–80 yellow | 80–120 green | 120+ purple
+// Per-player total (÷5 of team): 0–25 red | 25–65 yellow | 65–105 green | 105+ purple
 export function tieredPtsColor(n: number): string {
-  if (n < 40)  return 'text-red-500';
-  if (n < 80)  return 'text-amber-400';
-  if (n < 120) return 'text-green-500';
+  if (n < 25)  return 'text-red-500';
+  if (n < 65)  return 'text-amber-400';
+  if (n < 105) return 'text-green-500';
   return 'text-violet-600';
 }
-// Team total — 200pt equal bands: 0–200 red | 200–400 yellow | 400–600 green | 600+ purple
+// Team total: 0–130 red | 130–330 yellow | 330–530 green | 530+ purple
 export function tieredTotalColor(n: number): string {
   if (n < 0)   return 'text-red-500';
-  if (n < 200) return 'text-red-500';
-  if (n < 400) return 'text-amber-400';
-  if (n < 600) return 'text-green-500';
+  if (n < 130) return 'text-red-500';
+  if (n < 330) return 'text-amber-400';
+  if (n < 530) return 'text-green-500';
   return 'text-violet-600';
 }
-// BAT/BWL/FLD component — negative red | 0–20 yellow | 20–50 green | 50+ purple
-// Batting & bowling: negative red | 0–30 yellow | 30–90 green | 90+ purple
+// Batting & bowling: negative red | 0–25 yellow | 25–65 green | 65+ purple
 function tieredBatBowlColor(n: number): string {
   if (n < 0)  return 'text-red-500';
-  if (n < 30) return 'text-amber-400';
-  if (n < 90) return 'text-green-500';
+  if (n < 25) return 'text-amber-400';
+  if (n < 65) return 'text-green-500';
   return 'text-violet-600';
 }
 // Fielding: capped scale — +10 yellow | +20 green | +30 purple (catches/runouts/stumpings)
