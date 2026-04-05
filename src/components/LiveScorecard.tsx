@@ -288,7 +288,7 @@ function PlayerTradingCard({ b, isLads }: { b: BreakdownItem; isLads: boolean })
         <div className="absolute bottom-0 left-0 right-0 px-2 py-1"
           style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.72) 0%, transparent 100%)' }}>
           <div className="text-white leading-tight truncate uppercase"
-            style={{ ...FONT, fontSize: b.activeName.length > 13 ? 10 : 12, letterSpacing: '0.05em' }}>
+            style={{ ...FONT, fontSize: 12, letterSpacing: '0.05em' }}>
             {b.activeName}
           </div>
           {b.isSubstituted && (
