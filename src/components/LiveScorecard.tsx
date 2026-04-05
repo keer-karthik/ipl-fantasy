@@ -244,7 +244,7 @@ function PlayerTradingCard({ b, isLads }: { b: BreakdownItem; isLads: boolean })
 
   // Line item renderer — label left, pts right
   const LedgerRow = ({ label, pts }: { label: string; pts: number }) => (
-    <div className="flex justify-between items-baseline" style={{ ...FONT, fontSize: 12, fontWeight: 600 }}>
+    <div className="flex justify-between items-baseline" style={{ ...FONT, fontSize: 14, fontWeight: 600 }}>
       <span className="text-gray-500 truncate pr-1">{label}</span>
       <span className={`shrink-0 font-black ${pts > 0 ? 'text-gray-800' : pts < 0 ? 'text-red-500' : 'text-gray-400'}`}>
         {pts > 0 ? `+${pts}` : pts === 0 ? '0' : pts}
@@ -261,8 +261,8 @@ function PlayerTradingCard({ b, isLads }: { b: BreakdownItem; isLads: boolean })
       className={`rounded-2xl overflow-hidden shadow-md bg-white ${topBorder} flex`}
       style={{ flex: '1 1 0', minHeight: 0, flexDirection: isLads ? 'row' : 'row-reverse' }}
     >
-      {/* ══ LEFT 38%: full-height photo ══ */}
-      <div className="relative bg-gray-100 shrink-0 overflow-hidden" style={{ width: '38%' }}>
+      {/* ══ LEFT 28%: full-height photo ══ */}
+      <div className="relative bg-gray-100 shrink-0 overflow-hidden" style={{ width: '28%' }}>
         {iplUrl && imgOk ? (
           <img
             src={iplUrl}
@@ -311,9 +311,9 @@ function PlayerTradingCard({ b, isLads }: { b: BreakdownItem; isLads: boolean })
         {(b.batPts !== 0 || batLines.length > 0) && (
           <div className="mb-1.5">
             <div className="flex items-baseline gap-1.5 mb-0.5">
-              <span className="text-black font-black uppercase tracking-widest" style={{ ...FONT, fontSize: 11 }}>BATTING</span>
+              <span className="text-black font-black uppercase tracking-widest" style={{ ...FONT, fontSize: 13 }}>BATTING</span>
               {b.batStats && (
-                <span className="text-gray-400 font-semibold" style={{ fontSize: 11 }}>
+                <span className="text-gray-400 font-semibold" style={{ fontSize: 12 }}>
                   {b.batStats.runs}({b.batStats.balls})
                   {' '}SR {b.batStats.strikeRate.toFixed(0)}
                   {b.batStats.fours > 0 ? ` · ${b.batStats.fours}×4` : ''}
@@ -332,9 +332,9 @@ function PlayerTradingCard({ b, isLads }: { b: BreakdownItem; isLads: boolean })
         {(b.bowlPts !== 0 || bowlLines.length > 0) && (
           <div className={`mb-1.5 ${b.batPts !== 0 ? 'pt-1.5 border-t border-gray-100' : ''}`}>
             <div className="flex items-baseline gap-1.5 mb-0.5">
-              <span className="text-black font-black uppercase tracking-widest" style={{ ...FONT, fontSize: 11 }}>BOWLING</span>
+              <span className="text-black font-black uppercase tracking-widest" style={{ ...FONT, fontSize: 13 }}>BOWLING</span>
               {b.bowlStats && (
-                <span className="text-gray-400 font-semibold" style={{ fontSize: 11 }}>
+                <span className="text-gray-400 font-semibold" style={{ fontSize: 12 }}>
                   {b.bowlStats.overs}-{b.bowlStats.maidens}-{b.bowlStats.runs}-{b.bowlStats.wickets}
                   {' '}ECO {b.bowlStats.economy.toFixed(2)}
                 </span>
@@ -351,7 +351,7 @@ function PlayerTradingCard({ b, isLads }: { b: BreakdownItem; isLads: boolean })
         {b.fieldPts !== 0 && (
           <div className={`mb-1.5 ${(b.batPts !== 0 || b.bowlPts !== 0) ? 'pt-1.5 border-t border-gray-100' : ''}`}>
             <div className="flex items-baseline gap-1.5 mb-0.5">
-              <span className="text-black font-black uppercase tracking-widest" style={{ ...FONT, fontSize: 11 }}>FIELDING</span>
+              <span className="text-black font-black uppercase tracking-widest" style={{ ...FONT, fontSize: 13 }}>FIELDING</span>
             </div>
             <LedgerRow label={`${b.fieldPts / 10} dismissal${b.fieldPts / 10 !== 1 ? 's' : ''} × 10`} pts={b.fieldPts} />
           </div>
@@ -360,12 +360,12 @@ function PlayerTradingCard({ b, isLads }: { b: BreakdownItem; isLads: boolean })
         {/* RAW + multiplier footer */}
         {hasAnyActivity && (
           <div className="mt-auto pt-1 border-t border-gray-200">
-            <div className="flex justify-between items-baseline" style={{ ...FONT, fontSize: 11 }}>
+            <div className="flex justify-between items-baseline" style={{ ...FONT, fontSize: 12 }}>
               <span className="text-gray-400 tracking-widest uppercase">Raw</span>
               <span className="text-gray-600 font-black">{rawPts > 0 ? `+${rawPts}` : rawPts}</span>
             </div>
             {multX > 1 && (
-              <div className="flex justify-between items-baseline" style={{ ...FONT, fontSize: 11 }}>
+              <div className="flex justify-between items-baseline" style={{ ...FONT, fontSize: 12 }}>
                 <span className="text-gray-400">
                   {rawPts >= 0
                     ? `× ${multX} (${b.multiplier})`
@@ -384,7 +384,7 @@ function PlayerTradingCard({ b, isLads }: { b: BreakdownItem; isLads: boolean })
         initial={{ opacity: 0.6 }}
         animate={{ opacity: 1 }}
         className={`shrink-0 flex items-center justify-center overflow-hidden ${tieredBgClass(b.pts)}`}
-        style={{ width: '16%' }}
+        style={{ width: '13%' }}
       >
         <span
           className="text-white font-black leading-none whitespace-nowrap"
@@ -424,25 +424,41 @@ export function SidePanel({
   return (
     <div className={`flex-1 rounded-2xl border-2 ${borderColor} ${bgColor} flex flex-col overflow-hidden`}>
 
-      {/* ── Header: label + total ── */}
-      <div className="px-4 pt-3 pb-2 flex items-baseline gap-3">
-        <div className={`uppercase ${accentText} shrink-0`}
-          style={{ ...HEADER_FONT, fontSize: '16px', letterSpacing: '0.22em' }}>
-          {label}
-        </div>
-        <motion.div
-          key={total}
-          initial={{ scale: 1.06, opacity: 0.6 }}
-          animate={{ scale: 1, opacity: 1 }}
-          className={`font-black leading-none ${textColor}`}
-          style={{ fontSize: 'clamp(2rem, 3.5vw, 3.5rem)' }}
-        >
-          {total > 0 ? `+${total}` : total}
-        </motion.div>
-        <div className="text-[10px] text-gray-400 font-semibold tracking-widest uppercase self-end pb-0.5"
-          style={{ fontFamily: 'var(--font-barlow-condensed), system-ui, sans-serif' }}>
-          pts
-        </div>
+      {/* ── Header: Lads = right-aligned [LADS][+261], Gils = justify-between [+404][GILS] ── */}
+      <div className={`px-4 pt-3 pb-2 flex items-baseline gap-3 ${isLads ? 'justify-end' : 'justify-between'}`}>
+        {isLads ? (
+          <>
+            <div className={`uppercase ${accentText} shrink-0`}
+              style={{ ...HEADER_FONT, fontSize: '16px', letterSpacing: '0.22em' }}>
+              {label}
+            </div>
+            <motion.div
+              key={total}
+              initial={{ scale: 1.06, opacity: 0.6 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className={`font-black leading-none ${textColor}`}
+              style={{ fontSize: 'clamp(2rem, 3.5vw, 3.5rem)' }}
+            >
+              {total > 0 ? `+${total}` : total}
+            </motion.div>
+          </>
+        ) : (
+          <>
+            <motion.div
+              key={total}
+              initial={{ scale: 1.06, opacity: 0.6 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className={`font-black leading-none ${textColor}`}
+              style={{ fontSize: 'clamp(2rem, 3.5vw, 3.5rem)' }}
+            >
+              {total > 0 ? `+${total}` : total}
+            </motion.div>
+            <div className={`uppercase ${accentText} shrink-0`}
+              style={{ ...HEADER_FONT, fontSize: '16px', letterSpacing: '0.22em' }}>
+              {label}
+            </div>
+          </>
+        )}
       </div>
 
       {/* ── Player cards — sorted best→worst, all 5 share height equally ── */}
