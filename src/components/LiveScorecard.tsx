@@ -604,7 +604,7 @@ export function SidePanel({
         <span title="Man of the Match"
           className="inline-flex items-center gap-1 font-black rounded-lg bg-violet-500 text-white leading-none"
           style={{ fontSize: '13px', padding: '4px 8px' }}>
-          🏅 <span>+{momBonus}</span>
+          🏅 <span>+{momCount * 10}</span>
         </span>
       )}
     </div>
