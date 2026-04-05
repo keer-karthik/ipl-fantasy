@@ -74,6 +74,12 @@ export function calcBowlingPoints(
     else if (eco >= 14) pts -= 60;
     else if (eco >= 12) pts -= 40;
     else if (eco >= 10) pts -= 20;
+
+    // Additional wicketless penalty when economy is also bad (tiered, not cumulative)
+    if (wickets === 0) {
+      if      (eco > 12) pts -= 20;
+      else if (eco > 10) pts -= 10;
+    }
   }
 
   // Wicket milestone bonuses
