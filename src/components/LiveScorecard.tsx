@@ -145,10 +145,18 @@ export function tieredTotalColor(n: number): string {
   return 'text-violet-600';
 }
 // BAT/BWL/FLD component — negative red | 0–20 yellow | 20–50 green | 50+ purple
-function tieredComponentColor(n: number): string {
+// Batting & bowling: negative red | 0–30 yellow | 30–90 green | 90+ purple
+function tieredBatBowlColor(n: number): string {
   if (n < 0)  return 'text-red-500';
-  if (n < 20) return 'text-amber-400';
-  if (n < 50) return 'text-green-500';
+  if (n < 30) return 'text-amber-400';
+  if (n < 90) return 'text-green-500';
+  return 'text-violet-600';
+}
+// Fielding: capped scale — +10 yellow | +20 green | +30 purple (catches/runouts/stumpings)
+function tieredFieldingColor(n: number): string {
+  if (n <= 0)  return 'text-gray-300';
+  if (n < 20)  return 'text-amber-400';
+  if (n < 30)  return 'text-green-500';
   return 'text-violet-600';
 }
 function shortName(n: string) {
@@ -302,7 +310,7 @@ function PlayerTradingCard({ b, isLads }: { b: BreakdownItem; isLads: boolean })
           {b.batPts !== 0 && (
             <div className="flex items-center gap-2">
               <BatIcon size={20} />
-              <span className={`ml-auto font-black leading-none ${tieredComponentColor(b.batPts)}`}
+              <span className={`ml-auto font-black leading-none ${tieredBatBowlColor(b.batPts)}`}
                 style={{ ...PLAYER_FONT, fontSize: '20px' }}>
                 {ptsStr(b.batPts)}
               </span>
@@ -311,7 +319,7 @@ function PlayerTradingCard({ b, isLads }: { b: BreakdownItem; isLads: boolean })
           {b.bowlPts !== 0 && (
             <div className="flex items-center gap-2">
               <BallIcon size={20} />
-              <span className={`ml-auto font-black leading-none ${tieredComponentColor(b.bowlPts)}`}
+              <span className={`ml-auto font-black leading-none ${tieredBatBowlColor(b.bowlPts)}`}
                 style={{ ...PLAYER_FONT, fontSize: '20px' }}>
                 {ptsStr(b.bowlPts)}
               </span>
@@ -320,7 +328,7 @@ function PlayerTradingCard({ b, isLads }: { b: BreakdownItem; isLads: boolean })
           {b.fieldPts !== 0 && (
             <div className="flex items-center gap-2">
               <HandsIcon size={20} />
-              <span className={`ml-auto font-black leading-none ${tieredComponentColor(b.fieldPts)}`}
+              <span className={`ml-auto font-black leading-none ${tieredFieldingColor(b.fieldPts)}`}
                 style={{ ...PLAYER_FONT, fontSize: '20px' }}>
                 {ptsStr(b.fieldPts)}
               </span>
