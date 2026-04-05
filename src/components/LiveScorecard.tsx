@@ -425,7 +425,7 @@ export function SidePanel({
     <div className={`flex-1 rounded-2xl border-2 ${borderColor} ${bgColor} flex flex-col overflow-hidden`}>
 
       {/* ── Header: Lads = right-aligned [LADS][+261], Gils = justify-between [+404][GILS] ── */}
-      <div className={`px-4 pt-3 pb-2 flex items-baseline gap-3 ${isLads ? 'justify-end' : 'justify-between'}`}>
+      <div className={`px-4 pt-3 pb-2 flex items-baseline gap-3 ${isLads ? 'justify-end' : ''}`}>
         {isLads ? (
           <>
             <div className={`uppercase ${accentText} shrink-0`}
