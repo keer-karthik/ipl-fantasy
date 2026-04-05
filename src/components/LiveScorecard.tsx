@@ -239,6 +239,11 @@ function PlayerTradingCard({ b, isLads }: { b: BreakdownItem; isLads: boolean })
   };
   const badgeBg = b.multiplier ? (multBadgeBg[b.multiplier] ?? 'bg-gray-200 text-gray-500') : '';
 
+  // Gain multiplier factor for display (applied per-component for visual only)
+  const multFactor: Record<string, number> = { yellow: 1, green: 2, purple: 3, allin: 5 };
+  const factor = b.multiplier ? (multFactor[b.multiplier] ?? 1) : 1;
+  const showDual = factor > 1; // only show raw→multiplied for 2×/3×/5×
+
   const PLAYER_FONT: React.CSSProperties = {
     fontFamily: 'var(--font-barlow-condensed), system-ui, sans-serif',
     fontWeight: 900,
@@ -310,28 +315,70 @@ function PlayerTradingCard({ b, isLads }: { b: BreakdownItem; isLads: boolean })
           {b.batPts !== 0 && (
             <div className="flex items-center gap-2">
               <BatIcon size={20} />
-              <span className={`ml-auto font-black leading-none ${tieredBatBowlColor(b.batPts)}`}
-                style={{ ...PLAYER_FONT, fontSize: '20px' }}>
-                {ptsStr(b.batPts)}
-              </span>
+              {showDual ? (
+                <div className="ml-auto flex items-center gap-1.5">
+                  <span className={`font-black leading-none ${tieredBatBowlColor(b.batPts)}`}
+                    style={{ ...PLAYER_FONT, fontSize: '13px', opacity: 0.75 }}>
+                    {ptsStr(b.batPts)}
+                  </span>
+                  <span style={{ fontSize: 10, color: '#cbd5e1' }}>→</span>
+                  <span className={`font-black leading-none ${tieredBatBowlColor(b.batPts * factor)}`}
+                    style={{ ...PLAYER_FONT, fontSize: '20px' }}>
+                    {ptsStr(b.batPts * factor)}
+                  </span>
+                </div>
+              ) : (
+                <span className={`ml-auto font-black leading-none ${tieredBatBowlColor(b.batPts)}`}
+                  style={{ ...PLAYER_FONT, fontSize: '20px' }}>
+                  {ptsStr(b.batPts)}
+                </span>
+              )}
             </div>
           )}
           {b.bowlPts !== 0 && (
             <div className="flex items-center gap-2">
               <BallIcon size={20} />
-              <span className={`ml-auto font-black leading-none ${tieredBatBowlColor(b.bowlPts)}`}
-                style={{ ...PLAYER_FONT, fontSize: '20px' }}>
-                {ptsStr(b.bowlPts)}
-              </span>
+              {showDual ? (
+                <div className="ml-auto flex items-center gap-1.5">
+                  <span className={`font-black leading-none ${tieredBatBowlColor(b.bowlPts)}`}
+                    style={{ ...PLAYER_FONT, fontSize: '13px', opacity: 0.75 }}>
+                    {ptsStr(b.bowlPts)}
+                  </span>
+                  <span style={{ fontSize: 10, color: '#cbd5e1' }}>→</span>
+                  <span className={`font-black leading-none ${tieredBatBowlColor(b.bowlPts * factor)}`}
+                    style={{ ...PLAYER_FONT, fontSize: '20px' }}>
+                    {ptsStr(b.bowlPts * factor)}
+                  </span>
+                </div>
+              ) : (
+                <span className={`ml-auto font-black leading-none ${tieredBatBowlColor(b.bowlPts)}`}
+                  style={{ ...PLAYER_FONT, fontSize: '20px' }}>
+                  {ptsStr(b.bowlPts)}
+                </span>
+              )}
             </div>
           )}
           {b.fieldPts !== 0 && (
             <div className="flex items-center gap-2">
               <HandsIcon size={20} />
-              <span className={`ml-auto font-black leading-none ${tieredFieldingColor(b.fieldPts)}`}
-                style={{ ...PLAYER_FONT, fontSize: '20px' }}>
-                {ptsStr(b.fieldPts)}
-              </span>
+              {showDual ? (
+                <div className="ml-auto flex items-center gap-1.5">
+                  <span className={`font-black leading-none ${tieredFieldingColor(b.fieldPts)}`}
+                    style={{ ...PLAYER_FONT, fontSize: '13px', opacity: 0.75 }}>
+                    {ptsStr(b.fieldPts)}
+                  </span>
+                  <span style={{ fontSize: 10, color: '#cbd5e1' }}>→</span>
+                  <span className={`font-black leading-none ${tieredFieldingColor(b.fieldPts * factor)}`}
+                    style={{ ...PLAYER_FONT, fontSize: '20px' }}>
+                    {ptsStr(b.fieldPts * factor)}
+                  </span>
+                </div>
+              ) : (
+                <span className={`ml-auto font-black leading-none ${tieredFieldingColor(b.fieldPts)}`}
+                  style={{ ...PLAYER_FONT, fontSize: '20px' }}>
+                  {ptsStr(b.fieldPts)}
+                </span>
+              )}
             </div>
           )}
           {b.batPts === 0 && b.bowlPts === 0 && b.fieldPts === 0 && (
