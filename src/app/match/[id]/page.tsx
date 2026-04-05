@@ -812,7 +812,11 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
     ? Object.values(liveData.innings).flatMap(inn => calcLiveBowlers(inn.bowling, allPicksForPanel))
     : [];
   const panelPlayingEleven = liveData?.playingEleven ?? [];
-  const panelMOM = liveData?.manOfTheMatch ?? null;
+  // Use live MOM; fall back to whoever has isMOM=true in saved results (persists after CDN expires)
+  const savedMOM = match.lads.results.find(r => r.isMOM)?.playerName
+    ?? match.gils.results.find(r => r.isMOM)?.playerName
+    ?? null;
+  const panelMOM = liveData?.manOfTheMatch ?? savedMOM;
   const ladsAgg = calcLiveFantasyTotal(panelBatsmen, panelBowlers, ladsPicks, panelPlayingEleven, panelMOM);
   const gilsAgg = calcLiveFantasyTotal(panelBatsmen, panelBowlers, gilsPicks, panelPlayingEleven, panelMOM);
 
