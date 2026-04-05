@@ -13,6 +13,17 @@ body {
   font-family: system-ui, -apple-system, sans-serif;
 }
 
+/* IPL design tokens as utilities */
+@utility bg-navy {
+  background-color: var(--ipl-navy);
+}
+@utility text-ipl-orange {
+  color: var(--ipl-orange);
+}
+@utility border-ipl-orange {
+  border-color: var(--ipl-orange);
+}
+
 @keyframes pulse-live {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.4; }
