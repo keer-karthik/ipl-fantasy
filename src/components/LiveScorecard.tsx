@@ -244,7 +244,7 @@ function PlayerTradingCard({ b, isLads }: { b: BreakdownItem; isLads: boolean })
 
   // Line item renderer — label left, pts right
   const LedgerRow = ({ label, pts }: { label: string; pts: number }) => (
-    <div className="flex justify-between items-baseline" style={{ ...FONT, fontSize: 10, fontWeight: 600 }}>
+    <div className="flex justify-between items-baseline" style={{ ...FONT, fontSize: 12, fontWeight: 600 }}>
       <span className="text-gray-500 truncate pr-1">{label}</span>
       <span className={`shrink-0 font-black ${pts > 0 ? 'text-gray-800' : pts < 0 ? 'text-red-500' : 'text-gray-400'}`}>
         {pts > 0 ? `+${pts}` : pts === 0 ? '0' : pts}
@@ -311,9 +311,9 @@ function PlayerTradingCard({ b, isLads }: { b: BreakdownItem; isLads: boolean })
         {(b.batPts !== 0 || batLines.length > 0) && (
           <div className="mb-1.5">
             <div className="flex items-baseline gap-1.5 mb-0.5">
-              <span className="text-black font-black uppercase tracking-widest" style={{ ...FONT, fontSize: 9 }}>BATTING</span>
+              <span className="text-black font-black uppercase tracking-widest" style={{ ...FONT, fontSize: 11 }}>BATTING</span>
               {b.batStats && (
-                <span className="text-gray-400 font-semibold" style={{ fontSize: 9 }}>
+                <span className="text-gray-400 font-semibold" style={{ fontSize: 11 }}>
                   {b.batStats.runs}({b.batStats.balls})
                   {' '}SR {b.batStats.strikeRate.toFixed(0)}
                   {b.batStats.fours > 0 ? ` · ${b.batStats.fours}×4` : ''}
@@ -332,9 +332,9 @@ function PlayerTradingCard({ b, isLads }: { b: BreakdownItem; isLads: boolean })
         {(b.bowlPts !== 0 || bowlLines.length > 0) && (
           <div className={`mb-1.5 ${b.batPts !== 0 ? 'pt-1.5 border-t border-gray-100' : ''}`}>
             <div className="flex items-baseline gap-1.5 mb-0.5">
-              <span className="text-black font-black uppercase tracking-widest" style={{ ...FONT, fontSize: 9 }}>BOWLING</span>
+              <span className="text-black font-black uppercase tracking-widest" style={{ ...FONT, fontSize: 11 }}>BOWLING</span>
               {b.bowlStats && (
-                <span className="text-gray-400 font-semibold" style={{ fontSize: 9 }}>
+                <span className="text-gray-400 font-semibold" style={{ fontSize: 11 }}>
                   {b.bowlStats.overs}-{b.bowlStats.maidens}-{b.bowlStats.runs}-{b.bowlStats.wickets}
                   {' '}ECO {b.bowlStats.economy.toFixed(2)}
                 </span>
@@ -351,7 +351,7 @@ function PlayerTradingCard({ b, isLads }: { b: BreakdownItem; isLads: boolean })
         {b.fieldPts !== 0 && (
           <div className={`mb-1.5 ${(b.batPts !== 0 || b.bowlPts !== 0) ? 'pt-1.5 border-t border-gray-100' : ''}`}>
             <div className="flex items-baseline gap-1.5 mb-0.5">
-              <span className="text-black font-black uppercase tracking-widest" style={{ ...FONT, fontSize: 9 }}>FIELDING</span>
+              <span className="text-black font-black uppercase tracking-widest" style={{ ...FONT, fontSize: 11 }}>FIELDING</span>
             </div>
             <LedgerRow label={`${b.fieldPts / 10} dismissal${b.fieldPts / 10 !== 1 ? 's' : ''} × 10`} pts={b.fieldPts} />
           </div>
@@ -360,12 +360,12 @@ function PlayerTradingCard({ b, isLads }: { b: BreakdownItem; isLads: boolean })
         {/* RAW + multiplier footer */}
         {hasAnyActivity && (
           <div className="mt-auto pt-1 border-t border-gray-200">
-            <div className="flex justify-between items-baseline" style={{ ...FONT, fontSize: 9 }}>
+            <div className="flex justify-between items-baseline" style={{ ...FONT, fontSize: 11 }}>
               <span className="text-gray-400 tracking-widest uppercase">Raw</span>
               <span className="text-gray-600 font-black">{rawPts > 0 ? `+${rawPts}` : rawPts}</span>
             </div>
             {multX > 1 && (
-              <div className="flex justify-between items-baseline" style={{ ...FONT, fontSize: 9 }}>
+              <div className="flex justify-between items-baseline" style={{ ...FONT, fontSize: 11 }}>
                 <span className="text-gray-400">
                   {rawPts >= 0
                     ? `× ${multX} (${b.multiplier})`

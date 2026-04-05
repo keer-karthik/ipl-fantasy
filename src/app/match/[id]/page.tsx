@@ -633,7 +633,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
   ];
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className="max-w-[760px] mx-auto space-y-6 pb-12">
       {/* Header — IPL style */}
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
         className="rounded-2xl overflow-hidden shadow-lg relative"
@@ -692,7 +692,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
           </div>
 
           {/* Live / completed scores */}
-          {liveData && (liveData.status.isLive || liveData.status.isComplete) && (() => {
+          {liveData && Object.keys(liveData.innings).length > 0 && (() => {
             // Get innings in order
             const inningsKeys = Object.keys(liveData.innings);
             return (
@@ -898,7 +898,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
       {showSidePanels && (
         <>
           <div className="fixed left-0 bottom-0 hidden 2xl:flex flex-col z-30 p-2"
-            style={{ top: '56px', width: 'calc(50vw - 32rem)' }}>
+            style={{ top: '56px', width: 'calc(50vw - 24rem)' }}>
             <SidePanel
               label="LADS" total={ladsDisplayTotal}
               breakdown={ladsBreakdown}
@@ -907,7 +907,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
             />
           </div>
           <div className="fixed right-0 bottom-0 hidden 2xl:flex flex-col z-30 p-2"
-            style={{ top: '56px', width: 'calc(50vw - 32rem)' }}>
+            style={{ top: '56px', width: 'calc(50vw - 24rem)' }}>
             <SidePanel
               label="GILS" total={gilsDisplayTotal}
               breakdown={gilsBreakdown}
