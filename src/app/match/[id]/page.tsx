@@ -421,8 +421,8 @@ function ResultsDisplay({ match, matchId, updateMatch }: {
       updateMatch(matchId, m => {
         const refreshSide = (se: SideEntry): SideEntry => {
           const momSet = new Set(se.results.filter(r => r.isMOM).map(r => r.playerName));
-          const newResults = autoResultFromLive(liveData.innings, se.picks);
-          return { ...se, results: newResults.map(r => ({ ...r, isMOM: momSet.has(r.playerName) })) };
+          const newResults = autoResultFromLive(liveData.innings, se.picks, [], liveData.manOfTheMatch ?? null);
+          return { ...se, results: newResults.map(r => ({ ...r, isMOM: momSet.has(r.playerName) || r.isMOM })) };
         };
         return { ...m, lads: refreshSide(m.lads), gils: refreshSide(m.gils) };
       });
@@ -721,8 +721,9 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
     const ladsCorrect = ladsPrediction !== '' && ladsPrediction === actualWinner;
     const gilsCorrect = gilsPrediction !== '' && gilsPrediction === actualWinner;
 
-    const ladsResults = autoResultFromLive(liveData.innings, ladsPicks, liveData.playingEleven ?? []);
-    const gilsResults = autoResultFromLive(liveData.innings, gilsPicks, liveData.playingEleven ?? []);
+    const mom = liveData.manOfTheMatch ?? null;
+    const ladsResults = autoResultFromLive(liveData.innings, ladsPicks, liveData.playingEleven ?? [], mom);
+    const gilsResults = autoResultFromLive(liveData.innings, gilsPicks, liveData.playingEleven ?? [], mom);
     const ladsTotal = ladsResults.reduce((s, r) => s + r.finalTotal, 0) + (ladsCorrect ? 50 : 0);
     const gilsTotal = gilsResults.reduce((s, r) => s + r.finalTotal, 0) + (gilsCorrect ? 50 : 0);
     const winner = ladsTotal > gilsTotal ? 'lads' : gilsTotal > ladsTotal ? 'gils' : null;
@@ -772,6 +773,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
     batPts: r.battingPoints,
     bowlPts: r.bowlingPoints,
     fieldPts: r.fieldingPoints,
+    momPts: r.momPoints,
     multiplier: r.multiplier,
     isSubstituted: false,
   })) : undefined;
@@ -782,6 +784,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
     batPts: r.battingPoints,
     bowlPts: r.bowlingPoints,
     fieldPts: r.fieldingPoints,
+    momPts: r.momPoints,
     multiplier: r.multiplier,
     isSubstituted: false,
   })) : undefined;
@@ -795,8 +798,9 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
     ? Object.values(liveData.innings).flatMap(inn => calcLiveBowlers(inn.bowling, allPicksForPanel))
     : [];
   const panelPlayingEleven = liveData?.playingEleven ?? [];
-  const ladsAgg = calcLiveFantasyTotal(panelBatsmen, panelBowlers, ladsPicks, panelPlayingEleven);
-  const gilsAgg = calcLiveFantasyTotal(panelBatsmen, panelBowlers, gilsPicks, panelPlayingEleven);
+  const panelMOM = liveData?.manOfTheMatch ?? null;
+  const ladsAgg = calcLiveFantasyTotal(panelBatsmen, panelBowlers, ladsPicks, panelPlayingEleven, panelMOM);
+  const gilsAgg = calcLiveFantasyTotal(panelBatsmen, panelBowlers, gilsPicks, panelPlayingEleven, panelMOM);
 
   const ladsBreakdown = (ladsAgg.breakdown.some(b => b.pts !== 0) ? ladsAgg.breakdown : null) ?? savedLadsBreakdown ?? ladsAgg.breakdown;
   const gilsBreakdown = (gilsAgg.breakdown.some(b => b.pts !== 0) ? gilsAgg.breakdown : null) ?? savedGilsBreakdown ?? gilsAgg.breakdown;

@@ -222,9 +222,32 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ mat
       }
     }
 
+    // ── Man of the Match ──────────────────────────────────────────────────────
+    // ESPN exposes awards in summary.header.competitions[0].awards (when available).
+    // Structure: [{ type?: { text }, name?: string, athletes?: [{ athlete: { displayName } }] }]
+    const headerComp = summary.header?.competitions?.[0] ?? {};
+
+    let manOfTheMatch: string | null = null;
+    const awards: Array<Record<string, unknown>> = headerComp.awards ?? [];
+    for (const award of awards) {
+      const label = (
+        (award.type as Record<string, string> | undefined)?.text ??
+        (award.name as string | undefined) ?? ''
+      ).toLowerCase();
+      if (label.includes('player of the match') || label.includes('man of the match') || label.includes('player of match')) {
+        const athletes = (award.athletes ?? award.players ?? []) as Array<Record<string, unknown>>;
+        const first = athletes[0];
+        if (first) {
+          // Try { athlete: { displayName } } or { displayName } directly
+          const athlete = (first.athlete as Record<string, string> | undefined) ?? first;
+          manOfTheMatch = (athlete.displayName as string | undefined) ?? null;
+        }
+        break;
+      }
+    }
+
     // ── Commentary ────────────────────────────────────────────────────────────
     // commentaries is a dict keyed by ID, not an array
-    const headerComp = summary.header?.competitions?.[0] ?? {};
     const commDict: Record<string, { shortText?: string; sequence?: number }> = headerComp.commentaries ?? {};
     // Return all commentary — no slice — so the client has the full ball-by-ball picture.
     const commentaries = Object.values(commDict)
@@ -250,6 +273,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ mat
       commentaries,
       playerImageMap,
       actualWinner: (competitors as Array<{ winner?: boolean; team: { displayName: string } }>).find(c => c.winner)?.team?.displayName ?? null,
+      manOfTheMatch,
     });
   } catch (e) {
     return NextResponse.json({ error: 'Failed to fetch live data', detail: String(e) }, { status: 500 });

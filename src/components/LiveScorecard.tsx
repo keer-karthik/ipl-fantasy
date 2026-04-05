@@ -156,7 +156,7 @@ const INITIALS_COLORS = [
 
 export type BreakdownItem = {
   name: string; activeName: string; pts: number;
-  batPts: number; bowlPts: number; fieldPts: number;
+  batPts: number; bowlPts: number; fieldPts: number; momPts: number;
   multiplier: Multiplier | null; isSubstituted: boolean;
   batStats?: { runs: number; balls: number; fours: number; sixes: number; strikeRate: number; isOut: boolean; battingPosition: number };
   bowlStats?: { overs: number; maidens: number; runs: number; wickets: number; economy: number };
@@ -267,10 +267,10 @@ function PlayerTradingCard({ b, isLads }: { b: BreakdownItem; isLads: boolean })
 
   const batLines  = b.batStats  ? getBatBreakdown(b.batStats)   : [];
   const bowlLines = b.bowlStats ? getBowlBreakdown(b.bowlStats) : [];
-  const rawPts    = b.batPts + b.bowlPts + b.fieldPts;
+  const rawPts    = b.batPts + b.bowlPts + b.fieldPts + b.momPts;
   const gainFactor: Record<string, number> = { yellow: 1, green: 2, purple: 3, allin: 5 };
   const multX = b.multiplier ? (gainFactor[b.multiplier] ?? 1) : 1;
-  const hasAnyActivity = b.batPts !== 0 || b.bowlPts !== 0 || b.fieldPts !== 0;
+  const hasAnyActivity = b.batPts !== 0 || b.bowlPts !== 0 || b.fieldPts !== 0 || b.momPts !== 0;
 
   // ── Display mode: auto-select based on total row count ──
   const totalRows = batLines.length + bowlLines.length + (b.fieldPts !== 0 ? 1 : 0);
@@ -400,6 +400,12 @@ function PlayerTradingCard({ b, isLads }: { b: BreakdownItem; isLads: boolean })
             <LedgerRow label={`${b.fieldPts / 10} dismissal${b.fieldPts / 10 !== 1 ? 's' : ''} × 10`} pts={b.fieldPts} />
           </div>
         )}
+        {displayMode === 'full' && b.momPts !== 0 && (
+          <div className={`mb-1.5 ${(b.batPts !== 0 || b.bowlPts !== 0 || b.fieldPts !== 0) ? 'pt-1.5 border-t border-gray-100' : ''}`}>
+            <SectionHead title="MOM" />
+            <LedgerRow label="Man of the Match" pts={10} />
+          </div>
+        )}
 
         {/* ── CHIPS mode (6-8 rows): header + figures, then inline chips ── */}
         {displayMode === 'chips' && (b.batPts !== 0 || batLines.length > 0) && (
@@ -437,6 +443,15 @@ function PlayerTradingCard({ b, isLads }: { b: BreakdownItem; isLads: boolean })
             </span>
           </div>
         )}
+        {displayMode === 'chips' && b.momPts !== 0 && (
+          <div className={`mb-1 ${(b.batPts !== 0 || b.bowlPts !== 0 || b.fieldPts !== 0) ? 'pt-1 border-t border-gray-100' : ''}`}>
+            <SectionHead title="MOM" />
+            <span style={{ fontSize: 13 }}>
+              <span className="text-gray-400">Man of the Match</span>{' '}
+              <span className={`font-black ${ptsCol(10)}`}>{ptsFmt(10)}</span>
+            </span>
+          </div>
+        )}
 
         {/* ── COMPACT mode (10+ rows): one-line per discipline, figures + total only ── */}
         {displayMode === 'compact' && b.batPts !== 0 && (
@@ -458,6 +473,12 @@ function PlayerTradingCard({ b, isLads }: { b: BreakdownItem; isLads: boolean })
             <span className="text-black font-black uppercase tracking-widest" style={{ fontSize: 14 }}>FIELD</span>
             <span className="text-gray-400 mx-1 flex-1" style={{ fontSize: 12 }}>{b.fieldPts / 10} catch{b.fieldPts / 10 !== 1 ? 'es' : ''}</span>
             <span className={`font-black shrink-0 ${ptsCol(b.fieldPts)}`}>{ptsFmt(b.fieldPts)}</span>
+          </div>
+        )}
+        {displayMode === 'compact' && b.momPts !== 0 && (
+          <div className={`flex justify-between items-baseline mb-0.5 ${(b.batPts !== 0 || b.bowlPts !== 0 || b.fieldPts !== 0) ? 'pt-0.5 border-t border-gray-100' : ''}`} style={{ ...FONT, fontSize: 15 }}>
+            <span className="text-black font-black uppercase tracking-widest" style={{ fontSize: 14 }}>MOM</span>
+            <span className={`font-black shrink-0 ${ptsCol(10)}`}>{ptsFmt(10)}</span>
           </div>
         )}
 
@@ -872,8 +893,8 @@ export default function LiveScorecard({
   liveData: LiveData | null;
   loading: boolean;
   lastUpdated: Date | null;
-  savedLadsBreakdown?: Array<{ name: string; activeName: string; pts: number; batPts: number; bowlPts: number; fieldPts: number; multiplier: import('@/lib/types').Multiplier | null; isSubstituted: boolean }>;
-  savedGilsBreakdown?: Array<{ name: string; activeName: string; pts: number; batPts: number; bowlPts: number; fieldPts: number; multiplier: import('@/lib/types').Multiplier | null; isSubstituted: boolean }>;
+  savedLadsBreakdown?: Array<{ name: string; activeName: string; pts: number; batPts: number; bowlPts: number; fieldPts: number; momPts: number; multiplier: import('@/lib/types').Multiplier | null; isSubstituted: boolean }>;
+  savedGilsBreakdown?: Array<{ name: string; activeName: string; pts: number; batPts: number; bowlPts: number; fieldPts: number; momPts: number; multiplier: import('@/lib/types').Multiplier | null; isSubstituted: boolean }>;
   storedLadsTotal?: number;
   storedGilsTotal?: number;
 }) {
@@ -974,8 +995,9 @@ export default function LiveScorecard({
     ? Object.values(liveData.innings).flatMap(inn => calcLiveBowlers(inn.bowling, allPicks))
     : [];
   const playingEleven = liveData?.playingEleven ?? [];
-  const ladsAgg = calcLiveFantasyTotal(aggBatsmen, aggBowlers, ladsPicks, playingEleven);
-  const gilsAgg = calcLiveFantasyTotal(aggBatsmen, aggBowlers, gilsPicks, playingEleven);
+  const liveMOM = liveData?.manOfTheMatch ?? null;
+  const ladsAgg = calcLiveFantasyTotal(aggBatsmen, aggBowlers, ladsPicks, playingEleven, liveMOM);
+  const gilsAgg = calcLiveFantasyTotal(aggBatsmen, aggBowlers, gilsPicks, playingEleven, liveMOM);
 
   // Use saved breakdown as fallback when live breakdown is all-zero (e.g. completed matches)
   const ladsBreakdown = (ladsAgg.breakdown.some(b => b.pts !== 0) ? ladsAgg.breakdown : null) ?? savedLadsBreakdown ?? ladsAgg.breakdown;

@@ -39,6 +39,7 @@ export interface BreakdownEntry {
   batPts: number;        // raw batting pts (pre-multiplier)
   bowlPts: number;       // raw bowling pts (pre-multiplier)
   fieldPts: number;      // raw fielding pts — catches/stumpings/run-outs (ESPN doesn't expose; always 0 in live)
+  momPts: number;        // +10 if player is Man of the Match
   multiplier: Multiplier | null;
   isSubstituted: boolean;
   // Raw cricket stats for breakdown tooltip
@@ -202,6 +203,7 @@ export function calcLiveFantasyTotal(
   bowlers: LiveBowler[],
   picks: PlayerPick[],
   playingEleven: string[] = [],
+  manOfTheMatch: string | null = null,
 ): LiveFantasyTotal {
   const breakdown: BreakdownEntry[] = [];
   // Build fielding map once from all batsmen dismissal texts
@@ -225,7 +227,8 @@ export function calcLiveFantasyTotal(
     const batPts = batter?.fantasyPoints ?? 0;
     const bowlPts = bowler?.fantasyPoints ?? 0;
     const fieldPts = lookupFieldingPts(activeName, fieldingMap);
-    const combinedRaw = batPts + bowlPts + fieldPts;
+    const momPts = manOfTheMatch && nameMatches(activeName, manOfTheMatch) ? 10 : 0;
+    const combinedRaw = batPts + bowlPts + fieldPts + momPts;
     const finalPts = pick.multiplier ? applyMultiplier(combinedRaw, pick.multiplier) : combinedRaw;
 
     breakdown.push({
@@ -235,6 +238,7 @@ export function calcLiveFantasyTotal(
       batPts,
       bowlPts,
       fieldPts,
+      momPts,
       multiplier: pick.multiplier,
       isSubstituted: useSubstitute,
       batStats: batter ? { runs: batter.runs, balls: batter.balls, fours: batter.fours, sixes: batter.sixes, strikeRate: batter.strikeRate, isOut: batter.isOut, battingPosition: batter.battingPosition } : undefined,
@@ -250,6 +254,7 @@ export function autoResultFromLive(
   innings: LiveData['innings'],
   picks: PlayerPick[],
   playingEleven: string[] = [],
+  manOfTheMatch: string | null = null,
 ): PlayerResult[] {
   // Flatten all batting and bowling records across all innings
   const allBatting = Object.values(innings).flatMap(inning => inning.batting);
@@ -313,8 +318,8 @@ export function autoResultFromLive(
       if (normActive.includes(k) || k.includes(normActive)) fieldingPoints += v;
     }
 
-    const isMOM = false;
-    const momPoints = 0;
+    const isMOM = !!manOfTheMatch && nameMatches(activeName, manOfTheMatch);
+    const momPoints = isMOM ? 10 : 0;
 
     const battingPoints = calcBattingPoints(runs, balls, dismissed, battingPosition);
     const bowlingPoints = calcBowlingPoints(wickets, overs, runsConceded, maidens);
