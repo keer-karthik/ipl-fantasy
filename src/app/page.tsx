@@ -456,41 +456,33 @@ export default function Dashboard() {
         </div>
       </motion.div>
 
-      {/* ══ Desktop: full-bleed 3-column ══ */}
-      <div className="hidden lg:block" style={{
-        width: '100vw',
-        marginLeft: 'calc(50% - 50vw)',
-        paddingLeft: 16,
-        paddingRight: 16,
-        boxSizing: 'border-box',
-      }}>
-        <div className="flex items-start justify-center gap-5">
-          {/* Left: OC + Streak */}
-          <div className="flex flex-col gap-4 sticky top-4 shrink-0" style={{ width: 230 }}>
-            <PrizeTile {...ocTile} />
-            <PrizeTile {...stkTile} />
-          </div>
+      {/* ══ Center feed — always in normal flow ══ */}
+      {centerFeed}
 
-          {/* Center feed */}
-          <div className="min-w-0 flex-1" style={{ maxWidth: 640 }}>
-            {centerFeed}
-          </div>
-
-          {/* Right: PC + PH */}
-          <div className="flex flex-col gap-4 sticky top-4 shrink-0" style={{ width: 230 }}>
-            <PrizeTile {...pcTile} />
-            <PrizeTile {...phTile} />
-          </div>
-        </div>
+      {/* ══ Below 2xl: 2×2 prize grid inline ══ */}
+      <div className="grid grid-cols-2 gap-3 2xl:hidden">
+        <PrizeTile {...ocTile} />
+        <PrizeTile {...pcTile} />
+        <PrizeTile {...stkTile} />
+        <PrizeTile {...phTile} />
       </div>
 
-      {/* ══ Mobile: center feed + 2×2 prize grid ══ */}
-      <div className="lg:hidden space-y-8">
-        {centerFeed}
-        <div className="grid grid-cols-2 gap-3">
+      {/* ══ Fixed prize sidebars — 2xl (1536px+) — same technique as match page SidePanels ══ */}
+      <div className="fixed left-0 bottom-0 hidden 2xl:flex flex-col gap-4 items-end overflow-y-auto p-3"
+        style={{ top: '56px', width: 'calc((100vw - 1024px) / 2)', zIndex: 10 }}>
+        <div style={{ width: '100%', maxWidth: 256 }}>
           <PrizeTile {...ocTile} />
-          <PrizeTile {...pcTile} />
+        </div>
+        <div style={{ width: '100%', maxWidth: 256 }}>
           <PrizeTile {...stkTile} />
+        </div>
+      </div>
+      <div className="fixed right-0 bottom-0 hidden 2xl:flex flex-col gap-4 items-start overflow-y-auto p-3"
+        style={{ top: '56px', width: 'calc((100vw - 1024px) / 2)', zIndex: 10 }}>
+        <div style={{ width: '100%', maxWidth: 256 }}>
+          <PrizeTile {...pcTile} />
+        </div>
+        <div style={{ width: '100%', maxWidth: 256 }}>
           <PrizeTile {...phTile} />
         </div>
       </div>
