@@ -165,11 +165,33 @@ export type BreakdownItem = {
 // ─── Point breakdown helpers ──────────────────────────────────────────────────
 type BdLine = { label: string; pts: number };
 
-function getBatBreakdown(s: NonNullable<BreakdownItem['batStats']>, battingPos = 1): BdLine[] {
+function getBatBreakdown(s: NonNullable<BreakdownItem['batStats']>): BdLine[] {
   const out: BdLine[] = [];
-  if (battingPos >= 7 && s.runs < 10) { out.push({ label: 'Lower-order, <10 runs', pts: 0 }); return out; }
+  const lowerOrder = s.battingPosition >= 7;
+
+  if (lowerOrder) {
+    // Pos 7+: run points + SR bonus only, zero deductions.
+    // If batter is still in and runs ≤10 the live hold makes batPts=0 — show nothing.
+    if (!s.isOut && s.runs <= 10) return out;
+    out.push({ label: `${s.runs} runs`, pts: s.runs });
+    if (s.balls > 0) {
+      const sr = (s.runs / s.balls) * 100;
+      if      (sr >= 300 && s.balls >= 25) out.push({ label: `SR ${sr.toFixed(0)} (≥300)`, pts: 50 });
+      else if (sr >= 250 && s.balls >= 20) out.push({ label: `SR ${sr.toFixed(0)} (≥250)`, pts: 35 });
+      else if (sr >= 200 && s.balls >= 10) out.push({ label: `SR ${sr.toFixed(0)} (≥200)`, pts: 20 });
+      else if (sr >= 175 && s.balls >= 10) out.push({ label: `SR ${sr.toFixed(0)} (≥175)`, pts: 5 });
+    }
+    return out;
+  }
+
+  // Positions 1–6
   if (s.isOut && s.runs === 0) { out.push({ label: 'Duck', pts: -30 }); return out; }
-  if (s.runs <= 10) { out.push({ label: `${s.runs} runs (≤10 penalty)`, pts: -20 }); return out; }
+  // Live hold: don't show ≤10 penalty while batter is still in
+  if (s.runs <= 10) {
+    if (!s.isOut) return out;
+    out.push({ label: `${s.runs} runs (≤10 penalty)`, pts: -20 });
+    return out;
+  }
   out.push({ label: `${s.runs} runs`, pts: s.runs });
   if (s.runs >= 90) out.push({ label: '90+ milestone', pts: 35 });
   if (s.runs >= 70) out.push({ label: '70+ milestone', pts: 25 });
@@ -177,10 +199,13 @@ function getBatBreakdown(s: NonNullable<BreakdownItem['batStats']>, battingPos =
   if (s.runs >= 25) out.push({ label: '25+ milestone', pts: 5 });
   if (s.balls > 0) {
     const sr = (s.runs / s.balls) * 100;
-    if (sr >= 300 && s.balls >= 25)      out.push({ label: `SR ${sr.toFixed(0)} (≥300)`, pts: 50 });
-    else if (sr >= 250 && s.balls >= 20) out.push({ label: `SR ${sr.toFixed(0)} (≥250)`, pts: 25 });
-    else if (sr >= 200 && s.balls >= 10) out.push({ label: `SR ${sr.toFixed(0)} (≥200)`, pts: 10 });
+    if      (sr >= 300 && s.balls >= 25) out.push({ label: `SR ${sr.toFixed(0)} (≥300)`, pts: 50 });
+    else if (sr >= 250 && s.balls >= 20) out.push({ label: `SR ${sr.toFixed(0)} (≥250)`, pts: 35 });
+    else if (sr >= 200 && s.balls >= 10) out.push({ label: `SR ${sr.toFixed(0)} (≥200)`, pts: 20 });
+    else if (sr >= 175 && s.balls >= 10) out.push({ label: `SR ${sr.toFixed(0)} (≥175)`, pts: 5 });
+    else if (sr <= 75  && s.balls >= 10) out.push({ label: `SR ${sr.toFixed(0)} (≤75)`, pts: -30 });
     else if (sr <= 100 && s.balls >= 10) out.push({ label: `SR ${sr.toFixed(0)} (≤100)`, pts: -20 });
+    else if (sr <= 125 && s.balls >= 10) out.push({ label: `SR ${sr.toFixed(0)} (≤125)`, pts: -10 });
   }
   return out;
 }

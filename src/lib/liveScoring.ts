@@ -10,6 +10,7 @@ export interface LiveBatsman {
   sixes: number;
   strikeRate: number;
   isOut: boolean;
+  battingPosition: number;
   dismissal: string;
   dismissalFielder: string; // ESPN-provided fielder name for catches/stumpings/run-outs
   fantasyPoints: number;
@@ -41,7 +42,7 @@ export interface BreakdownEntry {
   multiplier: Multiplier | null;
   isSubstituted: boolean;
   // Raw cricket stats for breakdown tooltip
-  batStats?: { runs: number; balls: number; fours: number; sixes: number; strikeRate: number; isOut: boolean };
+  batStats?: { runs: number; balls: number; fours: number; sixes: number; strikeRate: number; isOut: boolean; battingPosition: number };
   bowlStats?: { overs: number; maidens: number; runs: number; wickets: number; economy: number };
 }
 
@@ -113,6 +114,7 @@ export function calcLiveBatsmen(
       sixes: parseInt(p.sixes ?? '0') || 0,
       strikeRate: Math.round(sr * 10) / 10,
       isOut,
+      battingPosition: battingPos,
       dismissal: p.dismissal ?? '',
       dismissalFielder: p.dismissalFielder ?? '',
       fantasyPoints,
@@ -235,7 +237,7 @@ export function calcLiveFantasyTotal(
       fieldPts,
       multiplier: pick.multiplier,
       isSubstituted: useSubstitute,
-      batStats: batter ? { runs: batter.runs, balls: batter.balls, fours: batter.fours, sixes: batter.sixes, strikeRate: batter.strikeRate, isOut: batter.isOut } : undefined,
+      batStats: batter ? { runs: batter.runs, balls: batter.balls, fours: batter.fours, sixes: batter.sixes, strikeRate: batter.strikeRate, isOut: batter.isOut, battingPosition: batter.battingPosition } : undefined,
       bowlStats: bowler ? { overs: bowler.overs, maidens: bowler.maidens, runs: bowler.runs, wickets: bowler.wickets, economy: bowler.economy } : undefined,
     });
   }
