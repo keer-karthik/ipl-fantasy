@@ -1,5 +1,5 @@
 'use client';
-import { use, useState, useEffect, useRef, useCallback } from 'react';
+import React, { use, useState, useEffect, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useSeasonState, emptyMatch } from '@/lib/store';
 import { getFixture, teams, formatDate, getMatchStartIST } from '@/lib/data';
@@ -524,8 +524,8 @@ function ResultsDisplay({ match, matchId, updateMatch }: {
                     const bowlItems = getBowlingBreakdown(r);
                     const fieldDismissals = r.fieldingPoints > 0 ? r.fieldingPoints / 10 : 0;
                     return (
-                      <>
-                        <tr key={r.playerName}
+                      <React.Fragment key={expandKey}>
+                        <tr
                           className="hover:bg-gray-50/50 transition-colors cursor-pointer select-none"
                           onClick={() => setExpandedPlayer(prev => prev === expandKey ? null : expandKey)}>
                           <td className="px-3 py-3">
@@ -639,7 +639,7 @@ function ResultsDisplay({ match, matchId, updateMatch }: {
                             </td>
                           </tr>
                         )}
-                      </>
+                      </React.Fragment>
                     );
                   })}
                   {hasWinnerBonus && (
