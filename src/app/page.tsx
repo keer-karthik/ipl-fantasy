@@ -417,9 +417,9 @@ export default function Dashboard() {
                 fontSize: 'clamp(3rem, 8vw, 5rem)', fontWeight: 900,
                 color: LADS, lineHeight: 1, display: 'block',
               }} />
-              <div className="text-[11px] font-bold uppercase tracking-[0.2em] mt-1" style={{ color: `${LADS}99` }}>
+              <div className="text-[11px] font-bold uppercase tracking-[0.2em] mt-1" style={{ color: LADS }}>
                 Lads · {lads.totalPoints.toLocaleString()}pts
-                {ptsDiff < 0 && <span style={{ color: '#dc2626' }}> ({ptsDiff})</span>}
+                {ptsDiff < 0 && <span style={{ color: 'rgba(255,255,255,0.5)' }}> ({ptsDiff})</span>}
               </div>
             </div>
             <div className="flex flex-col items-center gap-1">
@@ -433,9 +433,9 @@ export default function Dashboard() {
                 fontSize: 'clamp(3rem, 8vw, 5rem)', fontWeight: 900,
                 color: GILS, lineHeight: 1, display: 'block',
               }} />
-              <div className="text-[11px] font-bold uppercase tracking-[0.2em] mt-1" style={{ color: `${GILS}99` }}>
+              <div className="text-[11px] font-bold uppercase tracking-[0.2em] mt-1" style={{ color: GILS }}>
                 Gils · {gils.totalPoints.toLocaleString()}pts
-                {ptsDiff > 0 && <span style={{ color: '#dc2626' }}> (-{ptsDiff})</span>}
+                {ptsDiff > 0 && <span style={{ color: 'rgba(255,255,255,0.5)' }}> (-{ptsDiff})</span>}
               </div>
             </div>
           </div>
