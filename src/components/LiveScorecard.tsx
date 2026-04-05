@@ -173,7 +173,52 @@ export type BreakdownItem = {
   name: string; activeName: string; pts: number;
   batPts: number; bowlPts: number; fieldPts: number;
   multiplier: Multiplier | null; isSubstituted: boolean;
+  batStats?: { runs: number; balls: number; fours: number; sixes: number; strikeRate: number; isOut: boolean };
+  bowlStats?: { overs: number; maidens: number; runs: number; wickets: number; economy: number };
 };
+
+// ─── Point breakdown helpers ──────────────────────────────────────────────────
+type BdLine = { label: string; pts: number };
+
+function getBatBreakdown(s: NonNullable<BreakdownItem['batStats']>, battingPos = 1): BdLine[] {
+  const out: BdLine[] = [];
+  if (battingPos >= 7 && s.runs < 10) { out.push({ label: 'Lower-order, <10 runs', pts: 0 }); return out; }
+  if (s.isOut && s.runs === 0) { out.push({ label: 'Duck', pts: -30 }); return out; }
+  if (s.runs <= 10) { out.push({ label: `${s.runs} runs (≤10 penalty)`, pts: -20 }); return out; }
+  out.push({ label: `${s.runs} runs`, pts: s.runs });
+  if (s.runs >= 90) out.push({ label: '90+ milestone', pts: 35 });
+  if (s.runs >= 70) out.push({ label: '70+ milestone', pts: 25 });
+  if (s.runs >= 40) out.push({ label: '40+ milestone', pts: 15 });
+  if (s.runs >= 25) out.push({ label: '25+ milestone', pts: 5 });
+  if (s.balls > 0) {
+    const sr = (s.runs / s.balls) * 100;
+    if (sr >= 300 && s.balls >= 25)      out.push({ label: `SR ${sr.toFixed(0)} (≥300)`, pts: 50 });
+    else if (sr >= 250 && s.balls >= 20) out.push({ label: `SR ${sr.toFixed(0)} (≥250)`, pts: 25 });
+    else if (sr >= 200 && s.balls >= 10) out.push({ label: `SR ${sr.toFixed(0)} (≥200)`, pts: 10 });
+    else if (sr <= 100 && s.balls >= 10) out.push({ label: `SR ${sr.toFixed(0)} (≤100)`, pts: -20 });
+  }
+  return out;
+}
+
+function getBowlBreakdown(s: NonNullable<BreakdownItem['bowlStats']>): BdLine[] {
+  const out: BdLine[] = [];
+  if (s.overs === 0) return out;
+  if (s.wickets > 0) out.push({ label: `${s.wickets}W × 25`, pts: s.wickets * 25 });
+  if (s.maidens > 0) out.push({ label: `${s.maidens} maiden${s.maidens > 1 ? 's' : ''} × 40`, pts: s.maidens * 40 });
+  if (s.overs >= 3) {
+    const eco = s.runs / s.overs;
+    if      (eco <= 4)  out.push({ label: `ECO ${eco.toFixed(2)} (≤4.00)`, pts: 80 });
+    else if (eco <= 6)  out.push({ label: `ECO ${eco.toFixed(2)} (≤6.00)`, pts: 60 });
+    else if (eco <= 8)  out.push({ label: `ECO ${eco.toFixed(2)} (≤8.00)`, pts: 30 });
+    else if (eco >= 14) out.push({ label: `ECO ${eco.toFixed(2)} (≥14)`, pts: -40 });
+    else if (eco >= 12) out.push({ label: `ECO ${eco.toFixed(2)} (≥12)`, pts: -30 });
+    else if (eco >= 10) out.push({ label: `ECO ${eco.toFixed(2)} (≥10)`, pts: -20 });
+  }
+  if (s.wickets === 0 && s.overs >= 2) out.push({ label: 'No wickets', pts: -20 });
+  if (s.wickets >= 5)      out.push({ label: '5-wkt haul bonus', pts: 35 });
+  else if (s.wickets >= 3) out.push({ label: '3-wkt bonus', pts: 20 });
+  return out;
+}
 
 // ─── Cricket silhouette icons (IPL website style) ─────────────────────────────
 
@@ -226,6 +271,7 @@ function HandsIcon({ size = 22 }: { size?: number }) {
 function PlayerTradingCard({ b, isLads }: { b: BreakdownItem; isLads: boolean }) {
   const iplUrl = iplImageUrl(b.activeName);
   const [imgOk, setImgOk] = useState(!!iplUrl);
+  const [expanded, setExpanded] = useState(false);
 
   const initials = b.activeName.trim().split(' ').slice(0, 2).map(w => w[0]?.toUpperCase() ?? '').join('');
   const colorSeed = b.activeName.charCodeAt(0) % INITIALS_COLORS.length;
@@ -250,15 +296,26 @@ function PlayerTradingCard({ b, isLads }: { b: BreakdownItem; isLads: boolean })
     letterSpacing: '0.04em',
   };
 
+  const batLines = b.batStats ? getBatBreakdown(b.batStats) : [];
+  const bowlLines = b.bowlStats ? getBowlBreakdown(b.bowlStats) : [];
+  const hasBreakdown = batLines.length > 0 || bowlLines.length > 0 || b.fieldPts !== 0;
+  const rawPts = b.batPts + b.bowlPts + b.fieldPts;
+  const multFactor2: Record<string, number> = { yellow: 1, green: 2, purple: 3, allin: 5 };
+  const gainFactor = b.multiplier ? (multFactor2[b.multiplier] ?? 1) : 1;
+
   return (
     <motion.div
       key={b.name}
+      layout
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.2 }}
-      className={`flex flex-row rounded-2xl overflow-hidden shadow-md bg-white ${topBorder}`}
-      style={{ flex: '1 1 0', minHeight: 0 }}
+      transition={{ duration: 0.2, layout: { duration: 0.25 } }}
+      className={`rounded-2xl overflow-hidden shadow-md bg-white ${topBorder} flex flex-col`}
+      style={{ flex: expanded ? '0 0 auto' : '1 1 0', minHeight: expanded ? 'auto' : 0 }}
     >
+      {/* ══ TOP ROW: photo + stats ══ */}
+      <div className="flex flex-row" style={{ minHeight: 110 }}>
+
       {/* ══ LEFT: photo + name ══ */}
       <div className="relative flex flex-col bg-gray-50 overflow-hidden" style={{ width: '44%' }}>
 
@@ -396,7 +453,108 @@ function PlayerTradingCard({ b, isLads }: { b: BreakdownItem; isLads: boolean })
         >
           {ptsStr(b.pts)}
         </motion.div>
-      </div>
+
+        {/* HOW? toggle */}
+        {hasBreakdown && (
+          <button
+            onClick={() => setExpanded(e => !e)}
+            className="self-end mt-1 text-[8px] font-black tracking-[0.18em] uppercase leading-none px-1.5 py-1 rounded transition-colors"
+            style={{ color: expanded ? '#6366f1' : '#cbd5e1', fontFamily: 'var(--font-barlow-condensed), system-ui, sans-serif' }}
+          >
+            {expanded ? '▲ LESS' : '▾ WHY?'}
+          </button>
+        )}
+      </div>{/* end RIGHT panel */}
+      </div>{/* end TOP ROW */}
+
+      {/* ══ BREAKDOWN PANEL ══ */}
+      <AnimatePresence>
+        {expanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.22 }}
+            className="overflow-hidden"
+          >
+            <div className={`border-t-2 ${isLads ? 'border-amber-100' : 'border-violet-100'} bg-gray-50 px-3 py-2 space-y-1`}
+              style={{ fontFamily: 'var(--font-barlow-condensed), system-ui, sans-serif' }}>
+
+              {/* ── BATTING breakdown ── */}
+              {batLines.length > 0 && b.batStats && (
+                <div>
+                  {/* Cricket figures */}
+                  <div className="text-[10px] font-black tracking-widest text-gray-400 uppercase mb-1">
+                    BAT &nbsp;
+                    <span className="font-mono text-gray-600">
+                      {b.batStats.runs}({b.batStats.balls})
+                    </span>
+                    <span className="ml-2 text-gray-400">SR {b.batStats.strikeRate.toFixed(0)}</span>
+                    {b.batStats.fours > 0 && <span className="ml-2">{b.batStats.fours}×4</span>}
+                    {b.batStats.sixes > 0 && <span className="ml-1">{b.batStats.sixes}×6</span>}
+                  </div>
+                  {batLines.map((ln, i) => (
+                    <div key={i} className="flex justify-between items-baseline text-[10px] py-[1px]">
+                      <span className="text-gray-500">{ln.label}</span>
+                      <span className={`font-black ml-2 ${ln.pts > 0 ? 'text-green-600' : ln.pts < 0 ? 'text-red-500' : 'text-gray-400'}`}>
+                        {ln.pts > 0 ? `+${ln.pts}` : ln.pts === 0 ? '0' : ln.pts}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* ── BOWLING breakdown ── */}
+              {bowlLines.length > 0 && b.bowlStats && (
+                <div className={batLines.length > 0 ? 'pt-1 border-t border-gray-200' : ''}>
+                  {/* Cricket bowling figures: O-M-R-W */}
+                  <div className="text-[10px] font-black tracking-widest text-gray-400 uppercase mb-1">
+                    BWL &nbsp;
+                    <span className="font-mono text-gray-600">
+                      {b.bowlStats.overs}-{b.bowlStats.maidens}-{b.bowlStats.runs}-{b.bowlStats.wickets}
+                    </span>
+                    <span className="ml-2 text-gray-400">ECO {b.bowlStats.economy.toFixed(2)}</span>
+                  </div>
+                  {bowlLines.map((ln, i) => (
+                    <div key={i} className="flex justify-between items-baseline text-[10px] py-[1px]">
+                      <span className="text-gray-500">{ln.label}</span>
+                      <span className={`font-black ml-2 ${ln.pts > 0 ? 'text-green-600' : ln.pts < 0 ? 'text-red-500' : 'text-gray-400'}`}>
+                        {ln.pts > 0 ? `+${ln.pts}` : ln.pts === 0 ? '0' : ln.pts}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* ── FIELDING note ── */}
+              {b.fieldPts !== 0 && (
+                <div className={`${(batLines.length > 0 || bowlLines.length > 0) ? 'pt-1 border-t border-gray-200' : ''}`}>
+                  <div className="flex justify-between items-baseline text-[10px] py-[1px]">
+                    <span className="text-gray-500">Fielding ({b.fieldPts / 10} dismissal{b.fieldPts / 10 !== 1 ? 's' : ''} × 10)</span>
+                    <span className="font-black ml-2 text-green-600">+{b.fieldPts}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* ── Raw total + multiplier ── */}
+              <div className="pt-1 border-t border-gray-300 flex justify-between items-baseline text-[10px]">
+                <span className="text-gray-400 font-semibold uppercase tracking-wider">Raw total</span>
+                <span className="font-black text-gray-700">{rawPts > 0 ? `+${rawPts}` : rawPts}</span>
+              </div>
+              {gainFactor > 1 && (
+                <div className="flex justify-between items-baseline text-[10px]">
+                  <span className="text-gray-400">
+                    {rawPts >= 0
+                      ? `× ${gainFactor} (${b.multiplier} gain)`
+                      : `× ${b.multiplier === 'purple' ? 1.5 : b.multiplier === 'allin' ? 2.5 : 1} (${b.multiplier} loss)`}
+                  </span>
+                  <span className={`font-black ${tieredPtsColor(b.pts)}`}>{b.pts > 0 ? `+${b.pts}` : b.pts}</span>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }
@@ -783,8 +941,7 @@ export default function LiveScorecard({
     fetch(`/api/reconstruct/${matchId}`)
       .then(r => r.ok ? r.json() : null)
       .then((remote: HistoryPoint[] | null) => {
-        if (!Array.isArray(remote) || remote.length === 0) return;
-        applyRemote(remote);
+        applyRemote(Array.isArray(remote) ? remote : [], true);
       })
       .catch(() => { /* network error — use localStorage */ });
   // eslint-disable-next-line react-hooks/exhaustive-deps

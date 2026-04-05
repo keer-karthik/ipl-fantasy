@@ -40,6 +40,9 @@ export interface BreakdownEntry {
   fieldPts: number;      // raw fielding pts — catches/stumpings/run-outs (ESPN doesn't expose; always 0 in live)
   multiplier: Multiplier | null;
   isSubstituted: boolean;
+  // Raw cricket stats for breakdown tooltip
+  batStats?: { runs: number; balls: number; fours: number; sixes: number; strikeRate: number; isOut: boolean };
+  bowlStats?: { overs: number; maidens: number; runs: number; wickets: number; economy: number };
 }
 
 export interface LiveFantasyTotal {
@@ -232,6 +235,8 @@ export function calcLiveFantasyTotal(
       fieldPts,
       multiplier: pick.multiplier,
       isSubstituted: useSubstitute,
+      batStats: batter ? { runs: batter.runs, balls: batter.balls, fours: batter.fours, sixes: batter.sixes, strikeRate: batter.strikeRate, isOut: batter.isOut } : undefined,
+      bowlStats: bowler ? { overs: bowler.overs, maidens: bowler.maidens, runs: bowler.runs, wickets: bowler.wickets, economy: bowler.economy } : undefined,
     });
   }
 
