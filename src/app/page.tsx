@@ -389,12 +389,18 @@ export default function Dashboard() {
                   {gils.totalPoints.toLocaleString()} pts
                 </span>
               </div>
-              <div className="rounded-full overflow-hidden" style={{ height: 4, background: 'rgba(255,255,255,0.08)' }}>
+              <div className="rounded-full overflow-hidden flex" style={{ height: 4, background: 'rgba(255,255,255,0.08)' }}>
                 <motion.div
-                  className="h-full rounded-full"
+                  className="h-full"
                   initial={{ width: '50%' }} animate={{ width: `${ladsPct}%` }}
                   transition={{ duration: 1.2, ease: 'easeOut', delay: 0.4 }}
-                  style={{ background: `linear-gradient(to right, ${LADS}ee, ${LADS}88)` }}
+                  style={{ background: `linear-gradient(to right, ${LADS}, ${LADS}bb)`, borderRadius: '9999px 0 0 9999px' }}
+                />
+                <motion.div
+                  className="h-full"
+                  initial={{ width: '50%' }} animate={{ width: `${100 - ladsPct}%` }}
+                  transition={{ duration: 1.2, ease: 'easeOut', delay: 0.4 }}
+                  style={{ background: `linear-gradient(to left, ${GILS}, ${GILS}bb)`, borderRadius: '0 9999px 9999px 0' }}
                 />
               </div>
             </div>
