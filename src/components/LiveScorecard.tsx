@@ -422,7 +422,7 @@ export function SidePanel({
   };
 
   return (
-    <div className={`flex-1 rounded-2xl border-2 ${borderColor} ${bgColor} flex flex-col overflow-hidden`}>
+    <div className={`flex-1 min-h-0 rounded-2xl border-2 ${borderColor} ${bgColor} flex flex-col overflow-hidden`}>
 
       {/* ── Header: Lads = right-aligned [LADS][+261], Gils = justify-between [+404][GILS] ── */}
       <div className={`px-4 pt-3 pb-2 flex items-baseline gap-3 ${isLads ? 'justify-end' : ''}`}>
@@ -462,7 +462,7 @@ export function SidePanel({
       </div>
 
       {/* ── Player cards — sorted best→worst, all 5 share height equally ── */}
-      <div className={`flex-1 overflow-hidden border-t ${dividerColor} px-3 py-2 flex flex-col gap-1.5`}>
+      <div className={`flex-1 min-h-0 overflow-hidden border-t ${dividerColor} px-3 py-2 flex flex-col gap-1.5`}>
         {[...breakdown].sort((a, b) => b.pts - a.pts).map(b => (
           <PlayerTradingCard key={b.name} b={b} isLads={isLads} />
         ))}
