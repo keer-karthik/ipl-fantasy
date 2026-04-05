@@ -445,9 +445,9 @@ export function SidePanel({
         </div>
       </div>
 
-      {/* ── Player cards — flex column so all 5 share available height equally ── */}
+      {/* ── Player cards — sorted best→worst, all 5 share height equally ── */}
       <div className={`flex-1 overflow-hidden border-t ${dividerColor} px-3 py-2 flex flex-col gap-1.5`}>
-        {breakdown.map(b => (
+        {[...breakdown].sort((a, b) => b.pts - a.pts).map(b => (
           <PlayerTradingCard key={b.name} b={b} isLads={isLads} />
         ))}
       </div>
