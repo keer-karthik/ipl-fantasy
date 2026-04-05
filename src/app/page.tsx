@@ -496,39 +496,89 @@ export default function Dashboard() {
 
       {/* ══ Season standings ══ */}
       <section>
-        <SectionHeader>Season Standings</SectionHeader>
         <div className="flex gap-4 flex-col sm:flex-row">
           <SideCard side={lads} label="Lads" isLads={true}  ptsDiff={lads.totalPoints - gils.totalPoints} />
           <SideCard side={gils} label="Gils" isLads={false} ptsDiff={gils.totalPoints - lads.totalPoints} />
         </div>
       </section>
 
-      {/* ══ End of season prizes ══ */}
-      <section>
-        <SectionHeader>End of Season Prizes</SectionHeader>
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-          {[
-            { abbrev: 'WINS', label: 'Most Wins',      pts: 700, color: '#d97706' },
-            { abbrev: 'OC',   label: 'Orange Cap',     pts: 350, color: '#ea580c' },
-            { abbrev: 'PC',   label: 'Purple Cap',     pts: 350, color: '#7c3aed' },
-            { abbrev: 'STK',  label: 'Longest Streak', pts: 350, color: NAVY     },
-            { abbrev: 'PH',   label: 'Purple Hits',    pts: 350, color: '#6d28d9' },
-          ].map((p, i) => (
-            <motion.div key={p.label}
-              initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 + i * 0.06, duration: 0.35 }}
-              className="bg-white rounded-xl border border-gray-100 p-4 text-center hover:shadow-sm transition-shadow cursor-default">
-              <div style={{
-                fontFamily: 'var(--font-barlow-condensed), system-ui, sans-serif',
-                fontSize: 20, fontWeight: 900, letterSpacing: '0.1em',
-                color: p.color, lineHeight: 1, marginBottom: 5,
-              }}>{p.abbrev}</div>
-              <div className="text-[11px] text-gray-400 leading-tight">{p.label}</div>
-              <div className="text-sm font-black mt-2 tabular-nums" style={{ color: 'var(--ipl-orange)' }}>+{p.pts}</div>
-            </motion.div>
-          ))}
-        </div>
-      </section>
+      {/* ══ Prize race ══ */}
+      {(() => {
+        const PRIZE_COLORS = { wins: '#d97706', oc: '#ea580c', pc: '#7c3aed', stk: NAVY, ph: '#6d28d9' };
+        const ladsOC = lads.orangeCapRuns?.runs ?? 0;
+        const gilsOC = gils.orangeCapRuns?.runs ?? 0;
+        const ladsPCw = lads.purpleCapWickets?.wickets ?? 0;
+        const gilsPCw = gils.purpleCapWickets?.wickets ?? 0;
+
+        const rows = [
+          {
+            label: 'Most Wins', pts: 700, color: PRIZE_COLORS.wins,
+            ladsVal: `${lads.wins}W`, gilsVal: `${gils.wins}W`,
+            leader: lads.wins > gils.wins ? 'lads' : gils.wins > lads.wins ? 'gils' : 'tied' as const,
+          },
+          {
+            label: 'Orange Cap', pts: 350, color: PRIZE_COLORS.oc,
+            ladsVal: lads.orangeCapRuns ? `${lads.orangeCapRuns.player.split(' ').slice(-1)[0]} · ${ladsOC}r` : '—',
+            gilsVal: gils.orangeCapRuns ? `${gils.orangeCapRuns.player.split(' ').slice(-1)[0]} · ${gilsOC}r` : '—',
+            leader: ladsOC > gilsOC ? 'lads' : gilsOC > ladsOC ? 'gils' : 'tied' as const,
+          },
+          {
+            label: 'Purple Cap', pts: 350, color: PRIZE_COLORS.pc,
+            ladsVal: lads.purpleCapWickets ? `${lads.purpleCapWickets.player.split(' ').slice(-1)[0]} · ${ladsPCw}w` : '—',
+            gilsVal: gils.purpleCapWickets ? `${gils.purpleCapWickets.player.split(' ').slice(-1)[0]} · ${gilsPCw}w` : '—',
+            leader: ladsPCw > gilsPCw ? 'lads' : gilsPCw > ladsPCw ? 'gils' : 'tied' as const,
+          },
+          {
+            label: 'Longest Streak', pts: 350, color: PRIZE_COLORS.stk,
+            ladsVal: `${lads.longestStreak}W`, gilsVal: `${gils.longestStreak}W`,
+            leader: lads.longestStreak > gils.longestStreak ? 'lads' : gils.longestStreak > lads.longestStreak ? 'gils' : 'tied' as const,
+          },
+          {
+            label: 'Purple Hits', pts: 350, color: PRIZE_COLORS.ph,
+            ladsVal: String(lads.purpleHits), gilsVal: String(gils.purpleHits),
+            leader: lads.purpleHits > gils.purpleHits ? 'lads' : gils.purpleHits > lads.purpleHits ? 'gils' : 'tied' as const,
+          },
+        ];
+
+        return (
+          <section>
+            <SectionHeader>End of Season Prize Race</SectionHeader>
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+              {rows.map((row, i) => (
+                <div key={row.label} className={`flex items-center px-4 py-3 gap-3 ${i > 0 ? 'border-t border-gray-50' : ''}`}>
+                  {/* Prize name */}
+                  <div className="w-32 shrink-0">
+                    <div className="text-[12px] font-bold" style={{ color: row.color }}>{row.label}</div>
+                    <div className="text-[10px] text-gray-400">+{row.pts} pts</div>
+                  </div>
+                  {/* Lads vs Gils values */}
+                  <div className="flex-1 flex items-center justify-center gap-2 min-w-0">
+                    <span className={`text-[12px] font-bold tabular-nums text-right flex-1 truncate ${row.leader === 'lads' ? '' : 'text-gray-400'}`}
+                      style={row.leader === 'lads' ? { color: LADS } : {}}>
+                      {row.ladsVal}
+                    </span>
+                    <span className="text-[9px] text-gray-300 font-bold shrink-0">vs</span>
+                    <span className={`text-[12px] font-bold tabular-nums text-left flex-1 truncate ${row.leader === 'gils' ? '' : 'text-gray-400'}`}
+                      style={row.leader === 'gils' ? { color: GILS } : {}}>
+                      {row.gilsVal}
+                    </span>
+                  </div>
+                  {/* Leader badge */}
+                  <div className="shrink-0 w-12 flex justify-end">
+                    {row.leader === 'tied'
+                      ? <span className="text-[10px] font-semibold text-gray-300">—</span>
+                      : <span className="text-[10px] font-bold text-white px-2 py-0.5 rounded-full"
+                          style={{ background: row.leader === 'lads' ? LADS : GILS }}>
+                          {row.leader === 'lads' ? 'Lads' : 'Gils'}
+                        </span>
+                    }
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        );
+      })()}
 
       {/* ══ Upcoming fixtures ══ */}
       {upcomingMatches.length > 0 && (

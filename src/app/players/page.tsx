@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useSeasonState } from '@/lib/store';
-import { computePlayerStats, computeSideTotal } from '@/lib/stats';
+import { computePlayerStats, computeSideTotal, computeSideStats } from '@/lib/stats';
 import { fixtures } from '@/lib/data';
 import { iplImageUrl } from '@/lib/playerImage';
 
@@ -344,6 +344,117 @@ export default function StatsPage() {
           No completed matches yet — charts will appear here.
         </div>
       )}
+
+      {/* Prize Race */}
+      {(() => {
+        const lads = computeSideStats(state, 'lads');
+        const gils = computeSideStats(state, 'gils');
+        const ladsOC = lads.orangeCapRuns?.runs ?? 0;
+        const gilsOC = gils.orangeCapRuns?.runs ?? 0;
+        const ladsPCw = lads.purpleCapWickets?.wickets ?? 0;
+        const gilsPCw = gils.purpleCapWickets?.wickets ?? 0;
+
+        const prizes = [
+          {
+            abbrev: 'WINS', label: 'Most Wins', pts: 700, color: '#d97706',
+            ladsTitle: `${lads.wins} win${lads.wins !== 1 ? 's' : ''}`,
+            gilsTitle: `${gils.wins} win${gils.wins !== 1 ? 's' : ''}`,
+            ladsDetail: `${lads.losses} loss${lads.losses !== 1 ? 'es' : ''}`,
+            gilsDetail: `${gils.losses} loss${gils.losses !== 1 ? 'es' : ''}`,
+            ladsScore: lads.wins, gilsScore: gils.wins,
+          },
+          {
+            abbrev: 'OC', label: 'Orange Cap', pts: 350, color: '#ea580c',
+            ladsTitle: lads.orangeCapRuns?.player ?? '—',
+            gilsTitle: gils.orangeCapRuns?.player ?? '—',
+            ladsDetail: ladsOC > 0 ? `${ladsOC} runs` : 'No data',
+            gilsDetail: gilsOC > 0 ? `${gilsOC} runs` : 'No data',
+            ladsScore: ladsOC, gilsScore: gilsOC,
+          },
+          {
+            abbrev: 'PC', label: 'Purple Cap', pts: 350, color: '#7c3aed',
+            ladsTitle: lads.purpleCapWickets?.player ?? '—',
+            gilsTitle: gils.purpleCapWickets?.player ?? '—',
+            ladsDetail: ladsPCw > 0 ? `${ladsPCw} wickets` : 'No data',
+            gilsDetail: gilsPCw > 0 ? `${gilsPCw} wickets` : 'No data',
+            ladsScore: ladsPCw, gilsScore: gilsPCw,
+          },
+          {
+            abbrev: 'STK', label: 'Longest Streak', pts: 350, color: '#003087',
+            ladsTitle: `${lads.longestStreak}W streak`,
+            gilsTitle: `${gils.longestStreak}W streak`,
+            ladsDetail: `Current: ${lads.currentStreak > 0 ? `${lads.currentStreak}W` : lads.currentStreak < 0 ? `${Math.abs(lads.currentStreak)}L` : '—'}`,
+            gilsDetail: `Current: ${gils.currentStreak > 0 ? `${gils.currentStreak}W` : gils.currentStreak < 0 ? `${Math.abs(gils.currentStreak)}L` : '—'}`,
+            ladsScore: lads.longestStreak, gilsScore: gils.longestStreak,
+          },
+          {
+            abbrev: 'PH', label: 'Purple Hits', pts: 350, color: '#6d28d9',
+            ladsTitle: `${lads.purpleHits} hit${lads.purpleHits !== 1 ? 's' : ''}`,
+            gilsTitle: `${gils.purpleHits} hit${gils.purpleHits !== 1 ? 's' : ''}`,
+            ladsDetail: '3× pick scored highest',
+            gilsDetail: '3× pick scored highest',
+            ladsScore: lads.purpleHits, gilsScore: gils.purpleHits,
+          },
+        ];
+
+        return (
+          <div>
+            <h2 className="text-[11px] font-bold text-gray-400 uppercase tracking-[0.2em] mb-3">End of Season Prize Race</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {prizes.map(p => {
+                const leader = p.ladsScore > p.gilsScore ? 'lads' : p.gilsScore > p.ladsScore ? 'gils' : 'tied';
+                const total = p.ladsScore + p.gilsScore || 1;
+                const ladsPct = (p.ladsScore / total) * 100;
+                return (
+                  <div key={p.label} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                    {/* Header */}
+                    <div className="px-4 pt-4 pb-3 flex items-center justify-between border-b border-gray-50">
+                      <div>
+                        <div className="flex items-baseline gap-2">
+                          <span className="font-black text-[15px]" style={{ color: p.color,
+                            fontFamily: 'var(--font-barlow-condensed), system-ui, sans-serif',
+                            letterSpacing: '0.08em' }}>{p.abbrev}</span>
+                          <span className="text-[11px] font-semibold text-gray-500">{p.label}</span>
+                        </div>
+                        <div className="text-[10px] text-gray-400 mt-0.5">+{p.pts} pts end-of-season</div>
+                      </div>
+                      <div>
+                        {leader === 'tied'
+                          ? <span className="text-[10px] font-semibold text-gray-400 border border-gray-200 px-2 py-0.5 rounded-full">Tied</span>
+                          : <span className="text-[10px] font-bold text-white px-2.5 py-0.5 rounded-full"
+                              style={{ background: leader === 'lads' ? LADS : GILS }}>
+                              {leader === 'lads' ? 'Lads' : 'Gils'} leading
+                            </span>
+                        }
+                      </div>
+                    </div>
+                    {/* Lads vs Gils */}
+                    <div className="grid grid-cols-2 divide-x divide-gray-50">
+                      <div className={`px-4 py-3 ${leader === 'lads' ? 'bg-amber-50/40' : ''}`}>
+                        <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Lads</div>
+                        <div className="text-[13px] font-bold truncate" style={{ color: leader === 'lads' ? LADS : '#6b7280' }}>{p.ladsTitle}</div>
+                        <div className="text-[10px] text-gray-400 mt-0.5 truncate">{p.ladsDetail}</div>
+                      </div>
+                      <div className={`px-4 py-3 ${leader === 'gils' ? 'bg-violet-50/40' : ''}`}>
+                        <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Gils</div>
+                        <div className="text-[13px] font-bold truncate" style={{ color: leader === 'gils' ? GILS : '#6b7280' }}>{p.gilsTitle}</div>
+                        <div className="text-[10px] text-gray-400 mt-0.5 truncate">{p.gilsDetail}</div>
+                      </div>
+                    </div>
+                    {/* Progress bar */}
+                    {(p.ladsScore > 0 || p.gilsScore > 0) && (
+                      <div className="h-1 flex">
+                        <div style={{ width: `${ladsPct}%`, background: LADS }} />
+                        <div style={{ width: `${100 - ladsPct}%`, background: GILS }} />
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Player stats section */}
       <div>
