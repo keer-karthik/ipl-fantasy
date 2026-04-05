@@ -144,21 +144,6 @@ export function tieredTotalColor(n: number): string {
   if (n < 530) return 'text-green-500';
   return 'text-violet-600';
 }
-// Batting & bowling: matches player total scale so components and total stay in sync
-// negative red | 0–65 yellow | 65–105 green | 105+ purple
-function tieredBatBowlColor(n: number): string {
-  if (n < 0)   return 'text-red-500';
-  if (n < 65)  return 'text-amber-400';
-  if (n < 105) return 'text-green-500';
-  return 'text-violet-600';
-}
-// Fielding: capped scale — +10 yellow | +20 green | +30 purple (catches/runouts/stumpings)
-function tieredFieldingColor(n: number): string {
-  if (n <= 0)  return 'text-gray-300';
-  if (n < 20)  return 'text-amber-400';
-  if (n < 30)  return 'text-green-500';
-  return 'text-violet-600';
-}
 function shortName(n: string) {
   const parts = n.trim().split(' ');
   return parts.length > 1 ? `${parts[parts.length - 1]}, ${parts[0][0]}.` : n;
@@ -220,341 +205,200 @@ function getBowlBreakdown(s: NonNullable<BreakdownItem['bowlStats']>): BdLine[] 
   return out;
 }
 
-// ─── Cricket silhouette icons (IPL website style) ─────────────────────────────
-
-// Thin tapered cricket bat — narrow handle top-right, wider blade bottom-left
-function BatIcon({ size = 22 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-      {/* Blade: tapered, wider at bottom-left, narrows toward handle */}
-      <path d="M4.5 20.8c-.9.9-2.3.3-2.3-.9L9.8 6.8l3.4 3.4L4.5 20.8z" />
-      {/* Shoulder + handle */}
-      <path d="M11.4 5.2l-1.6 1.6 3.4 3.4 1.6-1.6 4.5-4.5c.6-.6.6-1.6 0-2.2L18.2.8c-.6-.6-1.6-.6-2.2 0l-4.6 4.4z" />
-    </svg>
-  );
+// ─── Tiered background for score strip ───────────────────────────────────────
+function tieredBgClass(n: number): string {
+  if (n < 25)  return 'bg-red-500';
+  if (n < 65)  return 'bg-amber-400';
+  if (n < 105) return 'bg-green-500';
+  return 'bg-violet-600';
 }
 
-// Cricket ball — solid circle with two curved seam lines
-function BallIcon({ size = 22 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-      <circle cx="12" cy="12" r="10" />
-      <path d="M8.5 3.8C6 6.2 5.2 9.1 5.8 12c-.6 2.9.2 5.8 2.7 8.2"
-        fill="none" stroke="white" strokeWidth="1.4" strokeLinecap="round" />
-      <path d="M15.5 3.8C18 6.2 18.8 9.1 18.2 12c.6 2.9-.2 5.8-2.7 8.2"
-        fill="none" stroke="white" strokeWidth="1.4" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-// Two open hands / WK gloves — 4 upright fingers + palm base, mirrored pair
-function HandsIcon({ size = 22 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 28 18" fill="currentColor" aria-hidden>
-      {/* ── Left glove ── */}
-      <rect x="0.5" y="5"  width="2.2" height="8"  rx="1.1" />
-      <rect x="3.3" y="2"  width="2.2" height="11" rx="1.1" />
-      <rect x="6.1" y="1"  width="2.2" height="12" rx="1.1" />
-      <rect x="8.9" y="2"  width="2.2" height="11" rx="1.1" />
-      <rect x="0.5" y="11" width="10.6" height="5"  rx="1.8" />
-      {/* ── Right glove (mirror) ── */}
-      <rect x="25.3" y="5"  width="2.2" height="8"  rx="1.1" />
-      <rect x="22.5" y="2"  width="2.2" height="11" rx="1.1" />
-      <rect x="19.7" y="1"  width="2.2" height="12" rx="1.1" />
-      <rect x="16.9" y="2"  width="2.2" height="11" rx="1.1" />
-      <rect x="16.9" y="11" width="10.6" height="5"  rx="1.8" />
-    </svg>
-  );
-}
-
-// ─── Portrait player trading card ─────────────────────────────────────────────
+// ─── Player trading card: photo | breakdown ledger | vertical score strip ──────
 function PlayerTradingCard({ b, isLads }: { b: BreakdownItem; isLads: boolean }) {
   const iplUrl = iplImageUrl(b.activeName);
   const [imgOk, setImgOk] = useState(!!iplUrl);
-  const [expanded, setExpanded] = useState(false);
 
   const initials = b.activeName.trim().split(' ').slice(0, 2).map(w => w[0]?.toUpperCase() ?? '').join('');
   const colorSeed = b.activeName.charCodeAt(0) % INITIALS_COLORS.length;
 
-  const topBorder  = isLads ? 'border-t-[3px] border-amber-400' : 'border-t-[3px] border-violet-500';
+  const topBorder = isLads ? 'border-t-[3px] border-amber-400' : 'border-t-[3px] border-violet-500';
   const multBadgeBg: Record<string, string> = {
-    yellow: 'bg-gray-200 text-gray-500',
+    yellow: 'bg-gray-200 text-gray-700',
     green:  'bg-green-600 text-white',
     purple: 'bg-violet-600 text-white',
     allin:  'bg-orange-500 text-white',
   };
-  const badgeBg = b.multiplier ? (multBadgeBg[b.multiplier] ?? 'bg-gray-200 text-gray-500') : '';
+  const badgeBg = b.multiplier ? (multBadgeBg[b.multiplier] ?? 'bg-gray-200 text-gray-700') : '';
 
-  // Gain multiplier factor for display (applied per-component for visual only)
-  const multFactor: Record<string, number> = { yellow: 1, green: 2, purple: 3, allin: 5 };
-  const factor = b.multiplier ? (multFactor[b.multiplier] ?? 1) : 1;
-  const showDual = factor > 1; // only show raw→multiplied for 2×/3×/5×
-
-  const PLAYER_FONT: React.CSSProperties = {
+  const FONT: React.CSSProperties = {
     fontFamily: 'var(--font-barlow-condensed), system-ui, sans-serif',
     fontWeight: 900,
-    letterSpacing: '0.04em',
   };
 
-  const batLines = b.batStats ? getBatBreakdown(b.batStats) : [];
+  const batLines  = b.batStats  ? getBatBreakdown(b.batStats)   : [];
   const bowlLines = b.bowlStats ? getBowlBreakdown(b.bowlStats) : [];
-  const hasBreakdown = batLines.length > 0 || bowlLines.length > 0 || b.fieldPts !== 0;
-  const rawPts = b.batPts + b.bowlPts + b.fieldPts;
-  const multFactor2: Record<string, number> = { yellow: 1, green: 2, purple: 3, allin: 5 };
-  const gainFactor = b.multiplier ? (multFactor2[b.multiplier] ?? 1) : 1;
+  const rawPts    = b.batPts + b.bowlPts + b.fieldPts;
+  const gainFactor: Record<string, number> = { yellow: 1, green: 2, purple: 3, allin: 5 };
+  const multX = b.multiplier ? (gainFactor[b.multiplier] ?? 1) : 1;
+  const hasAnyActivity = b.batPts !== 0 || b.bowlPts !== 0 || b.fieldPts !== 0;
+
+  // Line item renderer — label left, pts right
+  const LedgerRow = ({ label, pts }: { label: string; pts: number }) => (
+    <div className="flex justify-between items-baseline" style={{ ...FONT, fontSize: 10, fontWeight: 600 }}>
+      <span className="text-gray-500 truncate pr-1">{label}</span>
+      <span className={`shrink-0 font-black ${pts > 0 ? 'text-gray-800' : pts < 0 ? 'text-red-500' : 'text-gray-400'}`}>
+        {pts > 0 ? `+${pts}` : pts === 0 ? '0' : pts}
+      </span>
+    </div>
+  );
 
   return (
     <motion.div
       key={b.name}
-      layout
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.2, layout: { duration: 0.25 } }}
-      className={`rounded-2xl overflow-hidden shadow-md bg-white ${topBorder} flex flex-col`}
-      style={{ flex: expanded ? '0 0 auto' : '1 1 0', minHeight: expanded ? 'auto' : 0 }}
+      transition={{ duration: 0.2 }}
+      className={`rounded-2xl overflow-hidden shadow-md bg-white ${topBorder} flex flex-row`}
+      style={{ flex: '0 0 auto', minHeight: 110 }}
     >
-      {/* ══ TOP ROW: photo + stats ══ */}
-      <div className="flex flex-row" style={{ minHeight: 110 }}>
-
-      {/* ══ LEFT: photo + name ══ */}
-      <div className="relative flex flex-col bg-gray-50 overflow-hidden" style={{ width: '44%' }}>
-
-        {/* Photo zone */}
-        <div className="relative flex-1 min-h-0">
-          {iplUrl && imgOk ? (
-            <img
-              src={iplUrl}
-              alt={b.activeName}
-              className="w-full h-full object-contain object-top"
-              onError={() => setImgOk(false)}
-            />
-          ) : (
-            <div className={`w-full h-full flex items-center justify-center ${INITIALS_COLORS[colorSeed]}`}>
-              <span className="text-4xl text-white/80" style={PLAYER_FONT}>{initials}</span>
-            </div>
-          )}
-
-          {/* Multiplier badge — bold pill, impossible to miss */}
-          {b.multiplier && (
-            <span
-              className={`absolute top-2 left-2 rounded-lg shadow-lg ${badgeBg}`}
-              style={{ ...PLAYER_FONT, fontSize: '18px', padding: '4px 10px', lineHeight: 1.3, letterSpacing: '0.08em' }}
-            >
-              {multiplierBadge(b.multiplier)}
-            </span>
-          )}
-        </div>
-
-        {/* Name strip — larger, fills the strip */}
-        <div className="shrink-0 px-2.5 py-1.5 bg-white border-t-2 border-gray-100">
-          <div
-            className="uppercase leading-tight truncate text-gray-900"
-            style={{ ...PLAYER_FONT, fontSize: b.activeName.length > 14 ? '12px' : '14px' }}
+      {/* ══ LEFT 38%: full-height photo ══ */}
+      <div className="relative bg-gray-100 shrink-0 overflow-hidden" style={{ width: '38%' }}>
+        {iplUrl && imgOk ? (
+          <img
+            src={iplUrl}
+            alt={b.activeName}
+            className="w-full h-full object-contain object-top"
+            onError={() => setImgOk(false)}
+          />
+        ) : (
+          <div className={`w-full h-full flex items-center justify-center ${INITIALS_COLORS[colorSeed]}`}>
+            <span className="text-3xl text-white/80" style={FONT}>{initials}</span>
+          </div>
+        )}
+        {/* Multiplier badge */}
+        {b.multiplier && (
+          <span
+            className={`absolute top-1.5 left-1.5 rounded-md shadow ${badgeBg}`}
+            style={{ ...FONT, fontSize: 15, padding: '3px 8px', lineHeight: 1.3, letterSpacing: '0.06em' }}
           >
+            {multiplierBadge(b.multiplier)}
+          </span>
+        )}
+        {/* Name strip — semi-transparent overlay at bottom */}
+        <div className="absolute bottom-0 left-0 right-0 px-2 py-1"
+          style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.72) 0%, transparent 100%)' }}>
+          <div className="text-white leading-tight truncate uppercase"
+            style={{ ...FONT, fontSize: b.activeName.length > 13 ? 10 : 12, letterSpacing: '0.05em' }}>
             {b.activeName}
           </div>
           {b.isSubstituted && (
-            <div className="text-[9px] text-gray-400 font-semibold leading-tight mt-0.5 truncate">
-              ↑ sub for {b.name}
+            <div className="text-white/60 leading-none" style={{ fontSize: 8, fontWeight: 600 }}>
+              sub for {b.name}
             </div>
           )}
         </div>
       </div>
 
-      {/* Divider */}
-      <div className={`w-[2px] shrink-0 ${isLads ? 'bg-amber-100' : 'bg-violet-100'}`} />
-
-      {/* ══ RIGHT: silhouette stats + total ══ */}
-      <div className="flex-1 flex flex-col min-w-0 px-3 py-2">
-
-        {/* Stat rows — evenly distributed, filling the top space */}
-        <div className="flex-1 flex flex-col justify-evenly">
-          {b.batPts !== 0 && (
-            <div className="flex items-center gap-2">
-              <BatIcon size={20} />
-              {showDual ? (
-                <div className="ml-auto flex items-center gap-1.5">
-                  <span className={`font-black leading-none ${tieredBatBowlColor(b.batPts)}`}
-                    style={{ ...PLAYER_FONT, fontSize: '13px', opacity: 0.75 }}>
-                    {ptsStr(b.batPts)}
-                  </span>
-                  <span style={{ fontSize: 10, color: '#cbd5e1' }}>→</span>
-                  <span className={`font-black leading-none ${tieredBatBowlColor(b.batPts * factor)}`}
-                    style={{ ...PLAYER_FONT, fontSize: '20px' }}>
-                    {ptsStr(b.batPts * factor)}
-                  </span>
-                </div>
-              ) : (
-                <span className={`ml-auto font-black leading-none ${tieredBatBowlColor(b.batPts)}`}
-                  style={{ ...PLAYER_FONT, fontSize: '20px' }}>
-                  {ptsStr(b.batPts)}
-                </span>
-              )}
-            </div>
-          )}
-          {b.bowlPts !== 0 && (
-            <div className="flex items-center gap-2">
-              <BallIcon size={20} />
-              {showDual ? (
-                <div className="ml-auto flex items-center gap-1.5">
-                  <span className={`font-black leading-none ${tieredBatBowlColor(b.bowlPts)}`}
-                    style={{ ...PLAYER_FONT, fontSize: '13px', opacity: 0.75 }}>
-                    {ptsStr(b.bowlPts)}
-                  </span>
-                  <span style={{ fontSize: 10, color: '#cbd5e1' }}>→</span>
-                  <span className={`font-black leading-none ${tieredBatBowlColor(b.bowlPts * factor)}`}
-                    style={{ ...PLAYER_FONT, fontSize: '20px' }}>
-                    {ptsStr(b.bowlPts * factor)}
-                  </span>
-                </div>
-              ) : (
-                <span className={`ml-auto font-black leading-none ${tieredBatBowlColor(b.bowlPts)}`}
-                  style={{ ...PLAYER_FONT, fontSize: '20px' }}>
-                  {ptsStr(b.bowlPts)}
-                </span>
-              )}
-            </div>
-          )}
-          {b.fieldPts !== 0 && (
-            <div className="flex items-center gap-2">
-              <HandsIcon size={20} />
-              {showDual ? (
-                <div className="ml-auto flex items-center gap-1.5">
-                  <span className={`font-black leading-none ${tieredFieldingColor(b.fieldPts)}`}
-                    style={{ ...PLAYER_FONT, fontSize: '13px', opacity: 0.75 }}>
-                    {ptsStr(b.fieldPts)}
-                  </span>
-                  <span style={{ fontSize: 10, color: '#cbd5e1' }}>→</span>
-                  <span className={`font-black leading-none ${tieredFieldingColor(b.fieldPts * factor)}`}
-                    style={{ ...PLAYER_FONT, fontSize: '20px' }}>
-                    {ptsStr(b.fieldPts * factor)}
-                  </span>
-                </div>
-              ) : (
-                <span className={`ml-auto font-black leading-none ${tieredFieldingColor(b.fieldPts)}`}
-                  style={{ ...PLAYER_FONT, fontSize: '20px' }}>
-                  {ptsStr(b.fieldPts)}
-                </span>
-              )}
-            </div>
-          )}
-          {b.batPts === 0 && b.bowlPts === 0 && b.fieldPts === 0 && (
-            <span className="text-[12px] text-gray-200">—</span>
-          )}
-        </div>
-
-        {/* Total — hero number anchored to bottom */}
-        <motion.div
-          key={b.pts}
-          initial={{ scale: 1.25, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          className={`text-right leading-none shrink-0 ${tieredPtsColor(b.pts)}`}
-          style={{ ...PLAYER_FONT, fontSize: '38px' }}
-        >
-          {ptsStr(b.pts)}
-        </motion.div>
-
-        {/* HOW? toggle */}
-        {hasBreakdown && (
-          <button
-            onClick={() => setExpanded(e => !e)}
-            className="self-end mt-1 text-[8px] font-black tracking-[0.18em] uppercase leading-none px-1.5 py-1 rounded transition-colors"
-            style={{ color: expanded ? '#6366f1' : '#cbd5e1', fontFamily: 'var(--font-barlow-condensed), system-ui, sans-serif' }}
-          >
-            {expanded ? '▲ LESS' : '▾ WHY?'}
-          </button>
+      {/* ══ MIDDLE flex-1: breakdown ledger ══ */}
+      <div className="flex-1 flex flex-col min-w-0 px-2.5 py-2 overflow-hidden">
+        {!hasAnyActivity && (
+          <div className="flex-1 flex items-center justify-center text-gray-200" style={{ ...FONT, fontSize: 13 }}>
+            —
+          </div>
         )}
-      </div>{/* end RIGHT panel */}
-      </div>{/* end TOP ROW */}
 
-      {/* ══ BREAKDOWN PANEL ══ */}
-      <AnimatePresence>
-        {expanded && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.22 }}
-            className="overflow-hidden"
-          >
-            <div className={`border-t-2 ${isLads ? 'border-amber-100' : 'border-violet-100'} bg-gray-50 px-3 py-2 space-y-1`}
-              style={{ fontFamily: 'var(--font-barlow-condensed), system-ui, sans-serif' }}>
-
-              {/* ── BATTING breakdown ── */}
-              {batLines.length > 0 && b.batStats && (
-                <div>
-                  {/* Cricket figures */}
-                  <div className="text-[10px] font-black tracking-widest text-gray-400 uppercase mb-1">
-                    BAT &nbsp;
-                    <span className="font-mono text-gray-600">
-                      {b.batStats.runs}({b.batStats.balls})
-                    </span>
-                    <span className="ml-2 text-gray-400">SR {b.batStats.strikeRate.toFixed(0)}</span>
-                    {b.batStats.fours > 0 && <span className="ml-2">{b.batStats.fours}×4</span>}
-                    {b.batStats.sixes > 0 && <span className="ml-1">{b.batStats.sixes}×6</span>}
-                  </div>
-                  {batLines.map((ln, i) => (
-                    <div key={i} className="flex justify-between items-baseline text-[10px] py-[1px]">
-                      <span className="text-gray-500">{ln.label}</span>
-                      <span className={`font-black ml-2 ${ln.pts > 0 ? 'text-green-600' : ln.pts < 0 ? 'text-red-500' : 'text-gray-400'}`}>
-                        {ln.pts > 0 ? `+${ln.pts}` : ln.pts === 0 ? '0' : ln.pts}
-                      </span>
-                    </div>
-                  ))}
-                </div>
+        {/* BATTING */}
+        {(b.batPts !== 0 || batLines.length > 0) && (
+          <div className="mb-1.5">
+            <div className="flex items-baseline gap-1.5 mb-0.5">
+              <span className="text-black font-black uppercase tracking-widest" style={{ ...FONT, fontSize: 9 }}>BATTING</span>
+              {b.batStats && (
+                <span className="text-gray-400 font-semibold" style={{ fontSize: 9 }}>
+                  {b.batStats.runs}({b.batStats.balls})
+                  {' '}SR {b.batStats.strikeRate.toFixed(0)}
+                  {b.batStats.fours > 0 ? ` · ${b.batStats.fours}×4` : ''}
+                  {b.batStats.sixes > 0 ? ` · ${b.batStats.sixes}×6` : ''}
+                </span>
               )}
+            </div>
+            {batLines.length > 0
+              ? batLines.map((ln, i) => <LedgerRow key={i} label={ln.label} pts={ln.pts} />)
+              : <LedgerRow label="batting" pts={b.batPts} />
+            }
+          </div>
+        )}
 
-              {/* ── BOWLING breakdown ── */}
-              {bowlLines.length > 0 && b.bowlStats && (
-                <div className={batLines.length > 0 ? 'pt-1 border-t border-gray-200' : ''}>
-                  {/* Cricket bowling figures: O-M-R-W */}
-                  <div className="text-[10px] font-black tracking-widest text-gray-400 uppercase mb-1">
-                    BWL &nbsp;
-                    <span className="font-mono text-gray-600">
-                      {b.bowlStats.overs}-{b.bowlStats.maidens}-{b.bowlStats.runs}-{b.bowlStats.wickets}
-                    </span>
-                    <span className="ml-2 text-gray-400">ECO {b.bowlStats.economy.toFixed(2)}</span>
-                  </div>
-                  {bowlLines.map((ln, i) => (
-                    <div key={i} className="flex justify-between items-baseline text-[10px] py-[1px]">
-                      <span className="text-gray-500">{ln.label}</span>
-                      <span className={`font-black ml-2 ${ln.pts > 0 ? 'text-green-600' : ln.pts < 0 ? 'text-red-500' : 'text-gray-400'}`}>
-                        {ln.pts > 0 ? `+${ln.pts}` : ln.pts === 0 ? '0' : ln.pts}
-                      </span>
-                    </div>
-                  ))}
-                </div>
+        {/* BOWLING */}
+        {(b.bowlPts !== 0 || bowlLines.length > 0) && (
+          <div className={`mb-1.5 ${b.batPts !== 0 ? 'pt-1.5 border-t border-gray-100' : ''}`}>
+            <div className="flex items-baseline gap-1.5 mb-0.5">
+              <span className="text-black font-black uppercase tracking-widest" style={{ ...FONT, fontSize: 9 }}>BOWLING</span>
+              {b.bowlStats && (
+                <span className="text-gray-400 font-semibold" style={{ fontSize: 9 }}>
+                  {b.bowlStats.overs}-{b.bowlStats.maidens}-{b.bowlStats.runs}-{b.bowlStats.wickets}
+                  {' '}ECO {b.bowlStats.economy.toFixed(2)}
+                </span>
               )}
+            </div>
+            {bowlLines.length > 0
+              ? bowlLines.map((ln, i) => <LedgerRow key={i} label={ln.label} pts={ln.pts} />)
+              : <LedgerRow label="bowling" pts={b.bowlPts} />
+            }
+          </div>
+        )}
 
-              {/* ── FIELDING note ── */}
-              {b.fieldPts !== 0 && (
-                <div className={`${(batLines.length > 0 || bowlLines.length > 0) ? 'pt-1 border-t border-gray-200' : ''}`}>
-                  <div className="flex justify-between items-baseline text-[10px] py-[1px]">
-                    <span className="text-gray-500">Fielding ({b.fieldPts / 10} dismissal{b.fieldPts / 10 !== 1 ? 's' : ''} × 10)</span>
-                    <span className="font-black ml-2 text-green-600">+{b.fieldPts}</span>
-                  </div>
-                </div>
-              )}
+        {/* FIELDING */}
+        {b.fieldPts !== 0 && (
+          <div className={`mb-1.5 ${(b.batPts !== 0 || b.bowlPts !== 0) ? 'pt-1.5 border-t border-gray-100' : ''}`}>
+            <div className="flex items-baseline gap-1.5 mb-0.5">
+              <span className="text-black font-black uppercase tracking-widest" style={{ ...FONT, fontSize: 9 }}>FIELDING</span>
+            </div>
+            <LedgerRow label={`${b.fieldPts / 10} dismissal${b.fieldPts / 10 !== 1 ? 's' : ''} × 10`} pts={b.fieldPts} />
+          </div>
+        )}
 
-              {/* ── Raw total + multiplier ── */}
-              <div className="pt-1 border-t border-gray-300 flex justify-between items-baseline text-[10px]">
-                <span className="text-gray-400 font-semibold uppercase tracking-wider">Raw total</span>
-                <span className="font-black text-gray-700">{rawPts > 0 ? `+${rawPts}` : rawPts}</span>
+        {/* RAW + multiplier footer */}
+        {hasAnyActivity && (
+          <div className="mt-auto pt-1 border-t border-gray-200">
+            <div className="flex justify-between items-baseline" style={{ ...FONT, fontSize: 9 }}>
+              <span className="text-gray-400 tracking-widest uppercase">Raw</span>
+              <span className="text-gray-600 font-black">{rawPts > 0 ? `+${rawPts}` : rawPts}</span>
+            </div>
+            {multX > 1 && (
+              <div className="flex justify-between items-baseline" style={{ ...FONT, fontSize: 9 }}>
+                <span className="text-gray-400">
+                  {rawPts >= 0
+                    ? `× ${multX} (${b.multiplier})`
+                    : `× ${b.multiplier === 'purple' ? 1.5 : b.multiplier === 'allin' ? 2.5 : 1} (${b.multiplier})`}
+                </span>
+                <span className="text-gray-800 font-black">{b.pts > 0 ? `+${b.pts}` : b.pts}</span>
               </div>
-              {gainFactor > 1 && (
-                <div className="flex justify-between items-baseline text-[10px]">
-                  <span className="text-gray-400">
-                    {rawPts >= 0
-                      ? `× ${gainFactor} (${b.multiplier} gain)`
-                      : `× ${b.multiplier === 'purple' ? 1.5 : b.multiplier === 'allin' ? 2.5 : 1} (${b.multiplier} loss)`}
-                  </span>
-                  <span className={`font-black ${tieredPtsColor(b.pts)}`}>{b.pts > 0 ? `+${b.pts}` : b.pts}</span>
-                </div>
-              )}
-            </div>
-          </motion.div>
+            )}
+          </div>
         )}
-      </AnimatePresence>
+      </div>
+
+      {/* ══ RIGHT ~16%: colored vertical score strip ══ */}
+      <motion.div
+        key={b.pts}
+        initial={{ opacity: 0.6 }}
+        animate={{ opacity: 1 }}
+        className={`shrink-0 flex items-center justify-center overflow-hidden ${tieredBgClass(b.pts)}`}
+        style={{ width: '16%' }}
+      >
+        <span
+          className="text-white font-black leading-none whitespace-nowrap"
+          style={{
+            ...FONT,
+            fontSize: 28,
+            transform: 'rotate(-90deg)',
+            display: 'block',
+            letterSpacing: '0.02em',
+          }}
+        >
+          {b.pts > 0 ? `+${b.pts}` : String(b.pts)}
+        </span>
+      </motion.div>
     </motion.div>
   );
 }
