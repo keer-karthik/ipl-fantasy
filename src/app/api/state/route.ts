@@ -36,7 +36,25 @@ export async function GET() {
   if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const state = await loadState();
-  return NextResponse.json({ state, side: auth.side });
+  const opponent = auth.side === 'lads' ? 'gils' : 'lads';
+
+  // Redact opponent's picks + prediction for matches that haven't started yet
+  const filtered: SeasonState = {
+    ...state,
+    matches: Object.fromEntries(
+      Object.entries(state.matches).map(([id, match]) => {
+        const fixture = fixtures.find(f => f.match === Number(id));
+        const started = fixture ? hasMatchStarted(fixture) : true;
+        if (started) return [id, match];
+        return [id, {
+          ...match,
+          [opponent]: { ...match[opponent], picks: [], predictedWinner: null },
+        }];
+      })
+    ),
+  };
+
+  return NextResponse.json({ state: filtered, side: auth.side });
 }
 
 export async function PATCH(request: NextRequest) {
