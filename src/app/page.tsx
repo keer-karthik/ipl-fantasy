@@ -456,33 +456,43 @@ export default function Dashboard() {
         </div>
       </motion.div>
 
-      {/* ══ Three-column layout ══ */}
-      <div className="grid grid-cols-1 lg:grid-cols-[200px_1fr_200px] xl:grid-cols-[220px_1fr_220px] gap-5 items-start">
+      {/* ══ Desktop: full-bleed 3-column ══ */}
+      <div className="hidden lg:block" style={{
+        width: '100vw',
+        marginLeft: 'calc(50% - 50vw)',
+        paddingLeft: 16,
+        paddingRight: 16,
+        boxSizing: 'border-box',
+      }}>
+        <div className="flex items-start justify-center gap-5">
+          {/* Left: OC + Streak */}
+          <div className="flex flex-col gap-4 sticky top-4 shrink-0" style={{ width: 230 }}>
+            <PrizeTile {...ocTile} />
+            <PrizeTile {...stkTile} />
+          </div>
 
-        {/* Left sidebar: OC + Streak (desktop only) */}
-        <div className="hidden lg:flex flex-col gap-4 sticky top-4">
-          <PrizeTile {...ocTile} />
-          <PrizeTile {...stkTile} />
-        </div>
+          {/* Center feed */}
+          <div className="min-w-0 flex-1" style={{ maxWidth: 640 }}>
+            {centerFeed}
+          </div>
 
-        {/* Center feed */}
-        <div className="min-w-0">
-          {centerFeed}
-        </div>
-
-        {/* Right sidebar: PC + PH (desktop only) */}
-        <div className="hidden lg:flex flex-col gap-4 sticky top-4">
-          <PrizeTile {...pcTile} />
-          <PrizeTile {...phTile} />
+          {/* Right: PC + PH */}
+          <div className="flex flex-col gap-4 sticky top-4 shrink-0" style={{ width: 230 }}>
+            <PrizeTile {...pcTile} />
+            <PrizeTile {...phTile} />
+          </div>
         </div>
       </div>
 
-      {/* Mobile: 2×2 prize grid (hidden on desktop) */}
-      <div className="grid grid-cols-2 gap-3 lg:hidden">
-        <PrizeTile {...ocTile} />
-        <PrizeTile {...pcTile} />
-        <PrizeTile {...stkTile} />
-        <PrizeTile {...phTile} />
+      {/* ══ Mobile: center feed + 2×2 prize grid ══ */}
+      <div className="lg:hidden space-y-8">
+        {centerFeed}
+        <div className="grid grid-cols-2 gap-3">
+          <PrizeTile {...ocTile} />
+          <PrizeTile {...pcTile} />
+          <PrizeTile {...stkTile} />
+          <PrizeTile {...phTile} />
+        </div>
       </div>
 
     </div>
