@@ -65,7 +65,7 @@ function StatRow({ label, value, color, dot, small }: {
 }
 
 // ─── Side card ────────────────────────────────────────────────────────────────
-function SideCard({ side, label, isLads }: { side: ReturnType<typeof computeSideStats>; label: string; isLads: boolean }) {
+function SideCard({ side, label, isLads, ptsDiff }: { side: ReturnType<typeof computeSideStats>; label: string; isLads: boolean; ptsDiff: number }) {
   const color = isLads ? LADS : GILS;
   const streak = side.currentStreak;
 
@@ -97,9 +97,8 @@ function SideCard({ side, label, isLads }: { side: ReturnType<typeof computeSide
         {[
           { val: side.wins,        label: 'Wins',   textColor: '#059669' },
           { val: side.losses,      label: 'Losses', textColor: '#dc2626' },
-          { val: side.totalPoints, label: 'Points', textColor: color },
         ].map((s, i) => (
-          <div key={s.label} className={`py-4 text-center ${i < 2 ? 'border-r border-gray-100' : ''}`}>
+          <div key={s.label} className={`py-4 text-center border-r border-gray-100`}>
             <div style={{
               fontFamily: 'var(--font-barlow-condensed), system-ui, sans-serif',
               fontSize: 30, fontWeight: 900, color: s.textColor, lineHeight: 1,
@@ -109,6 +108,26 @@ function SideCard({ side, label, isLads }: { side: ReturnType<typeof computeSide
             <div className="text-[10px] text-gray-400 mt-1 uppercase tracking-widest font-semibold">{s.label}</div>
           </div>
         ))}
+        {/* Points cell with diff badge */}
+        <div className="py-4 text-center">
+          <div className="flex items-baseline justify-center gap-1.5">
+            <span style={{
+              fontFamily: 'var(--font-barlow-condensed), system-ui, sans-serif',
+              fontSize: 30, fontWeight: 900, color, lineHeight: 1,
+            }}>
+              {side.totalPoints.toLocaleString()}
+            </span>
+            {ptsDiff !== 0 && (
+              <span style={{
+                fontSize: 11, fontWeight: 700, lineHeight: 1,
+                color: ptsDiff > 0 ? '#059669' : '#dc2626',
+              }}>
+                {ptsDiff > 0 ? `+${ptsDiff}` : ptsDiff}
+              </span>
+            )}
+          </div>
+          <div className="text-[10px] text-gray-400 mt-1 uppercase tracking-widest font-semibold">Points</div>
+        </div>
       </div>
 
       {/* Detail stats */}
@@ -433,8 +452,8 @@ export default function Dashboard() {
       <section>
         <SectionHeader>Season Standings</SectionHeader>
         <div className="flex gap-4 flex-col sm:flex-row">
-          <SideCard side={lads} label="Lads" isLads={true} />
-          <SideCard side={gils} label="Gils" isLads={false} />
+          <SideCard side={lads} label="Lads" isLads={true}  ptsDiff={lads.totalPoints - gils.totalPoints} />
+          <SideCard side={gils} label="Gils" isLads={false} ptsDiff={gils.totalPoints - lads.totalPoints} />
         </div>
       </section>
 
