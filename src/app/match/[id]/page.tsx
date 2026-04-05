@@ -674,7 +674,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
                   {/* Batting-first team */}
                   <div className="flex items-center gap-3 flex-1 min-w-0">
                     <div className="w-14 h-14 rounded-full bg-white shadow-lg flex items-center justify-center p-1 shrink-0">
-                      <TeamLogo team={t1} size={48} />
+                      <TeamLogo team={t1 as import('@/lib/types').TeamName} size={48} />
                     </div>
                     <div className="min-w-0">
                       <div className="text-white font-black text-3xl leading-none tracking-tight">{p1.score}</div>
@@ -696,7 +696,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
                       </div>
                     ) : null}
                     <div className="w-14 h-14 rounded-full bg-white shadow-lg flex items-center justify-center p-1 shrink-0">
-                      <TeamLogo team={t2 ?? bowlingTeam} size={48} />
+                      <TeamLogo team={(t2 ?? bowlingTeam) as import('@/lib/types').TeamName} size={48} />
                     </div>
                   </div>
                 </div>
