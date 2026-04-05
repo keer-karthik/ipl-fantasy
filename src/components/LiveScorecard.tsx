@@ -272,15 +272,53 @@ function PlayerTradingCard({ b, isLads }: { b: BreakdownItem; isLads: boolean })
   const multX = b.multiplier ? (gainFactor[b.multiplier] ?? 1) : 1;
   const hasAnyActivity = b.batPts !== 0 || b.bowlPts !== 0 || b.fieldPts !== 0;
 
-  // Line item renderer — label left, pts right
+  // ── Display mode: auto-select based on total row count ──
+  const totalRows = batLines.length + bowlLines.length + (b.fieldPts !== 0 ? 1 : 0);
+  const displayMode: 'full' | 'chips' | 'compact' =
+    totalRows <= 5 ? 'full' : totalRows <= 8 ? 'chips' : 'compact';
+
+  // Shorten labels for chips mode
+  function chipLabel(label: string): string {
+    if (/^\d+ runs$/.test(label))        return label.replace(/^(\d+) runs$/, '$1r');
+    if (/^\d+\+ milestone$/.test(label)) return label.replace(/^(\d+)\+ milestone$/, '$1+');
+    if (/^SR \d+/.test(label))           { const m = label.match(/\(([^)]+)\)/); return m ? `SR${m[1]}` : 'SR'; }
+    if (/^\d+W × 25$/.test(label))       return label.replace(/^(\d+)W × 25$/, '$1W');
+    if (/^\d+ maiden/.test(label))       return label.replace(/^(\d+) maiden.* × 40$/, '$1M');
+    if (/^ECO/.test(label))              { const m = label.match(/\(([^)]+)\)/); return m ? m[1] : 'eco'; }
+    if (label === 'No wickets')          return '0W';
+    if (label === '5-wkt haul bonus')    return '5W+';
+    if (label === '3-wkt bonus')         return '3W+';
+    if (label === 'Duck')                return 'duck';
+    if (/runs \(≤10/.test(label))       return '≤10';
+    if (/Lower-order/.test(label))       return 'low';
+    return label;
+  }
+
+  const ptsFmt = (pts: number) => pts > 0 ? `+${pts}` : String(pts);
+  const ptsCol  = (pts: number) => pts > 0 ? 'text-gray-800' : pts < 0 ? 'text-red-500' : 'text-gray-400';
+
+  // Line item renderer — full mode
   const LedgerRow = ({ label, pts }: { label: string; pts: number }) => (
     <div className="flex justify-between items-baseline" style={{ ...FONT, fontSize: 14, fontWeight: 600 }}>
       <span className="text-gray-500 truncate pr-1">{label}</span>
-      <span className={`shrink-0 font-black ${pts > 0 ? 'text-gray-800' : pts < 0 ? 'text-red-500' : 'text-gray-400'}`}>
-        {pts > 0 ? `+${pts}` : pts === 0 ? '0' : pts}
-      </span>
+      <span className={`shrink-0 font-black ${ptsCol(pts)}`}>{ptsFmt(pts)}</span>
     </div>
   );
+
+  // Section header shared across modes
+  const SectionHead = ({ title, figures }: { title: string; figures?: string }) => (
+    <div className="flex items-baseline gap-1.5 mb-0.5">
+      <span className="text-black font-black uppercase tracking-widest" style={{ ...FONT, fontSize: 13 }}>{title}</span>
+      {figures && <span className="text-gray-400 font-semibold" style={{ fontSize: 12 }}>{figures}</span>}
+    </div>
+  );
+
+  const batFigs = b.batStats
+    ? `${b.batStats.runs}(${b.batStats.balls}) SR ${b.batStats.strikeRate.toFixed(0)}${b.batStats.fours > 0 ? ` · ${b.batStats.fours}×4` : ''}${b.batStats.sixes > 0 ? ` · ${b.batStats.sixes}×6` : ''}`
+    : undefined;
+  const bowlFigs = b.bowlStats
+    ? `${b.bowlStats.overs}-${b.bowlStats.maidens}-${b.bowlStats.runs}-${b.bowlStats.wickets} ECO ${b.bowlStats.economy.toFixed(2)}`
+    : undefined;
 
   return (
     <motion.div
@@ -337,53 +375,89 @@ function PlayerTradingCard({ b, isLads }: { b: BreakdownItem; isLads: boolean })
           </div>
         )}
 
-        {/* BATTING */}
-        {(b.batPts !== 0 || batLines.length > 0) && (
+        {/* ── FULL mode (≤5 rows): one ledger row per item ── */}
+        {displayMode === 'full' && (b.batPts !== 0 || batLines.length > 0) && (
           <div className="mb-1.5">
-            <div className="flex items-baseline gap-1.5 mb-0.5">
-              <span className="text-black font-black uppercase tracking-widest" style={{ ...FONT, fontSize: 13 }}>BATTING</span>
-              {b.batStats && (
-                <span className="text-gray-400 font-semibold" style={{ fontSize: 12 }}>
-                  {b.batStats.runs}({b.batStats.balls})
-                  {' '}SR {b.batStats.strikeRate.toFixed(0)}
-                  {b.batStats.fours > 0 ? ` · ${b.batStats.fours}×4` : ''}
-                  {b.batStats.sixes > 0 ? ` · ${b.batStats.sixes}×6` : ''}
-                </span>
-              )}
-            </div>
+            <SectionHead title="BATTING" figures={batFigs} />
             {batLines.length > 0
               ? batLines.map((ln, i) => <LedgerRow key={i} label={ln.label} pts={ln.pts} />)
               : <LedgerRow label="batting" pts={b.batPts} />
             }
           </div>
         )}
-
-        {/* BOWLING */}
-        {(b.bowlPts !== 0 || bowlLines.length > 0) && (
+        {displayMode === 'full' && (b.bowlPts !== 0 || bowlLines.length > 0) && (
           <div className={`mb-1.5 ${b.batPts !== 0 ? 'pt-1.5 border-t border-gray-100' : ''}`}>
-            <div className="flex items-baseline gap-1.5 mb-0.5">
-              <span className="text-black font-black uppercase tracking-widest" style={{ ...FONT, fontSize: 13 }}>BOWLING</span>
-              {b.bowlStats && (
-                <span className="text-gray-400 font-semibold" style={{ fontSize: 12 }}>
-                  {b.bowlStats.overs}-{b.bowlStats.maidens}-{b.bowlStats.runs}-{b.bowlStats.wickets}
-                  {' '}ECO {b.bowlStats.economy.toFixed(2)}
-                </span>
-              )}
-            </div>
+            <SectionHead title="BOWLING" figures={bowlFigs} />
             {bowlLines.length > 0
               ? bowlLines.map((ln, i) => <LedgerRow key={i} label={ln.label} pts={ln.pts} />)
               : <LedgerRow label="bowling" pts={b.bowlPts} />
             }
           </div>
         )}
-
-        {/* FIELDING */}
-        {b.fieldPts !== 0 && (
+        {displayMode === 'full' && b.fieldPts !== 0 && (
           <div className={`mb-1.5 ${(b.batPts !== 0 || b.bowlPts !== 0) ? 'pt-1.5 border-t border-gray-100' : ''}`}>
-            <div className="flex items-baseline gap-1.5 mb-0.5">
-              <span className="text-black font-black uppercase tracking-widest" style={{ ...FONT, fontSize: 13 }}>FIELDING</span>
-            </div>
+            <SectionHead title="FIELDING" />
             <LedgerRow label={`${b.fieldPts / 10} dismissal${b.fieldPts / 10 !== 1 ? 's' : ''} × 10`} pts={b.fieldPts} />
+          </div>
+        )}
+
+        {/* ── CHIPS mode (6-8 rows): header + figures, then inline chips ── */}
+        {displayMode === 'chips' && (b.batPts !== 0 || batLines.length > 0) && (
+          <div className="mb-1">
+            <SectionHead title="BAT" figures={batFigs} />
+            <div className="flex flex-wrap gap-x-2 gap-y-0.5">
+              {(batLines.length > 0 ? batLines : [{ label: 'batting', pts: b.batPts }]).map((ln, i) => (
+                <span key={i} style={{ fontSize: 11 }}>
+                  <span className="text-gray-400">{chipLabel(ln.label)}</span>{' '}
+                  <span className={`font-black ${ptsCol(ln.pts)}`}>{ptsFmt(ln.pts)}</span>
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+        {displayMode === 'chips' && (b.bowlPts !== 0 || bowlLines.length > 0) && (
+          <div className={`mb-1 ${b.batPts !== 0 ? 'pt-1 border-t border-gray-100' : ''}`}>
+            <SectionHead title="BOWL" figures={bowlFigs} />
+            <div className="flex flex-wrap gap-x-2 gap-y-0.5">
+              {(bowlLines.length > 0 ? bowlLines : [{ label: 'bowling', pts: b.bowlPts }]).map((ln, i) => (
+                <span key={i} style={{ fontSize: 11 }}>
+                  <span className="text-gray-400">{chipLabel(ln.label)}</span>{' '}
+                  <span className={`font-black ${ptsCol(ln.pts)}`}>{ptsFmt(ln.pts)}</span>
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+        {displayMode === 'chips' && b.fieldPts !== 0 && (
+          <div className={`mb-1 ${(b.batPts !== 0 || b.bowlPts !== 0) ? 'pt-1 border-t border-gray-100' : ''}`}>
+            <SectionHead title="FIELD" />
+            <span style={{ fontSize: 11 }}>
+              <span className="text-gray-400">{b.fieldPts / 10}×catch</span>{' '}
+              <span className={`font-black ${ptsCol(b.fieldPts)}`}>{ptsFmt(b.fieldPts)}</span>
+            </span>
+          </div>
+        )}
+
+        {/* ── COMPACT mode (9+ rows): one-line per discipline, figures + total only ── */}
+        {displayMode === 'compact' && b.batPts !== 0 && (
+          <div className="flex justify-between items-baseline mb-0.5" style={{ ...FONT, fontSize: 12 }}>
+            <span className="text-black font-black uppercase tracking-widest" style={{ fontSize: 11 }}>BAT</span>
+            {batFigs && <span className="text-gray-400 mx-1 truncate flex-1" style={{ fontSize: 10 }}>{batFigs}</span>}
+            <span className={`font-black shrink-0 ${ptsCol(b.batPts)}`}>{ptsFmt(b.batPts)}</span>
+          </div>
+        )}
+        {displayMode === 'compact' && b.bowlPts !== 0 && (
+          <div className={`flex justify-between items-baseline mb-0.5 ${b.batPts !== 0 ? 'pt-0.5 border-t border-gray-100' : ''}`} style={{ ...FONT, fontSize: 12 }}>
+            <span className="text-black font-black uppercase tracking-widest" style={{ fontSize: 11 }}>BOWL</span>
+            {bowlFigs && <span className="text-gray-400 mx-1 truncate flex-1" style={{ fontSize: 10 }}>{bowlFigs}</span>}
+            <span className={`font-black shrink-0 ${ptsCol(b.bowlPts)}`}>{ptsFmt(b.bowlPts)}</span>
+          </div>
+        )}
+        {displayMode === 'compact' && b.fieldPts !== 0 && (
+          <div className={`flex justify-between items-baseline mb-0.5 ${(b.batPts !== 0 || b.bowlPts !== 0) ? 'pt-0.5 border-t border-gray-100' : ''}`} style={{ ...FONT, fontSize: 12 }}>
+            <span className="text-black font-black uppercase tracking-widest" style={{ fontSize: 11 }}>FIELD</span>
+            <span className="text-gray-400 mx-1 flex-1" style={{ fontSize: 10 }}>{b.fieldPts / 10} catch{b.fieldPts / 10 !== 1 ? 'es' : ''}</span>
+            <span className={`font-black shrink-0 ${ptsCol(b.fieldPts)}`}>{ptsFmt(b.fieldPts)}</span>
           </div>
         )}
 
