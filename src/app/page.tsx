@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { gsap } from 'gsap';
 import { useSeasonState } from '@/lib/store';
-import { computeSideStats } from '@/lib/stats';
+import { computeSideStats, computeSideTotal } from '@/lib/stats';
 import { fixtures, formatDate, isToday, isUpcoming, getMatchStartIST } from '@/lib/data';
 import { TeamLogo } from '@/components/TeamBadge';
 import type { TeamName } from '@/lib/types';
@@ -415,7 +415,8 @@ export default function Dashboard() {
               return <MatchRow key={f.match} fixture={f}
                 hasEntry={m?.lads.picks.length > 0}
                 isComplete={m?.isComplete ?? false}
-                ladsTotal={m?.lads.total} gilsTotal={m?.gils.total}
+                ladsTotal={m ? computeSideTotal(m, 'lads') : undefined}
+                gilsTotal={m ? computeSideTotal(m, 'gils') : undefined}
                 winner={m?.winner} isToday />;
             })}
           </div>

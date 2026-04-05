@@ -33,6 +33,24 @@ function completedMatches(state: SeasonState): MatchEntry[] {
   return Object.values(state.matches).filter(m => m.isComplete);
 }
 
+// Single source of truth: recompute a side's total from stored PlayerResult[].
+// Never reads the pre-stored `total` field — that can be stale.
+export function computeSideTotal(match: MatchEntry, side: 'lads' | 'gils'): number {
+  const sideData = match[side];
+  const hasWinnerBonus = sideData.predictedWinner !== null && sideData.predictedWinner === match.actualWinner;
+  const momBonus = sideData.results.filter(r => r.isMOM).length * 10;
+  return sideData.results.reduce((s, r) => {
+    const raw = r.battingPoints + r.bowlingPoints + r.fieldingPoints;
+    return s + Math.round(applyMultiplier(raw, r.multiplier));
+  }, 0) + (hasWinnerBonus ? 50 : 0) + momBonus;
+}
+
+// Player's points contribution for a single result entry.
+export function computePlayerTotal(r: { battingPoints: number; bowlingPoints: number; fieldingPoints: number; multiplier: import('./types').Multiplier; isMOM: boolean }): number {
+  const raw = r.battingPoints + r.bowlingPoints + r.fieldingPoints;
+  return Math.round(applyMultiplier(raw, r.multiplier)) + (r.isMOM ? 10 : 0);
+}
+
 export function computeSideStats(state: SeasonState, side: 'lads' | 'gils'): SideStats {
   const done = completedMatches(state).sort((a, b) => a.matchId - b.matchId);
 
@@ -46,14 +64,7 @@ export function computeSideStats(state: SeasonState, side: 'lads' | 'gils'): Sid
 
   for (const match of done) {
     const sideData = match[side];
-    // Recompute from individual results so the dashboard never shows stale stored totals
-    const hasWinnerBonus = sideData.predictedWinner !== null && sideData.predictedWinner === match.actualWinner;
-    const momBonus = sideData.results.filter(r => r.isMOM).length * 10;
-    const computedTotal = sideData.results.reduce((s, r) => {
-      const raw = r.battingPoints + r.bowlingPoints + r.fieldingPoints;
-      return s + Math.round(applyMultiplier(raw, r.multiplier));
-    }, 0) + (hasWinnerBonus ? 50 : 0) + momBonus;
-    totalPoints += computedTotal;
+    totalPoints += computeSideTotal(match, side);
 
     const won = match.winner === side;
     if (won) { wins++; form.push('W'); streak++; }
@@ -113,12 +124,13 @@ export function computePlayerStats(state: SeasonState, side: 'lads' | 'gils'): P
         };
       }
       const p = playerMap[result.playerName];
+      const playerPts = computePlayerTotal(result);
       p.matches++;
-      p.totalPoints += result.finalTotal;
+      p.totalPoints += playerPts;
       if (result.didBat) p.totalRuns += result.runs;
       if (result.didBowl) p.totalWickets += result.wickets;
-      if (result.multiplier === 'purple') { p.timesAs3x++; p.total3xPoints += result.finalTotal; }
-      if (result.multiplier === 'green')  { p.timesAs2x++; p.total2xPoints += result.finalTotal; }
+      if (result.multiplier === 'purple') { p.timesAs3x++; p.total3xPoints += playerPts; }
+      if (result.multiplier === 'green')  { p.timesAs2x++; p.total2xPoints += playerPts; }
     }
   }
 

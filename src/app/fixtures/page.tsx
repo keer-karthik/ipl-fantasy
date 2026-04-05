@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { fixtures, formatDate, isToday, isUpcoming } from '@/lib/data';
 import { useSeasonState } from '@/lib/store';
+import { computeSideTotal } from '@/lib/stats';
 import { TeamLogo } from '@/components/TeamBadge';
 import type { TeamName } from '@/lib/types';
 
@@ -78,7 +79,7 @@ export default function FixturesPage() {
                     </span>
                     {done && m && (
                       <span className="text-xs text-gray-400 ml-3">
-                        Lads {m.lads.total} – {m.gils.total} Gils
+                        Lads {computeSideTotal(m, 'lads')} – {computeSideTotal(m, 'gils')} Gils
                         {m.winner && (
                           <span className={`ml-2 font-semibold ${m.winner === 'lads' ? 'text-blue-600' : 'text-pink-600'}`}>
                             ({m.winner === 'lads' ? 'Lads' : 'Gils'} win)

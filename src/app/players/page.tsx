@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useSeasonState } from '@/lib/store';
-import { computePlayerStats } from '@/lib/stats';
+import { computePlayerStats, computeSideTotal } from '@/lib/stats';
 import { fixtures } from '@/lib/data';
 import { iplImageUrl } from '@/lib/playerImage';
 
@@ -192,8 +192,8 @@ export default function StatsPage() {
     if (!fixture) continue;
     const venue = fixture.venue;
     if (!venueMap[venue]) venueMap[venue] = { lads: 0, gils: 0 };
-    venueMap[venue].lads += match.lads.total;
-    venueMap[venue].gils += match.gils.total;
+    venueMap[venue].lads += computeSideTotal(match, 'lads');
+    venueMap[venue].gils += computeSideTotal(match, 'gils');
   }
   const venueData = Object.entries(venueMap)
     .map(([venue, pts]) => ({ venue, ...pts }))
@@ -203,7 +203,7 @@ export default function StatsPage() {
   const matchData = Object.values(state.matches)
     .filter(m => m.isComplete)
     .sort((a, b) => a.matchId - b.matchId)
-    .map(m => ({ matchId: m.matchId, lads: m.lads.total, gils: m.gils.total }));
+    .map(m => ({ matchId: m.matchId, lads: computeSideTotal(m, 'lads'), gils: computeSideTotal(m, 'gils') }));
 
   return (
     <div className="space-y-6">
