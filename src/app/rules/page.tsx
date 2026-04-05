@@ -45,16 +45,19 @@ export default function RulesPage() {
                 ['40 runs', '+15 bonus'],
                 ['70 runs', '+25 bonus'],
                 ['90 runs', '+35 bonus'],
-                ['SR ≥ 200 (min 10 balls)', '+10'],
-                ['SR ≥ 250 (min 20 balls)', '+25'],
+                ['SR ≥ 175 (min 10 balls)', '+5'],
+                ['SR ≥ 200 (min 10 balls)', '+20'],
+                ['SR ≥ 250 (min 20 balls)', '+35'],
                 ['SR ≥ 300 (min 25 balls)', '+50'],
+                ['SR ≤ 125 (min 10 balls)', '−10'],
                 ['SR ≤ 100 (min 10 balls)', '−20'],
+                ['SR ≤ 75 (min 10 balls)', '−30'],
                 ['Duck (dismissed for 0)', '−30'],
                 ['Score ≤ 10 runs', '−20'],
               ].map(([m, p]) => tableRow(m, p))}
             </tbody>
           </table>
-          <p className="text-xs text-gray-400 mt-3">Batters at position 7+ get no points unless they score 10+ runs.</p>
+          <p className="text-xs text-gray-400 mt-3">Batters at position 7+ earn run points and SR bonuses only — no deductions.</p>
         </section>
 
         {/* Bowling */}
@@ -69,11 +72,11 @@ export default function RulesPage() {
                 ['5+ wickets', '+35 bonus'],
                 ['Economy ≤ 4.0 (3+ overs)', '+80'],
                 ['Economy ≤ 6.0 (3+ overs)', '+60'],
-                ['Economy ≤ 8.0 (3+ overs)', '+30'],
+                ['Economy ≤ 8.0 (3+ overs)', '+40'],
+                ['Economy ≤ 9.0 (3+ overs)', '+20'],
                 ['Economy ≥ 10.0 (3+ overs)', '−20'],
-                ['Economy ≥ 12.0 (3+ overs)', '−30'],
-                ['Economy ≥ 14.0 (3+ overs)', '−40'],
-                ['Wicketless after 2+ overs', '−20'],
+                ['Economy ≥ 12.0 (3+ overs)', '−40'],
+                ['Economy ≥ 14.0 (3+ overs)', '−60'],
               ].map(([m, p]) => tableRow(m, p))}
             </tbody>
           </table>

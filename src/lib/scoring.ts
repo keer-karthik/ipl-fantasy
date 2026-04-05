@@ -6,19 +6,33 @@ export function calcBattingPoints(
   dismissed: boolean,
   battingPosition: number
 ): number {
-  // Lower-order rule: position 7+ gets no batting rules unless they score 10+
-  if (battingPosition >= 7 && runs < 10) return 0;
+  const lowerOrder = battingPosition >= 7;
+
+  // Lower-order batters (pos 7+): runs only + SR bonuses, zero deductions
+  if (lowerOrder) {
+    let pts = runs;
+    if (balls > 0) {
+      const sr = (runs / balls) * 100;
+      if      (sr >= 300 && balls >= 25) pts += 50;
+      else if (sr >= 250 && balls >= 20) pts += 35;
+      else if (sr >= 200 && balls >= 10) pts += 20;
+      else if (sr >= 175 && balls >= 10) pts += 5;
+    }
+    return pts;
+  }
+
+  // Positions 1–6
 
   // Duck: dismissed without scoring
   if (dismissed && runs === 0) return -30;
 
-  // Score <= 10: no run points, only penalty
+  // Score ≤ 10: flat penalty, no run points
   if (runs <= 10) return -20;
 
   // Base points: 1 per run
   let pts = runs;
 
-  // Milestone bonuses (all cumulative)
+  // Milestone bonuses (cumulative)
   if (runs >= 25) pts += 5;
   if (runs >= 40) pts += 15;
   if (runs >= 70) pts += 25;
@@ -27,10 +41,13 @@ export function calcBattingPoints(
   // Strike rate (only one tier applies — highest met)
   if (balls > 0) {
     const sr = (runs / balls) * 100;
-    if (sr >= 300 && balls >= 25)      pts += 50;
-    else if (sr >= 250 && balls >= 20) pts += 25;
-    else if (sr >= 200 && balls >= 10) pts += 10;
+    if      (sr >= 300 && balls >= 25) pts += 50;
+    else if (sr >= 250 && balls >= 20) pts += 35;
+    else if (sr >= 200 && balls >= 10) pts += 20;
+    else if (sr >= 175 && balls >= 10) pts += 5;
+    else if (sr <= 75  && balls >= 10) pts -= 30;
     else if (sr <= 100 && balls >= 10) pts -= 20;
+    else if (sr <= 125 && balls >= 10) pts -= 10;
   }
 
   return pts;
@@ -47,22 +64,20 @@ export function calcBowlingPoints(
   let pts = wickets * 25;
   pts += maidens * 40;
 
-  // Economy only counts after 3+ overs
+  // Economy (only after 3+ overs)
   if (overs >= 3) {
     const eco = runsConceded / overs;
-    if (eco <= 4)       pts += 80;
+    if      (eco <= 4)  pts += 80;
     else if (eco <= 6)  pts += 60;
-    else if (eco <= 8)  pts += 30;
-    else if (eco >= 14) pts -= 40;
-    else if (eco >= 12) pts -= 30;
+    else if (eco <= 8)  pts += 40;
+    else if (eco <= 9)  pts += 20;
+    else if (eco >= 14) pts -= 60;
+    else if (eco >= 12) pts -= 40;
     else if (eco >= 10) pts -= 20;
   }
 
-  // Wicketless penalty after 2+ overs
-  if (wickets === 0 && overs >= 2) pts -= 20;
-
   // Wicket milestone bonuses
-  if (wickets >= 5)      pts += 35;
+  if      (wickets >= 5) pts += 35;
   else if (wickets >= 3) pts += 20;
 
   return pts;
