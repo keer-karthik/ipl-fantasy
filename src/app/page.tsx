@@ -9,13 +9,13 @@ import { fixtures, formatDate, isToday, isUpcoming, getMatchStartIST } from '@/l
 import { TeamLogo } from '@/components/TeamBadge';
 import type { TeamName } from '@/lib/types';
 
-// ─── Brand colors — single source of truth ───────────────────────────────────
-const LADS  = '#f59e0b';   // amber-400
-const GILS  = '#7c3aed';   // violet-600
-const NAVY  = '#003087';
+// ─── Brand colors ─────────────────────────────────────────────────────────────
+const LADS = '#f59e0b';
+const GILS = '#7c3aed';
+const NAVY = '#003087';
 
-// ─── GSAP count-up number ────────────────────────────────────────────────────
-function CountUp({ value, className, style }: { value: number; className?: string; style?: React.CSSProperties }) {
+// ─── GSAP count-up ────────────────────────────────────────────────────────────
+function CountUp({ value, style }: { value: number; style?: React.CSSProperties }) {
   const ref = useRef<HTMLSpanElement>(null);
   useEffect(() => {
     if (!ref.current) return;
@@ -25,18 +25,7 @@ function CountUp({ value, className, style }: { value: number; className?: strin
       onUpdate() { if (ref.current) ref.current.textContent = Math.round(obj.n).toLocaleString(); },
     });
   }, [value]);
-  return <span ref={ref} className={className} style={style}>0</span>;
-}
-
-// ─── Form pill ────────────────────────────────────────────────────────────────
-function FormPill({ result }: { result: 'W' | 'L' }) {
-  return (
-    <span className={`w-6 h-6 rounded text-[10px] font-black flex items-center justify-center ${
-      result === 'W'
-        ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-200'
-        : 'bg-red-500/10 text-red-500 border border-red-200'
-    }`}>{result}</span>
-  );
+  return <span ref={ref} style={style}>0</span>;
 }
 
 // ─── Section header ───────────────────────────────────────────────────────────
@@ -49,106 +38,80 @@ function SectionHeader({ children, live }: { children: React.ReactNode; live?: b
   );
 }
 
-// ─── Stat row ─────────────────────────────────────────────────────────────────
-function StatRow({ label, value, color, dot, small }: {
-  label: string; value: string; color: string; dot?: string; small?: boolean;
+// ─── Prize tile ───────────────────────────────────────────────────────────────
+function PrizeTile({
+  abbrev, label, pts, color,
+  ladsVal, gilsVal, ladsScore, gilsScore,
+  ladsDetail, gilsDetail,
+}: {
+  abbrev: string; label: string; pts: number; color: string;
+  ladsVal: string; gilsVal: string; ladsScore: number; gilsScore: number;
+  ladsDetail?: string; gilsDetail?: string;
 }) {
-  return (
-    <div className="flex items-center justify-between py-1.5 border-b border-gray-50 last:border-0">
-      <span className="text-[13px] text-gray-500 flex items-center gap-2">
-        {dot && <span style={{ width: 6, height: 6, background: dot, borderRadius: 2, flexShrink: 0, display: 'inline-block' }} />}
-        {label}
-      </span>
-      <span className={`font-bold ml-2 truncate ${small ? 'text-[12px]' : 'text-[13px]'}`} style={{ color }}>{value}</span>
-    </div>
-  );
-}
-
-// ─── Side card ────────────────────────────────────────────────────────────────
-function SideCard({ side, label, isLads, ptsDiff }: { side: ReturnType<typeof computeSideStats>; label: string; isLads: boolean; ptsDiff: number }) {
-  const color = isLads ? LADS : GILS;
-  const streak = side.currentStreak;
+  const leader = ladsScore > gilsScore ? 'lads' : gilsScore > ladsScore ? 'gils' : 'tied';
+  const total = ladsScore + gilsScore;
+  const ladsPct = total > 0 ? (ladsScore / total) * 100 : 50;
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, ease: 'easeOut' }}
-      className="flex-1 bg-white rounded-2xl overflow-hidden"
-      style={{ border: `1px solid ${color}28`, boxShadow: `0 1px 8px ${color}10` }}>
-
-      {/* 3px accent bar */}
+      initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+      className="bg-white rounded-2xl overflow-hidden"
+      style={{ border: `1px solid ${color}22`, boxShadow: `0 2px 16px ${color}10` }}>
+      {/* Accent bar */}
       <div style={{ height: 3, background: color }} />
-
-      {/* Label + form */}
-      <div className="px-5 pt-4 pb-3 flex items-center justify-between">
-        <h2 style={{
-          fontFamily: 'var(--font-barlow-condensed), system-ui, sans-serif',
-          fontSize: 20, fontWeight: 900, letterSpacing: '0.1em',
-          color, textTransform: 'uppercase', lineHeight: 1,
-        }}>{label}</h2>
-        <div className="flex gap-1">
-          {side.form.map((r, i) => <FormPill key={i} result={r} />)}
-          {side.form.length === 0 && <span className="text-xs text-gray-300 italic">No matches yet</span>}
-        </div>
-      </div>
-
-      {/* W / L / PTS stat grid */}
-      <div className="grid grid-cols-3 border-t border-b border-gray-100">
-        {[
-          { val: side.wins,        label: 'Wins',   textColor: '#059669' },
-          { val: side.losses,      label: 'Losses', textColor: '#dc2626' },
-        ].map((s, i) => (
-          <div key={s.label} className={`py-4 text-center border-r border-gray-100`}>
+      <div className="p-4">
+        {/* Header row */}
+        <div className="flex items-start justify-between mb-3">
+          <div>
             <div style={{
               fontFamily: 'var(--font-barlow-condensed), system-ui, sans-serif',
-              fontSize: 30, fontWeight: 900, color: s.textColor, lineHeight: 1,
-            }}>
-              {s.val.toLocaleString()}
-            </div>
-            <div className="text-[10px] text-gray-400 mt-1 uppercase tracking-widest font-semibold">{s.label}</div>
+              fontSize: 20, fontWeight: 900, color, letterSpacing: '0.1em', lineHeight: 1,
+            }}>{abbrev}</div>
+            <div className="text-[11px] font-semibold text-gray-500 mt-0.5">{label}</div>
           </div>
-        ))}
-        {/* Points cell with diff badge */}
-        <div className="py-4 text-center">
-          <div className="flex items-baseline justify-center gap-1.5">
-            <span style={{
-              fontFamily: 'var(--font-barlow-condensed), system-ui, sans-serif',
-              fontSize: 30, fontWeight: 900, color, lineHeight: 1,
-            }}>
-              {side.totalPoints.toLocaleString()}
-            </span>
-            {ptsDiff !== 0 && (
-              <span style={{
-                fontSize: 11, fontWeight: 700, lineHeight: 1,
-                color: ptsDiff > 0 ? '#059669' : '#dc2626',
-              }}>
-                {ptsDiff > 0 ? `+${ptsDiff}` : ptsDiff}
+          {leader === 'tied'
+            ? <span className="text-[9px] font-semibold text-gray-300 border border-gray-100 px-1.5 py-0.5 rounded-full mt-0.5">Tied</span>
+            : <span className="text-[9px] font-bold text-white px-2 py-0.5 rounded-full mt-0.5"
+                style={{ background: leader === 'lads' ? LADS : GILS }}>
+                {leader === 'lads' ? 'Lads' : 'Gils'}
               </span>
-            )}
-          </div>
-          <div className="text-[10px] text-gray-400 mt-1 uppercase tracking-widest font-semibold">Points</div>
+          }
         </div>
-      </div>
 
-      {/* Detail stats */}
-      <div className="px-5 py-2">
-        <StatRow
-          label="Current Streak"
-          value={streak > 0 ? `${streak}W` : streak < 0 ? `${Math.abs(streak)}L` : '—'}
-          color={streak > 0 ? '#059669' : streak < 0 ? '#dc2626' : '#9ca3af'}
-        />
-        <StatRow label="Purple Hits" value={String(side.purpleHits)} color="#7c3aed" dot="#7c3aed" />
-        <StatRow label="All-in Used" value={`${side.allInUsed}/4`} color="#ef4444" dot="#ef4444" />
-        {side.orangeCapRuns && (
-          <StatRow label="Orange Cap"
-            value={`${side.orangeCapRuns.player} — ${side.orangeCapRuns.runs} runs`}
-            color="#ea580c" dot="#ea580c" small />
-        )}
-        {side.purpleCapWickets && (
-          <StatRow label="Purple Cap"
-            value={`${side.purpleCapWickets.player} — ${side.purpleCapWickets.wickets}w`}
-            color="#7c3aed" dot="#7c3aed" small />
-        )}
+        {/* Lads */}
+        <div className="mb-3">
+          <div className="text-[9px] font-black uppercase tracking-[0.15em] mb-0.5" style={{ color: `${LADS}99` }}>Lads</div>
+          <div style={{
+            fontFamily: 'var(--font-barlow-condensed), system-ui, sans-serif',
+            fontSize: 32, fontWeight: 900, lineHeight: 1,
+            color: leader === 'lads' ? LADS : '#e5e7eb',
+            transition: 'color 0.3s',
+          }}>{ladsVal}</div>
+          {ladsDetail && <div className="text-[9px] text-gray-400 mt-0.5 truncate">{ladsDetail}</div>}
+        </div>
+
+        {/* Gils */}
+        <div className="mb-4">
+          <div className="text-[9px] font-black uppercase tracking-[0.15em] mb-0.5" style={{ color: `${GILS}99` }}>Gils</div>
+          <div style={{
+            fontFamily: 'var(--font-barlow-condensed), system-ui, sans-serif',
+            fontSize: 32, fontWeight: 900, lineHeight: 1,
+            color: leader === 'gils' ? GILS : '#e5e7eb',
+            transition: 'color 0.3s',
+          }}>{gilsVal}</div>
+          {gilsDetail && <div className="text-[9px] text-gray-400 mt-0.5 truncate">{gilsDetail}</div>}
+        </div>
+
+        {/* Progress bar */}
+        <div className="h-1.5 rounded-full overflow-hidden flex">
+          <div style={{ width: `${ladsPct}%`, background: LADS, transition: 'width 0.8s ease' }} />
+          <div style={{ flex: 1, background: `${GILS}60` }} />
+        </div>
+
+        {/* Prize value */}
+        <div className="mt-2 text-right">
+          <span className="text-[9px] font-bold" style={{ color: 'var(--ipl-orange)' }}>+{pts} pts</span>
+        </div>
       </div>
     </motion.div>
   );
@@ -157,8 +120,6 @@ function SideCard({ side, label, isLads, ptsDiff }: { side: ReturnType<typeof co
 // ─── Next match countdown ─────────────────────────────────────────────────────
 function NextMatchCountdown() {
   const [, setTick] = useState(0);
-
-  // Re-render every second
   useEffect(() => {
     const iv = setInterval(() => setTick(t => t + 1), 1000);
     return () => clearInterval(iv);
@@ -174,7 +135,6 @@ function NextMatchCountdown() {
   const hours = Math.floor((totalSecs % 86400) / 3600);
   const mins  = Math.floor((totalSecs % 3600) / 60);
   const secs  = totalSecs % 60;
-
   const pad = (n: number) => String(n).padStart(2, '0');
   const timeStr = days > 0
     ? `${days}d ${pad(hours)}:${pad(mins)}:${pad(secs)}`
@@ -187,12 +147,10 @@ function NextMatchCountdown() {
         initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
         className="bg-white rounded-2xl border border-gray-100 px-5 py-4 flex flex-col sm:flex-row items-center gap-4"
         style={{ boxShadow: '0 1px 8px rgba(0,48,135,0.06)' }}>
-
-        {/* Teams */}
         <div className="flex items-center gap-4 flex-1 min-w-0">
           <div className="flex flex-col items-center gap-1">
             <TeamLogo team={next.home as TeamName} size={40} />
-            <span className="text-[11px] font-bold text-gray-500 hidden sm:block">{(next.home as string).split(' ').pop()}</span>
+            <span className="text-[11px] font-bold text-gray-500">{(next.home as string).split(' ').pop()}</span>
           </div>
           <div className="flex flex-col items-center gap-0.5">
             <span className="text-[10px] font-black text-gray-300 border border-gray-200 rounded-full w-6 h-6 flex items-center justify-center">vs</span>
@@ -200,25 +158,19 @@ function NextMatchCountdown() {
           </div>
           <div className="flex flex-col items-center gap-1">
             <TeamLogo team={next.away as TeamName} size={40} />
-            <span className="text-[11px] font-bold text-gray-500 hidden sm:block">{(next.away as string).split(' ').pop()}</span>
+            <span className="text-[11px] font-bold text-gray-500">{(next.away as string).split(' ').pop()}</span>
           </div>
           <div className="hidden sm:block ml-2">
             <div className="text-xs font-semibold text-gray-600">{formatDate(next.date)} · {next.time} IST</div>
             <div className="text-[11px] text-gray-400">{next.venue}</div>
           </div>
         </div>
-
-        {/* Countdown + CTA */}
         <div className="flex flex-col items-center sm:items-end gap-2 shrink-0">
           <div className="text-center">
             <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400 mb-1">Starts in</div>
             <div className="font-mono font-black tabular-nums" style={{
-              fontSize: 'clamp(1.6rem, 4vw, 2.2rem)',
-              color: NAVY,
-              letterSpacing: '0.04em',
-            }}>
-              {timeStr}
-            </div>
+              fontSize: 'clamp(1.6rem, 4vw, 2.2rem)', color: NAVY, letterSpacing: '0.04em',
+            }}>{timeStr}</div>
           </div>
           <Link href={`/match/${next.match}`}
             className="text-[12px] font-bold px-4 py-2 rounded-xl text-white transition-opacity hover:opacity-85"
@@ -244,26 +196,18 @@ function MatchRow({ fixture, hasEntry, isComplete, ladsTotal, gilsTotal, winner,
         transition={{ duration: 0.15 }}
         className="rounded-xl border px-4 py-3 flex items-center gap-3 cursor-pointer transition-colors"
         style={{
-          background: isComplete && winner === 'lads'
-            ? `${LADS}0d`
-            : isComplete && winner === 'gils'
-            ? `${GILS}0d`
+          background: isComplete && winner === 'lads' ? `${LADS}0d`
+            : isComplete && winner === 'gils' ? `${GILS}0d`
             : today ? `${NAVY}08` : 'white',
-          borderColor: isComplete && winner === 'lads'
-            ? `${LADS}30`
-            : isComplete && winner === 'gils'
-            ? `${GILS}30`
+          borderColor: isComplete && winner === 'lads' ? `${LADS}30`
+            : isComplete && winner === 'gils' ? `${GILS}30`
             : today ? `${NAVY}20` : '#f3f4f6',
         }}>
-
-        {/* Match ID */}
         <div className="shrink-0" style={{ minWidth: 40 }}>
           <span className="text-[11px] font-bold border border-orange-300 text-orange-600 px-1.5 py-0.5 rounded">
             M{fixture.match}
           </span>
         </div>
-
-        {/* Teams */}
         <div className="flex items-center gap-3 flex-1 min-w-0">
           <div className="flex items-center gap-2 min-w-0">
             <TeamLogo team={fixture.home as TeamName} size={30} />
@@ -280,14 +224,10 @@ function MatchRow({ fixture, hasEntry, isComplete, ladsTotal, gilsTotal, winner,
             <span className="font-semibold text-sm text-gray-700 hidden sm:block truncate">{fixture.away}</span>
           </div>
         </div>
-
-        {/* Date */}
         <div className="text-right shrink-0 hidden md:block">
           <div className="text-xs font-semibold text-gray-600">{formatDate(fixture.date)}</div>
           <div className="text-[11px] text-gray-400">{fixture.time} · {fixture.venue}</div>
         </div>
-
-        {/* CTA / result */}
         <div className="shrink-0">
           {isComplete ? (
             <span className="text-[11px] font-bold px-2.5 py-1 rounded-lg border" style={
@@ -319,7 +259,7 @@ export default function Dashboard() {
   const { state, loaded } = useSeasonState();
   const lads = computeSideStats(state, 'lads');
   const gils = computeSideStats(state, 'gils');
-  const todayMatches  = fixtures.filter(f => isToday(f.date));
+  const todayMatches    = fixtures.filter(f => isToday(f.date));
   const upcomingMatches = fixtures.filter(f => isUpcoming(f.date) && !isToday(f.date)).slice(0, 6);
   const played = Object.values(state.matches).filter(m => m.isComplete).length;
 
@@ -330,122 +270,45 @@ export default function Dashboard() {
     </div>
   );
 
-  const totalPts    = lads.totalPoints + gils.totalPoints;
-  const ladsPct     = totalPts > 0 ? (lads.totalPoints / totalPts) * 100 : 50;
+  const totalPts = lads.totalPoints + gils.totalPoints;
+  const ladsPct  = totalPts > 0 ? (lads.totalPoints / totalPts) * 100 : 50;
+  const ptsDiff  = lads.totalPoints - gils.totalPoints;
 
-  return (
-    <div className="space-y-8 pb-12">
+  // Prize tile data
+  const ocTile = {
+    abbrev: 'OC', label: 'Orange Cap', pts: 350, color: '#ea580c',
+    ladsVal: `${lads.totalSeasonRuns}r`, gilsVal: `${gils.totalSeasonRuns}r`,
+    ladsScore: lads.totalSeasonRuns, gilsScore: gils.totalSeasonRuns,
+    ladsDetail: lads.orangeCapRuns ? `Top: ${lads.orangeCapRuns.player} ${lads.orangeCapRuns.runs}r` : undefined,
+    gilsDetail: gils.orangeCapRuns ? `Top: ${gils.orangeCapRuns.player} ${gils.orangeCapRuns.runs}r` : undefined,
+  };
+  const pcTile = {
+    abbrev: 'PC', label: 'Purple Cap', pts: 350, color: '#7c3aed',
+    ladsVal: `${lads.totalSeasonWickets}w`, gilsVal: `${gils.totalSeasonWickets}w`,
+    ladsScore: lads.totalSeasonWickets, gilsScore: gils.totalSeasonWickets,
+    ladsDetail: lads.purpleCapWickets ? `Top: ${lads.purpleCapWickets.player} ${lads.purpleCapWickets.wickets}w` : undefined,
+    gilsDetail: gils.purpleCapWickets ? `Top: ${gils.purpleCapWickets.player} ${gils.purpleCapWickets.wickets}w` : undefined,
+  };
+  const stkTile = {
+    abbrev: 'STK', label: 'Longest Streak', pts: 350, color: NAVY,
+    ladsVal: `${lads.longestStreak}W`, gilsVal: `${gils.longestStreak}W`,
+    ladsScore: lads.longestStreak, gilsScore: gils.longestStreak,
+    ladsDetail: `Current: ${lads.currentStreak > 0 ? `${lads.currentStreak}W` : lads.currentStreak < 0 ? `${Math.abs(lads.currentStreak)}L` : '—'}`,
+    gilsDetail: `Current: ${gils.currentStreak > 0 ? `${gils.currentStreak}W` : gils.currentStreak < 0 ? `${Math.abs(gils.currentStreak)}L` : '—'}`,
+  };
+  const phTile = {
+    abbrev: 'PH', label: 'Purple Hits', pts: 350, color: '#6d28d9',
+    ladsVal: String(lads.purpleHits), gilsVal: String(gils.purpleHits),
+    ladsScore: lads.purpleHits, gilsScore: gils.purpleHits,
+    ladsDetail: '3× pick scored highest',
+    gilsDetail: '3× pick scored highest',
+  };
 
-      {/* ══ Hero ══ */}
-      <motion.div
-        initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: 'easeOut' }}
-        className="rounded-2xl overflow-hidden relative"
-        style={{
-          background: 'linear-gradient(160deg, #001857 0%, #003087 55%, #0044b0 100%)',
-          boxShadow: '0 4px 32px rgba(0,48,135,0.25)',
-        }}>
-
-        {/* Subtle gradient texture */}
-        <div className="absolute inset-0 pointer-events-none" style={{
-          background: 'radial-gradient(ellipse at 20% 50%, rgba(245,158,11,0.07) 0%, transparent 60%), radial-gradient(ellipse at 80% 50%, rgba(124,58,237,0.07) 0%, transparent 60%)',
-        }} />
-        {/* Bottom accent rule */}
-        <div className="absolute bottom-0 left-0 right-0 h-px" style={{
-          background: `linear-gradient(to right, transparent 0%, ${LADS}60 30%, transparent 50%, ${GILS}60 70%, transparent 100%)`,
-        }} />
-
-        <div className="relative z-10 px-6 py-10 text-center">
-          {/* Badge */}
-          <div className="inline-block text-white/50 text-[9px] font-bold uppercase tracking-[0.3em] border border-white/15 px-3 py-1 rounded mb-5">
-            TATA IPL 2026
-          </div>
-
-          {/* Title */}
-          <h1 style={{
-            fontFamily: 'var(--font-barlow-condensed), system-ui, sans-serif',
-            fontSize: 'clamp(2.2rem, 5vw, 3.8rem)',
-            fontWeight: 900, letterSpacing: '0.04em',
-            color: 'white', lineHeight: 1, marginBottom: 8,
-          }}>
-            Lads{' '}
-            <span style={{ color: 'rgba(255,255,255,0.25)', fontWeight: 300 }}>vs</span>
-            {' '}Gils
-          </h1>
-          <p className="text-sm font-medium mb-10" style={{ color: 'rgba(255,255,255,0.35)', letterSpacing: '0.08em' }}>
-            {played} / 70 matches played
-          </p>
-
-          {/* Score row */}
-          <div className="flex items-center justify-center gap-8 md:gap-16">
-
-            <div className="text-center">
-              <CountUp value={lads.wins} style={{
-                fontFamily: 'var(--font-barlow-condensed), system-ui, sans-serif',
-                fontSize: 'clamp(3.5rem, 9vw, 6rem)', fontWeight: 900,
-                color: LADS, lineHeight: 1, letterSpacing: '-0.02em', display: 'block',
-              }} />
-              <div style={{
-                fontSize: 11, fontWeight: 700, letterSpacing: '0.2em',
-                color: LADS, textTransform: 'uppercase', marginTop: 4,
-              }}>Lads Wins</div>
-            </div>
-
-            <div className="flex flex-col items-center" style={{ gap: 4 }}>
-              <div style={{ width: 1, height: 28, background: 'rgba(255,255,255,0.12)' }} />
-              <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.25em', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase' }}>
-                Season
-              </div>
-              <div style={{ width: 1, height: 28, background: 'rgba(255,255,255,0.12)' }} />
-            </div>
-
-            <div className="text-center">
-              <CountUp value={gils.wins} style={{
-                fontFamily: 'var(--font-barlow-condensed), system-ui, sans-serif',
-                fontSize: 'clamp(3.5rem, 9vw, 6rem)', fontWeight: 900,
-                color: GILS, lineHeight: 1, letterSpacing: '-0.02em', display: 'block',
-              }} />
-              <div style={{
-                fontSize: 11, fontWeight: 700, letterSpacing: '0.2em',
-                color: GILS, textTransform: 'uppercase', marginTop: 4,
-              }}>Gils Wins</div>
-            </div>
-          </div>
-
-          {/* Points bar */}
-          {totalPts > 0 && (
-            <div className="mt-8 max-w-sm mx-auto">
-              <div className="flex justify-between mb-2">
-                <span style={{ fontSize: 12, fontWeight: 700, color: LADS }}>
-                  {lads.totalPoints.toLocaleString()} pts
-                </span>
-                <span style={{ fontSize: 12, fontWeight: 700, color: GILS }}>
-                  {gils.totalPoints.toLocaleString()} pts
-                </span>
-              </div>
-              <div className="rounded-full overflow-hidden flex" style={{ height: 4, background: 'rgba(255,255,255,0.08)' }}>
-                <motion.div
-                  className="h-full"
-                  initial={{ width: '50%' }} animate={{ width: `${ladsPct}%` }}
-                  transition={{ duration: 1.2, ease: 'easeOut', delay: 0.4 }}
-                  style={{ background: `linear-gradient(to right, ${LADS}, ${LADS}bb)`, borderRadius: '9999px 0 0 9999px' }}
-                />
-                <motion.div
-                  className="h-full"
-                  initial={{ width: '50%' }} animate={{ width: `${100 - ladsPct}%` }}
-                  transition={{ duration: 1.2, ease: 'easeOut', delay: 0.4 }}
-                  style={{ background: `linear-gradient(to left, ${GILS}, ${GILS}bb)`, borderRadius: '0 9999px 9999px 0' }}
-                />
-              </div>
-            </div>
-          )}
-        </div>
-      </motion.div>
-
-      {/* ══ Next match countdown ══ */}
+  // Center feed content
+  const centerFeed = (
+    <div className="space-y-8">
       <NextMatchCountdown />
 
-      {/* ══ Today ══ */}
       {todayMatches.length > 0 && (
         <section>
           <SectionHeader live>Today — Select Your Picks</SectionHeader>
@@ -463,12 +326,10 @@ export default function Dashboard() {
         </section>
       )}
 
-      {/* ══ Recent matches ══ */}
       {(() => {
         const recent = fixtures
           .filter(f => state.matches[f.match]?.isComplete)
-          .slice(-5)
-          .reverse();
+          .slice(-5).reverse();
         if (recent.length === 0) return null;
         return (
           <section>
@@ -494,95 +355,6 @@ export default function Dashboard() {
         );
       })()}
 
-      {/* ══ Season standings ══ */}
-      <section>
-        <div className="flex gap-4 flex-col sm:flex-row">
-          <SideCard side={lads} label="Lads" isLads={true}  ptsDiff={lads.totalPoints - gils.totalPoints} />
-          <SideCard side={gils} label="Gils" isLads={false} ptsDiff={gils.totalPoints - lads.totalPoints} />
-        </div>
-      </section>
-
-      {/* ══ Prize race ══ */}
-      {(() => {
-        const tiles = [
-          {
-            label: 'Orange Cap', abbrev: 'OC', pts: 350, color: '#ea580c',
-            ladsVal: `${lads.totalSeasonRuns}r`, gilsVal: `${gils.totalSeasonRuns}r`,
-            ladsScore: lads.totalSeasonRuns, gilsScore: gils.totalSeasonRuns,
-          },
-          {
-            label: 'Purple Cap', abbrev: 'PC', pts: 350, color: '#7c3aed',
-            ladsVal: `${lads.totalSeasonWickets}w`, gilsVal: `${gils.totalSeasonWickets}w`,
-            ladsScore: lads.totalSeasonWickets, gilsScore: gils.totalSeasonWickets,
-          },
-          {
-            label: 'Longest Streak', abbrev: 'STK', pts: 350, color: NAVY,
-            ladsVal: `${lads.longestStreak}W`, gilsVal: `${gils.longestStreak}W`,
-            ladsScore: lads.longestStreak, gilsScore: gils.longestStreak,
-          },
-          {
-            label: 'Purple Hits', abbrev: 'PH', pts: 350, color: '#6d28d9',
-            ladsVal: String(lads.purpleHits), gilsVal: String(gils.purpleHits),
-            ladsScore: lads.purpleHits, gilsScore: gils.purpleHits,
-          },
-        ] as const;
-
-        return (
-          <section>
-            <SectionHeader>End of Season Prize Race</SectionHeader>
-            <div className="grid grid-cols-2 gap-3">
-              {tiles.map(t => {
-                const leader = t.ladsScore > t.gilsScore ? 'lads' : t.gilsScore > t.ladsScore ? 'gils' : 'tied';
-                const total = t.ladsScore + t.gilsScore;
-                const ladsPct = total > 0 ? (t.ladsScore / total) * 100 : 50;
-                return (
-                  <div key={t.label} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-col gap-3">
-                    {/* Header */}
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <div className="text-[13px] font-black" style={{
-                          color: t.color,
-                          fontFamily: 'var(--font-barlow-condensed), system-ui, sans-serif',
-                          letterSpacing: '0.08em',
-                        }}>{t.abbrev}</div>
-                        <div className="text-[10px] text-gray-400 font-medium leading-tight">{t.label}</div>
-                        <div className="text-[9px] text-gray-300 mt-0.5">+{t.pts} pts</div>
-                      </div>
-                      {leader === 'tied'
-                        ? <span className="text-[9px] font-semibold text-gray-300 border border-gray-100 px-1.5 py-0.5 rounded-full">Tied</span>
-                        : <span className="text-[9px] font-bold text-white px-2 py-0.5 rounded-full"
-                            style={{ background: leader === 'lads' ? LADS : GILS }}>
-                            {leader === 'lads' ? 'Lads' : 'Gils'}
-                          </span>
-                      }
-                    </div>
-                    {/* Stats */}
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[11px] font-semibold text-gray-400">Lads</span>
-                        <span className="text-[15px] font-black tabular-nums leading-none"
-                          style={{ color: leader === 'lads' ? LADS : '#d1d5db' }}>{t.ladsVal}</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-[11px] font-semibold text-gray-400">Gils</span>
-                        <span className="text-[15px] font-black tabular-nums leading-none"
-                          style={{ color: leader === 'gils' ? GILS : '#d1d5db' }}>{t.gilsVal}</span>
-                      </div>
-                    </div>
-                    {/* Progress bar */}
-                    <div className="h-1 rounded-full overflow-hidden flex" style={{ background: '#f3f4f6' }}>
-                      <div style={{ width: `${ladsPct}%`, background: LADS, transition: 'width 0.6s ease' }} />
-                      <div style={{ flex: 1, background: GILS }} />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-        );
-      })()}
-
-      {/* ══ Upcoming fixtures ══ */}
       {upcomingMatches.length > 0 && (
         <section>
           <SectionHeader>Upcoming Fixtures</SectionHeader>
@@ -602,6 +374,116 @@ export default function Dashboard() {
           </Link>
         </section>
       )}
+    </div>
+  );
+
+  return (
+    <div className="pb-12 space-y-6">
+
+      {/* ══ Hero — full width ══ */}
+      <motion.div
+        initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: 'easeOut' }}
+        className="rounded-2xl overflow-hidden relative"
+        style={{
+          background: 'linear-gradient(160deg, #001857 0%, #003087 55%, #0044b0 100%)',
+          boxShadow: '0 4px 32px rgba(0,48,135,0.25)',
+        }}>
+        <div className="absolute inset-0 pointer-events-none" style={{
+          background: 'radial-gradient(ellipse at 20% 50%, rgba(245,158,11,0.07) 0%, transparent 60%), radial-gradient(ellipse at 80% 50%, rgba(124,58,237,0.07) 0%, transparent 60%)',
+        }} />
+        <div className="absolute bottom-0 left-0 right-0 h-px" style={{
+          background: `linear-gradient(to right, transparent 0%, ${LADS}60 30%, transparent 50%, ${GILS}60 70%, transparent 100%)`,
+        }} />
+        <div className="relative z-10 px-6 py-8 text-center">
+          <div className="inline-block text-white/50 text-[9px] font-bold uppercase tracking-[0.3em] border border-white/15 px-3 py-1 rounded mb-4">
+            TATA IPL 2026
+          </div>
+          <h1 style={{
+            fontFamily: 'var(--font-barlow-condensed), system-ui, sans-serif',
+            fontSize: 'clamp(2rem, 5vw, 3.4rem)',
+            fontWeight: 900, letterSpacing: '0.04em',
+            color: 'white', lineHeight: 1, marginBottom: 6,
+          }}>
+            Lads <span style={{ color: 'rgba(255,255,255,0.25)', fontWeight: 300 }}>vs</span> Gils
+          </h1>
+          <p className="text-sm font-medium mb-8" style={{ color: 'rgba(255,255,255,0.35)', letterSpacing: '0.08em' }}>
+            {played} / 70 matches played
+          </p>
+          <div className="flex items-center justify-center gap-8 md:gap-16">
+            <div className="text-center">
+              <CountUp value={lads.wins} style={{
+                fontFamily: 'var(--font-barlow-condensed), system-ui, sans-serif',
+                fontSize: 'clamp(3rem, 8vw, 5rem)', fontWeight: 900,
+                color: LADS, lineHeight: 1, display: 'block',
+              }} />
+              <div className="text-[11px] font-bold uppercase tracking-[0.2em] mt-1" style={{ color: `${LADS}99` }}>
+                Lads · {lads.totalPoints.toLocaleString()}pts
+                {ptsDiff < 0 && <span style={{ color: '#dc2626' }}> ({ptsDiff})</span>}
+              </div>
+            </div>
+            <div className="flex flex-col items-center gap-1">
+              <div style={{ width: 1, height: 24, background: 'rgba(255,255,255,0.12)' }} />
+              <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.25em', color: 'rgba(255,255,255,0.25)', textTransform: 'uppercase' }}>vs</div>
+              <div style={{ width: 1, height: 24, background: 'rgba(255,255,255,0.12)' }} />
+            </div>
+            <div className="text-center">
+              <CountUp value={gils.wins} style={{
+                fontFamily: 'var(--font-barlow-condensed), system-ui, sans-serif',
+                fontSize: 'clamp(3rem, 8vw, 5rem)', fontWeight: 900,
+                color: GILS, lineHeight: 1, display: 'block',
+              }} />
+              <div className="text-[11px] font-bold uppercase tracking-[0.2em] mt-1" style={{ color: `${GILS}99` }}>
+                Gils · {gils.totalPoints.toLocaleString()}pts
+                {ptsDiff > 0 && <span style={{ color: '#dc2626' }}> (-{ptsDiff})</span>}
+              </div>
+            </div>
+          </div>
+          {totalPts > 0 && (
+            <div className="mt-6 max-w-xs mx-auto">
+              <div className="rounded-full overflow-hidden flex" style={{ height: 3, background: 'rgba(255,255,255,0.08)' }}>
+                <motion.div className="h-full"
+                  initial={{ width: '50%' }} animate={{ width: `${ladsPct}%` }}
+                  transition={{ duration: 1.2, ease: 'easeOut', delay: 0.4 }}
+                  style={{ background: LADS, borderRadius: '9999px 0 0 9999px' }} />
+                <motion.div className="h-full"
+                  initial={{ width: '50%' }} animate={{ width: `${100 - ladsPct}%` }}
+                  transition={{ duration: 1.2, ease: 'easeOut', delay: 0.4 }}
+                  style={{ background: GILS, borderRadius: '0 9999px 9999px 0' }} />
+              </div>
+            </div>
+          )}
+        </div>
+      </motion.div>
+
+      {/* ══ Three-column layout ══ */}
+      <div className="grid grid-cols-1 lg:grid-cols-[200px_1fr_200px] xl:grid-cols-[220px_1fr_220px] gap-5 items-start">
+
+        {/* Left sidebar: OC + Streak (desktop only) */}
+        <div className="hidden lg:flex flex-col gap-4 sticky top-4">
+          <PrizeTile {...ocTile} />
+          <PrizeTile {...stkTile} />
+        </div>
+
+        {/* Center feed */}
+        <div className="min-w-0">
+          {centerFeed}
+        </div>
+
+        {/* Right sidebar: PC + PH (desktop only) */}
+        <div className="hidden lg:flex flex-col gap-4 sticky top-4">
+          <PrizeTile {...pcTile} />
+          <PrizeTile {...phTile} />
+        </div>
+      </div>
+
+      {/* Mobile: 2×2 prize grid (hidden on desktop) */}
+      <div className="grid grid-cols-2 gap-3 lg:hidden">
+        <PrizeTile {...ocTile} />
+        <PrizeTile {...pcTile} />
+        <PrizeTile {...stkTile} />
+        <PrizeTile {...phTile} />
+      </div>
 
     </div>
   );
