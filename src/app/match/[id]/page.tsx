@@ -125,7 +125,7 @@ function PlayerComboBox({
         />
       )}
       {open && (
-        <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg max-h-56 overflow-y-auto">
+        <div className={`absolute z-50 w-full bg-white border border-gray-200 rounded-xl shadow-lg max-h-56 overflow-y-auto ${small ? 'bottom-full mb-1' : 'mt-1'}`}>
           {filtered.length === 0 ? (
             <div className="px-3 py-2 text-xs text-gray-400">No players found</div>
           ) : (
@@ -266,7 +266,7 @@ function PicksEditor({
         const cfg = MULT_CFG[pick.multiplier];
         return (
           <motion.div key={i} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
-            className="rounded-xl shadow-sm overflow-hidden"
+            className="rounded-xl shadow-sm"
             style={{ background: cfg.idle, border: `2px solid ${cfg.active}` }}>
             {/* Top row: player + remove */}
             <div className="flex items-center gap-2 px-3 pt-3 pb-2">
