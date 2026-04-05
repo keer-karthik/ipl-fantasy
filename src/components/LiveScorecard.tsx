@@ -144,11 +144,12 @@ export function tieredTotalColor(n: number): string {
   if (n < 530) return 'text-green-500';
   return 'text-violet-600';
 }
-// Batting & bowling: negative red | 0–25 yellow | 25–65 green | 65+ purple
+// Batting & bowling: matches player total scale so components and total stay in sync
+// negative red | 0–65 yellow | 65–105 green | 105+ purple
 function tieredBatBowlColor(n: number): string {
-  if (n < 0)  return 'text-red-500';
-  if (n < 25) return 'text-amber-400';
-  if (n < 65) return 'text-green-500';
+  if (n < 0)   return 'text-red-500';
+  if (n < 65)  return 'text-amber-400';
+  if (n < 105) return 'text-green-500';
   return 'text-violet-600';
 }
 // Fielding: capped scale — +10 yellow | +20 green | +30 purple (catches/runouts/stumpings)
