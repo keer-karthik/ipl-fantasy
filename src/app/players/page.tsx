@@ -349,35 +349,23 @@ export default function StatsPage() {
       {(() => {
         const lads = computeSideStats(state, 'lads');
         const gils = computeSideStats(state, 'gils');
-        const ladsOC = lads.orangeCapRuns?.runs ?? 0;
-        const gilsOC = gils.orangeCapRuns?.runs ?? 0;
-        const ladsPCw = lads.purpleCapWickets?.wickets ?? 0;
-        const gilsPCw = gils.purpleCapWickets?.wickets ?? 0;
 
         const prizes = [
           {
-            abbrev: 'WINS', label: 'Most Wins', pts: 700, color: '#d97706',
-            ladsTitle: `${lads.wins} win${lads.wins !== 1 ? 's' : ''}`,
-            gilsTitle: `${gils.wins} win${gils.wins !== 1 ? 's' : ''}`,
-            ladsDetail: `${lads.losses} loss${lads.losses !== 1 ? 'es' : ''}`,
-            gilsDetail: `${gils.losses} loss${gils.losses !== 1 ? 'es' : ''}`,
-            ladsScore: lads.wins, gilsScore: gils.wins,
-          },
-          {
             abbrev: 'OC', label: 'Orange Cap', pts: 350, color: '#ea580c',
-            ladsTitle: lads.orangeCapRuns?.player ?? '—',
-            gilsTitle: gils.orangeCapRuns?.player ?? '—',
-            ladsDetail: ladsOC > 0 ? `${ladsOC} runs` : 'No data',
-            gilsDetail: gilsOC > 0 ? `${gilsOC} runs` : 'No data',
-            ladsScore: ladsOC, gilsScore: gilsOC,
+            ladsTitle: `${lads.totalSeasonRuns} runs`,
+            gilsTitle: `${gils.totalSeasonRuns} runs`,
+            ladsDetail: lads.orangeCapRuns ? `Top: ${lads.orangeCapRuns.player} ${lads.orangeCapRuns.runs}r` : 'No data',
+            gilsDetail: gils.orangeCapRuns ? `Top: ${gils.orangeCapRuns.player} ${gils.orangeCapRuns.runs}r` : 'No data',
+            ladsScore: lads.totalSeasonRuns, gilsScore: gils.totalSeasonRuns,
           },
           {
             abbrev: 'PC', label: 'Purple Cap', pts: 350, color: '#7c3aed',
-            ladsTitle: lads.purpleCapWickets?.player ?? '—',
-            gilsTitle: gils.purpleCapWickets?.player ?? '—',
-            ladsDetail: ladsPCw > 0 ? `${ladsPCw} wickets` : 'No data',
-            gilsDetail: gilsPCw > 0 ? `${gilsPCw} wickets` : 'No data',
-            ladsScore: ladsPCw, gilsScore: gilsPCw,
+            ladsTitle: `${lads.totalSeasonWickets} wickets`,
+            gilsTitle: `${gils.totalSeasonWickets} wickets`,
+            ladsDetail: lads.purpleCapWickets ? `Top: ${lads.purpleCapWickets.player} ${lads.purpleCapWickets.wickets}w` : 'No data',
+            gilsDetail: gils.purpleCapWickets ? `Top: ${gils.purpleCapWickets.player} ${gils.purpleCapWickets.wickets}w` : 'No data',
+            ladsScore: lads.totalSeasonWickets, gilsScore: gils.totalSeasonWickets,
           },
           {
             abbrev: 'STK', label: 'Longest Streak', pts: 350, color: '#003087',

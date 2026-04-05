@@ -504,37 +504,24 @@ export default function Dashboard() {
 
       {/* ══ Prize race ══ */}
       {(() => {
-        const PRIZE_COLORS = { wins: '#d97706', oc: '#ea580c', pc: '#7c3aed', stk: NAVY, ph: '#6d28d9' };
-        const ladsOC = lads.orangeCapRuns?.runs ?? 0;
-        const gilsOC = gils.orangeCapRuns?.runs ?? 0;
-        const ladsPCw = lads.purpleCapWickets?.wickets ?? 0;
-        const gilsPCw = gils.purpleCapWickets?.wickets ?? 0;
-
         const rows = [
           {
-            label: 'Most Wins', pts: 700, color: PRIZE_COLORS.wins,
-            ladsVal: `${lads.wins}W`, gilsVal: `${gils.wins}W`,
-            leader: lads.wins > gils.wins ? 'lads' : gils.wins > lads.wins ? 'gils' : 'tied' as const,
+            label: 'Orange Cap', pts: 350, color: '#ea580c',
+            ladsVal: `${lads.totalSeasonRuns}r`, gilsVal: `${gils.totalSeasonRuns}r`,
+            leader: lads.totalSeasonRuns > gils.totalSeasonRuns ? 'lads' : gils.totalSeasonRuns > lads.totalSeasonRuns ? 'gils' : 'tied' as const,
           },
           {
-            label: 'Orange Cap', pts: 350, color: PRIZE_COLORS.oc,
-            ladsVal: lads.orangeCapRuns ? `${lads.orangeCapRuns.player.split(' ').slice(-1)[0]} · ${ladsOC}r` : '—',
-            gilsVal: gils.orangeCapRuns ? `${gils.orangeCapRuns.player.split(' ').slice(-1)[0]} · ${gilsOC}r` : '—',
-            leader: ladsOC > gilsOC ? 'lads' : gilsOC > ladsOC ? 'gils' : 'tied' as const,
+            label: 'Purple Cap', pts: 350, color: '#7c3aed',
+            ladsVal: `${lads.totalSeasonWickets}w`, gilsVal: `${gils.totalSeasonWickets}w`,
+            leader: lads.totalSeasonWickets > gils.totalSeasonWickets ? 'lads' : gils.totalSeasonWickets > lads.totalSeasonWickets ? 'gils' : 'tied' as const,
           },
           {
-            label: 'Purple Cap', pts: 350, color: PRIZE_COLORS.pc,
-            ladsVal: lads.purpleCapWickets ? `${lads.purpleCapWickets.player.split(' ').slice(-1)[0]} · ${ladsPCw}w` : '—',
-            gilsVal: gils.purpleCapWickets ? `${gils.purpleCapWickets.player.split(' ').slice(-1)[0]} · ${gilsPCw}w` : '—',
-            leader: ladsPCw > gilsPCw ? 'lads' : gilsPCw > ladsPCw ? 'gils' : 'tied' as const,
-          },
-          {
-            label: 'Longest Streak', pts: 350, color: PRIZE_COLORS.stk,
+            label: 'Longest Streak', pts: 350, color: NAVY,
             ladsVal: `${lads.longestStreak}W`, gilsVal: `${gils.longestStreak}W`,
             leader: lads.longestStreak > gils.longestStreak ? 'lads' : gils.longestStreak > lads.longestStreak ? 'gils' : 'tied' as const,
           },
           {
-            label: 'Purple Hits', pts: 350, color: PRIZE_COLORS.ph,
+            label: 'Purple Hits', pts: 350, color: '#6d28d9',
             ladsVal: String(lads.purpleHits), gilsVal: String(gils.purpleHits),
             leader: lads.purpleHits > gils.purpleHits ? 'lads' : gils.purpleHits > lads.purpleHits ? 'gils' : 'tied' as const,
           },

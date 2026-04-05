@@ -11,6 +11,8 @@ export interface SideStats {
   longestStreak: number;
   purpleHits: number;
   allInUsed: number;
+  totalSeasonRuns: number;
+  totalSeasonWickets: number;
   orangeCapRuns: { player: string; runs: number } | null;
   purpleCapWickets: { player: string; wickets: number } | null;
 }
@@ -95,6 +97,8 @@ export function computeSideStats(state: SeasonState, side: 'lads' | 'gils'): Sid
     if (last === 'L') currentStreak = -currentStreak;
   }
 
+  const totalSeasonRuns = Object.values(runTotals).reduce((s, r) => s + r, 0);
+  const totalSeasonWickets = Object.values(wicketTotals).reduce((s, r) => s + r, 0);
   const topRuns = Object.entries(runTotals).sort((a, b) => b[1] - a[1])[0];
   const topWickets = Object.entries(wicketTotals).sort((a, b) => b[1] - a[1])[0];
 
@@ -102,6 +106,7 @@ export function computeSideStats(state: SeasonState, side: 'lads' | 'gils'): Sid
     wins, losses, totalPoints, form: form.slice(-10),
     currentStreak, longestStreak, purpleHits,
     allInUsed: side === 'lads' ? state.ladsAllInUsed : state.gilsAllInUsed,
+    totalSeasonRuns, totalSeasonWickets,
     orangeCapRuns: topRuns ? { player: topRuns[0], runs: topRuns[1] } : null,
     purpleCapWickets: topWickets ? { player: topWickets[0], wickets: topWickets[1] } : null,
   };
