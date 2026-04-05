@@ -587,23 +587,37 @@ export function SidePanel({
     letterSpacing: '0.12em',
   };
 
-  const displayTotal = total + (hasWinnerBonus ? 50 : 0);
+  const momCount = breakdown.filter(b => b.momPts > 0).length;
+  const momBonus = momCount * 10;
+  const displayTotal = total + (hasWinnerBonus ? 50 : 0) + momBonus;
 
-  const WinnerBadge = () => (
-    <span title="Correct winner prediction +50"
-      className="inline-flex items-center gap-1 text-[11px] font-black px-1.5 py-0.5 rounded-md bg-amber-400 text-white shrink-0 leading-none">
-      ★ +50
-    </span>
+  const Badges = () => (
+    <div className="flex items-center gap-1.5 shrink-0">
+      {hasWinnerBonus && (
+        <span title="Correct winner prediction"
+          className="inline-flex items-center gap-1 font-black rounded-lg bg-amber-400 text-white leading-none"
+          style={{ fontSize: '13px', padding: '4px 8px' }}>
+          ★ <span>+50</span>
+        </span>
+      )}
+      {momCount > 0 && (
+        <span title="Man of the Match"
+          className="inline-flex items-center gap-1 font-black rounded-lg bg-violet-500 text-white leading-none"
+          style={{ fontSize: '13px', padding: '4px 8px' }}>
+          🏅 <span>+{momBonus}</span>
+        </span>
+      )}
+    </div>
   );
 
   return (
     <div className={`flex-1 min-h-0 rounded-2xl border-2 ${borderColor} ${bgColor} flex flex-col overflow-hidden`}>
 
-      {/* ── Header: Lads = right-aligned [LADS][+261], Gils = justify-between [+404][GILS] ── */}
-      <div className={`px-4 pt-3 pb-2 flex items-baseline gap-3 ${isLads ? 'justify-end' : ''}`}>
+      {/* ── Header ── */}
+      <div className={`px-4 pt-3 pb-2 flex items-center gap-2 flex-wrap ${isLads ? 'justify-end' : ''}`}>
         {isLads ? (
           <>
-            {hasWinnerBonus && <WinnerBadge />}
+            <Badges />
             <div className={`uppercase ${accentText} shrink-0`}
               style={{ ...HEADER_FONT, fontSize: '16px', letterSpacing: '0.22em' }}>
               {label}
@@ -633,7 +647,7 @@ export function SidePanel({
               style={{ ...HEADER_FONT, fontSize: '16px', letterSpacing: '0.22em' }}>
               {label}
             </div>
-            {hasWinnerBonus && <WinnerBadge />}
+            <Badges />
           </>
         )}
       </div>

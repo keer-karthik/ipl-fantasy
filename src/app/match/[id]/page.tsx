@@ -1147,7 +1147,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
             <SidePanel
               label="LADS" total={ladsDisplayTotal}
               breakdown={ladsBreakdown}
-              textColor={tieredTotalColor(ladsDisplayTotal + (ladsHasWinnerBonus ? 50 : 0))}
+              textColor={tieredTotalColor(ladsDisplayTotal)}
               borderColor="border-amber-200" bgColor="bg-amber-50"
               hasWinnerBonus={ladsHasWinnerBonus}
             />
@@ -1157,7 +1157,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
             <SidePanel
               label="GILS" total={gilsDisplayTotal}
               breakdown={gilsBreakdown}
-              textColor={tieredTotalColor(gilsDisplayTotal + (gilsHasWinnerBonus ? 50 : 0))}
+              textColor={tieredTotalColor(gilsDisplayTotal)}
               borderColor="border-violet-200" bgColor="bg-violet-50"
               hasWinnerBonus={gilsHasWinnerBonus}
             />
