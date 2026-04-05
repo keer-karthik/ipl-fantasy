@@ -387,25 +387,44 @@ function PlayerTradingCard({ b, isLads }: { b: BreakdownItem; isLads: boolean })
           </div>
         )}
 
-        {/* RAW + multiplier footer */}
-        {hasAnyActivity && (
-          <div className="mt-auto pt-1 border-t border-gray-200">
-            <div className="flex justify-between items-baseline" style={{ ...FONT, fontSize: 12 }}>
-              <span className="text-gray-400 tracking-widest uppercase">Raw</span>
-              <span className="text-gray-600 font-black">{rawPts > 0 ? `+${rawPts}` : rawPts}</span>
-            </div>
-            {multX > 1 && (
-              <div className="flex justify-between items-baseline" style={{ ...FONT, fontSize: 12 }}>
-                <span className="text-gray-400">
-                  {rawPts >= 0
-                    ? `× ${multX} (${b.multiplier})`
-                    : `× ${b.multiplier === 'purple' ? 1.5 : b.multiplier === 'allin' ? 2.5 : 1} (${b.multiplier})`}
+        {/* BASE + multiplier footer */}
+        {hasAnyActivity && (() => {
+          const MULT_COLOR: Record<string, { bg: string; text: string; label: string }> = {
+            yellow: { bg: '#f59e0b', text: '#fff', label: '1×' },
+            green:  { bg: '#16a34a', text: '#fff', label: '2×' },
+            purple: { bg: '#7c3aed', text: '#fff', label: '3×' },
+            allin:  { bg: '#be185d', text: '#fff', label: '5×' },
+          };
+          const mc = b.multiplier ? MULT_COLOR[b.multiplier] : null;
+          const lossFactor = b.multiplier === 'purple' ? 1.5 : b.multiplier === 'allin' ? 2.5 : 1;
+          const appliedX = rawPts >= 0 ? multX : lossFactor;
+          return (
+            <div className="mt-auto pt-1.5 border-t border-gray-200 space-y-1">
+              {/* Base row */}
+              <div className="flex justify-between items-center">
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Base</span>
+                <span className="font-black text-gray-500" style={{ ...FONT, fontSize: 15 }}>
+                  {rawPts > 0 ? `+${rawPts}` : rawPts}
                 </span>
-                <span className="text-gray-800 font-black">{b.pts > 0 ? `+${b.pts}` : b.pts}</span>
               </div>
-            )}
-          </div>
-        )}
+              {/* Multiplier row */}
+              {mc && multX > 1 && (
+                <div className="flex justify-between items-center">
+                  <span
+                    className="rounded-md font-black"
+                    style={{ ...FONT, fontSize: 13, background: mc.bg, color: mc.text, padding: '2px 8px', letterSpacing: '0.06em' }}
+                  >
+                    ×{appliedX} {mc.label}
+                  </span>
+                  <span className={`font-black ${b.pts >= 0 ? 'text-gray-900' : 'text-red-500'}`}
+                    style={{ ...FONT, fontSize: 17 }}>
+                    {b.pts > 0 ? `+${b.pts}` : b.pts}
+                  </span>
+                </div>
+              )}
+            </div>
+          );
+        })()}
       </div>
 
       {/* ══ RIGHT ~16%: colored vertical score strip ══ */}
