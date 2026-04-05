@@ -737,14 +737,23 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
 
     const wasAlreadyComplete = (state.matches[matchId] ?? emptyMatch(matchId)).isComplete;
 
-    updateMatch(matchId, m => ({
-      ...m,
-      isComplete: true,
-      actualWinner,
-      winner,
-      lads: { ...m.lads, picks: ladsPicks, stats: [], results: ladsResults, total: ladsTotal, predictedWinner: ladsPrediction as TeamName || null, allInUsed: ladsAllin },
-      gils: { ...m.gils, picks: gilsPicks, stats: [], results: gilsResults, total: gilsTotal, predictedWinner: gilsPrediction as TeamName || null, allInUsed: gilsAllin },
-    }));
+    updateMatch(matchId, m => {
+      // Preserve manually-set MOM flags — if CDN MOM is unavailable, don't wipe user's star clicks
+      const ladsMomSet = new Set(m.lads.results.filter(r => r.isMOM).map(r => r.playerName));
+      const gilsMomSet = new Set(m.gils.results.filter(r => r.isMOM).map(r => r.playerName));
+      const ladsResultsFinal = ladsResults.map(r => ({ ...r, isMOM: ladsMomSet.has(r.playerName) || r.isMOM }));
+      const gilsResultsFinal = gilsResults.map(r => ({ ...r, isMOM: gilsMomSet.has(r.playerName) || r.isMOM }));
+      const ladsMomBonus = ladsResultsFinal.filter(r => r.isMOM).length * 10;
+      const gilsMomBonus = gilsResultsFinal.filter(r => r.isMOM).length * 10;
+      return {
+        ...m,
+        isComplete: true,
+        actualWinner,
+        winner,
+        lads: { ...m.lads, picks: ladsPicks, stats: [], results: ladsResultsFinal, total: ladsTotal + ladsMomBonus, predictedWinner: ladsPrediction as TeamName || null, allInUsed: ladsAllin },
+        gils: { ...m.gils, picks: gilsPicks, stats: [], results: gilsResultsFinal, total: gilsTotal + gilsMomBonus, predictedWinner: gilsPrediction as TeamName || null, allInUsed: gilsAllin },
+      };
+    });
 
     if (!wasAlreadyComplete) switchTab('result');
   }, [liveData, ladsPicks, gilsPicks, ladsPrediction, gilsPrediction, matchId, updateMatch, state.matches]);
