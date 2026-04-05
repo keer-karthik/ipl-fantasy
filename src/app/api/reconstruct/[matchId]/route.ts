@@ -106,6 +106,29 @@ export async function GET(
     espnData.playingEleven,
   );
 
+  // ── Snap final point to stored totals (includes winner prediction + MOM) ─────
+  // The reconstruction algorithm computes batting/bowling/fielding only.
+  // Winner prediction (+50 × multiplier) and MOM (+10) are added by finaliseFromLive()
+  // and stored in matchEntry.lads.total / matchEntry.gils.total.
+  // For completed matches, replace the last chart point with the authoritative totals
+  // so the chart endpoint matches the side-panel headline.
+  const storedLadsTotal = matchEntry?.lads?.total as number | undefined;
+  const storedGilsTotal = matchEntry?.gils?.total as number | undefined;
+  // storedLadsTotal/storedGilsTotal are only set by finaliseFromLive(), which requires
+  // isComplete — so their presence already implies the match is finished.
+  if (
+    reconstructed.length > 0 &&
+    storedLadsTotal != null &&
+    storedGilsTotal != null
+  ) {
+    const last = reconstructed[reconstructed.length - 1];
+    reconstructed[reconstructed.length - 1] = {
+      ...last,
+      lads: storedLadsTotal,
+      gils: storedGilsTotal,
+    };
+  }
+
   // ── Store reconstruction directly — no merge with stale Supabase data ────────
   // This endpoint is called on-demand (mount + manual Regenerate). It always uses
   // the freshly computed reconstruction as the authoritative result. Merging with
