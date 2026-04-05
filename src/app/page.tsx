@@ -504,64 +504,79 @@ export default function Dashboard() {
 
       {/* ══ Prize race ══ */}
       {(() => {
-        const rows = [
+        const tiles = [
           {
-            label: 'Orange Cap', pts: 350, color: '#ea580c',
+            label: 'Orange Cap', abbrev: 'OC', pts: 350, color: '#ea580c',
             ladsVal: `${lads.totalSeasonRuns}r`, gilsVal: `${gils.totalSeasonRuns}r`,
-            leader: lads.totalSeasonRuns > gils.totalSeasonRuns ? 'lads' : gils.totalSeasonRuns > lads.totalSeasonRuns ? 'gils' : 'tied' as const,
+            ladsScore: lads.totalSeasonRuns, gilsScore: gils.totalSeasonRuns,
           },
           {
-            label: 'Purple Cap', pts: 350, color: '#7c3aed',
+            label: 'Purple Cap', abbrev: 'PC', pts: 350, color: '#7c3aed',
             ladsVal: `${lads.totalSeasonWickets}w`, gilsVal: `${gils.totalSeasonWickets}w`,
-            leader: lads.totalSeasonWickets > gils.totalSeasonWickets ? 'lads' : gils.totalSeasonWickets > lads.totalSeasonWickets ? 'gils' : 'tied' as const,
+            ladsScore: lads.totalSeasonWickets, gilsScore: gils.totalSeasonWickets,
           },
           {
-            label: 'Longest Streak', pts: 350, color: NAVY,
+            label: 'Longest Streak', abbrev: 'STK', pts: 350, color: NAVY,
             ladsVal: `${lads.longestStreak}W`, gilsVal: `${gils.longestStreak}W`,
-            leader: lads.longestStreak > gils.longestStreak ? 'lads' : gils.longestStreak > lads.longestStreak ? 'gils' : 'tied' as const,
+            ladsScore: lads.longestStreak, gilsScore: gils.longestStreak,
           },
           {
-            label: 'Purple Hits', pts: 350, color: '#6d28d9',
+            label: 'Purple Hits', abbrev: 'PH', pts: 350, color: '#6d28d9',
             ladsVal: String(lads.purpleHits), gilsVal: String(gils.purpleHits),
-            leader: lads.purpleHits > gils.purpleHits ? 'lads' : gils.purpleHits > lads.purpleHits ? 'gils' : 'tied' as const,
+            ladsScore: lads.purpleHits, gilsScore: gils.purpleHits,
           },
-        ];
+        ] as const;
 
         return (
           <section>
             <SectionHeader>End of Season Prize Race</SectionHeader>
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-              {rows.map((row, i) => (
-                <div key={row.label} className={`flex items-center px-4 py-3 gap-3 ${i > 0 ? 'border-t border-gray-50' : ''}`}>
-                  {/* Prize name */}
-                  <div className="w-32 shrink-0">
-                    <div className="text-[12px] font-bold" style={{ color: row.color }}>{row.label}</div>
-                    <div className="text-[10px] text-gray-400">+{row.pts} pts</div>
+            <div className="grid grid-cols-2 gap-3">
+              {tiles.map(t => {
+                const leader = t.ladsScore > t.gilsScore ? 'lads' : t.gilsScore > t.ladsScore ? 'gils' : 'tied';
+                const total = t.ladsScore + t.gilsScore;
+                const ladsPct = total > 0 ? (t.ladsScore / total) * 100 : 50;
+                return (
+                  <div key={t.label} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-col gap-3">
+                    {/* Header */}
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <div className="text-[13px] font-black" style={{
+                          color: t.color,
+                          fontFamily: 'var(--font-barlow-condensed), system-ui, sans-serif',
+                          letterSpacing: '0.08em',
+                        }}>{t.abbrev}</div>
+                        <div className="text-[10px] text-gray-400 font-medium leading-tight">{t.label}</div>
+                        <div className="text-[9px] text-gray-300 mt-0.5">+{t.pts} pts</div>
+                      </div>
+                      {leader === 'tied'
+                        ? <span className="text-[9px] font-semibold text-gray-300 border border-gray-100 px-1.5 py-0.5 rounded-full">Tied</span>
+                        : <span className="text-[9px] font-bold text-white px-2 py-0.5 rounded-full"
+                            style={{ background: leader === 'lads' ? LADS : GILS }}>
+                            {leader === 'lads' ? 'Lads' : 'Gils'}
+                          </span>
+                      }
+                    </div>
+                    {/* Stats */}
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-semibold text-gray-400">Lads</span>
+                        <span className="text-[15px] font-black tabular-nums leading-none"
+                          style={{ color: leader === 'lads' ? LADS : '#d1d5db' }}>{t.ladsVal}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-semibold text-gray-400">Gils</span>
+                        <span className="text-[15px] font-black tabular-nums leading-none"
+                          style={{ color: leader === 'gils' ? GILS : '#d1d5db' }}>{t.gilsVal}</span>
+                      </div>
+                    </div>
+                    {/* Progress bar */}
+                    <div className="h-1 rounded-full overflow-hidden flex" style={{ background: '#f3f4f6' }}>
+                      <div style={{ width: `${ladsPct}%`, background: LADS, transition: 'width 0.6s ease' }} />
+                      <div style={{ flex: 1, background: GILS }} />
+                    </div>
                   </div>
-                  {/* Lads vs Gils values */}
-                  <div className="flex-1 flex items-center justify-center gap-2 min-w-0">
-                    <span className={`text-[12px] font-bold tabular-nums text-right flex-1 truncate ${row.leader === 'lads' ? '' : 'text-gray-400'}`}
-                      style={row.leader === 'lads' ? { color: LADS } : {}}>
-                      {row.ladsVal}
-                    </span>
-                    <span className="text-[9px] text-gray-300 font-bold shrink-0">vs</span>
-                    <span className={`text-[12px] font-bold tabular-nums text-left flex-1 truncate ${row.leader === 'gils' ? '' : 'text-gray-400'}`}
-                      style={row.leader === 'gils' ? { color: GILS } : {}}>
-                      {row.gilsVal}
-                    </span>
-                  </div>
-                  {/* Leader badge */}
-                  <div className="shrink-0 w-12 flex justify-end">
-                    {row.leader === 'tied'
-                      ? <span className="text-[10px] font-semibold text-gray-300">—</span>
-                      : <span className="text-[10px] font-bold text-white px-2 py-0.5 rounded-full"
-                          style={{ background: row.leader === 'lads' ? LADS : GILS }}>
-                          {row.leader === 'lads' ? 'Lads' : 'Gils'}
-                        </span>
-                    }
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </section>
         );
