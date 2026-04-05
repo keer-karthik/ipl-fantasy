@@ -40,11 +40,11 @@ function SectionHeader({ children, live }: { children: React.ReactNode; live?: b
 
 // ─── Prize tile ───────────────────────────────────────────────────────────────
 function PrizeTile({
-  abbrev, label, pts, color,
+  abbrev, label, pts, color, filled,
   ladsVal, gilsVal, ladsScore, gilsScore,
   ladsDetail, gilsDetail,
 }: {
-  abbrev: string; label: string; pts: number; color: string;
+  abbrev: string; label: string; pts: number; color: string; filled?: boolean;
   ladsVal: string; gilsVal: string; ladsScore: number; gilsScore: number;
   ladsDetail?: string; gilsDetail?: string;
 }) {
@@ -52,63 +52,122 @@ function PrizeTile({
   const total = ladsScore + gilsScore;
   const ladsPct = total > 0 ? (ladsScore / total) * 100 : 50;
 
+  if (filled) {
+    // Coloured-background variant (OC = orange, PC = purple)
+    const leaderBg = 'rgba(255,255,255,0.22)';
+    const leaderText = '#fff';
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+        className="rounded-2xl overflow-hidden w-full"
+        style={{ background: color, boxShadow: `0 4px 24px ${color}60` }}>
+        <div className="p-5">
+          {/* Header */}
+          <div className="flex items-start justify-between mb-4">
+            <div>
+              <div style={{
+                fontFamily: 'var(--font-barlow-condensed), system-ui, sans-serif',
+                fontSize: 26, fontWeight: 900, color: '#fff', letterSpacing: '0.1em', lineHeight: 1,
+              }}>{abbrev}</div>
+              <div className="text-[12px] font-semibold mt-0.5" style={{ color: 'rgba(255,255,255,0.7)' }}>{label}</div>
+            </div>
+            {leader === 'tied'
+              ? <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                  style={{ background: 'rgba(255,255,255,0.2)', color: 'rgba(255,255,255,0.7)' }}>Tied</span>
+              : <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full"
+                  style={{ background: leaderBg, color: leaderText }}>
+                  {leader === 'lads' ? 'Lads ↑' : 'Gils ↑'}
+                </span>
+            }
+          </div>
+
+          {/* Lads */}
+          <div className="mb-3">
+            <div className="text-[9px] font-black uppercase tracking-[0.18em] mb-0.5"
+              style={{ color: 'rgba(255,255,255,0.5)' }}>Lads</div>
+            <div style={{
+              fontFamily: 'var(--font-barlow-condensed), system-ui, sans-serif',
+              fontSize: 40, fontWeight: 900, lineHeight: 1,
+              color: leader === 'lads' ? '#fff' : 'rgba(255,255,255,0.3)',
+            }}>{ladsVal}</div>
+            {ladsDetail && <div className="text-[10px] mt-0.5 truncate" style={{ color: 'rgba(255,255,255,0.45)' }}>{ladsDetail}</div>}
+          </div>
+
+          {/* Gils */}
+          <div className="mb-5">
+            <div className="text-[9px] font-black uppercase tracking-[0.18em] mb-0.5"
+              style={{ color: 'rgba(255,255,255,0.5)' }}>Gils</div>
+            <div style={{
+              fontFamily: 'var(--font-barlow-condensed), system-ui, sans-serif',
+              fontSize: 40, fontWeight: 900, lineHeight: 1,
+              color: leader === 'gils' ? '#fff' : 'rgba(255,255,255,0.3)',
+            }}>{gilsVal}</div>
+            {gilsDetail && <div className="text-[10px] mt-0.5 truncate" style={{ color: 'rgba(255,255,255,0.45)' }}>{gilsDetail}</div>}
+          </div>
+
+          {/* Progress bar */}
+          <div className="rounded-full overflow-hidden flex" style={{ height: 6, background: 'rgba(255,255,255,0.15)' }}>
+            <div style={{ width: `${ladsPct}%`, background: 'rgba(255,255,255,0.8)', transition: 'width 0.8s ease' }} />
+            <div style={{ flex: 1, background: 'rgba(255,255,255,0.25)' }} />
+          </div>
+
+          <div className="mt-2.5 text-right">
+            <span className="text-[9px] font-bold" style={{ color: 'rgba(255,255,255,0.5)' }}>+{pts} pts</span>
+          </div>
+        </div>
+      </motion.div>
+    );
+  }
+
+  // Default white variant (STK, PH)
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-      className="bg-white rounded-2xl overflow-hidden"
+      className="bg-white rounded-2xl overflow-hidden w-full"
       style={{ border: `1px solid ${color}22`, boxShadow: `0 2px 16px ${color}10` }}>
-      {/* Accent bar */}
       <div style={{ height: 3, background: color }} />
-      <div className="p-4">
-        {/* Header row */}
-        <div className="flex items-start justify-between mb-3">
+      <div className="p-5">
+        <div className="flex items-start justify-between mb-4">
           <div>
             <div style={{
               fontFamily: 'var(--font-barlow-condensed), system-ui, sans-serif',
-              fontSize: 20, fontWeight: 900, color, letterSpacing: '0.1em', lineHeight: 1,
+              fontSize: 26, fontWeight: 900, color, letterSpacing: '0.1em', lineHeight: 1,
             }}>{abbrev}</div>
-            <div className="text-[11px] font-semibold text-gray-500 mt-0.5">{label}</div>
+            <div className="text-[12px] font-semibold text-gray-500 mt-0.5">{label}</div>
           </div>
           {leader === 'tied'
-            ? <span className="text-[9px] font-semibold text-gray-300 border border-gray-100 px-1.5 py-0.5 rounded-full mt-0.5">Tied</span>
-            : <span className="text-[9px] font-bold text-white px-2 py-0.5 rounded-full mt-0.5"
+            ? <span className="text-[10px] font-semibold text-gray-300 border border-gray-100 px-2 py-0.5 rounded-full">Tied</span>
+            : <span className="text-[10px] font-bold text-white px-2.5 py-0.5 rounded-full"
                 style={{ background: leader === 'lads' ? LADS : GILS }}>
                 {leader === 'lads' ? 'Lads' : 'Gils'}
               </span>
           }
         </div>
 
-        {/* Lads */}
         <div className="mb-3">
           <div className="text-[9px] font-black uppercase tracking-[0.15em] mb-0.5" style={{ color: `${LADS}99` }}>Lads</div>
           <div style={{
             fontFamily: 'var(--font-barlow-condensed), system-ui, sans-serif',
-            fontSize: 32, fontWeight: 900, lineHeight: 1,
+            fontSize: 40, fontWeight: 900, lineHeight: 1,
             color: leader === 'lads' ? LADS : '#e5e7eb',
-            transition: 'color 0.3s',
           }}>{ladsVal}</div>
-          {ladsDetail && <div className="text-[9px] text-gray-400 mt-0.5 truncate">{ladsDetail}</div>}
+          {ladsDetail && <div className="text-[10px] text-gray-400 mt-0.5 truncate">{ladsDetail}</div>}
         </div>
 
-        {/* Gils */}
-        <div className="mb-4">
+        <div className="mb-5">
           <div className="text-[9px] font-black uppercase tracking-[0.15em] mb-0.5" style={{ color: `${GILS}99` }}>Gils</div>
           <div style={{
             fontFamily: 'var(--font-barlow-condensed), system-ui, sans-serif',
-            fontSize: 32, fontWeight: 900, lineHeight: 1,
+            fontSize: 40, fontWeight: 900, lineHeight: 1,
             color: leader === 'gils' ? GILS : '#e5e7eb',
-            transition: 'color 0.3s',
           }}>{gilsVal}</div>
-          {gilsDetail && <div className="text-[9px] text-gray-400 mt-0.5 truncate">{gilsDetail}</div>}
+          {gilsDetail && <div className="text-[10px] text-gray-400 mt-0.5 truncate">{gilsDetail}</div>}
         </div>
 
-        {/* Progress bar */}
         <div className="h-1.5 rounded-full overflow-hidden flex">
           <div style={{ width: `${ladsPct}%`, background: LADS, transition: 'width 0.8s ease' }} />
           <div style={{ flex: 1, background: `${GILS}60` }} />
         </div>
-
-        {/* Prize value */}
         <div className="mt-2 text-right">
           <span className="text-[9px] font-bold" style={{ color: 'var(--ipl-orange)' }}>+{pts} pts</span>
         </div>
@@ -276,14 +335,14 @@ export default function Dashboard() {
 
   // Prize tile data
   const ocTile = {
-    abbrev: 'OC', label: 'Orange Cap', pts: 350, color: '#ea580c',
+    abbrev: 'OC', label: 'Orange Cap', pts: 350, color: '#ea580c', filled: true,
     ladsVal: `${lads.totalSeasonRuns}r`, gilsVal: `${gils.totalSeasonRuns}r`,
     ladsScore: lads.totalSeasonRuns, gilsScore: gils.totalSeasonRuns,
     ladsDetail: lads.orangeCapRuns ? `Top: ${lads.orangeCapRuns.player} ${lads.orangeCapRuns.runs}r` : undefined,
     gilsDetail: gils.orangeCapRuns ? `Top: ${gils.orangeCapRuns.player} ${gils.orangeCapRuns.runs}r` : undefined,
   };
   const pcTile = {
-    abbrev: 'PC', label: 'Purple Cap', pts: 350, color: '#7c3aed',
+    abbrev: 'PC', label: 'Purple Cap', pts: 350, color: '#7c3aed', filled: true,
     ladsVal: `${lads.totalSeasonWickets}w`, gilsVal: `${gils.totalSeasonWickets}w`,
     ladsScore: lads.totalSeasonWickets, gilsScore: gils.totalSeasonWickets,
     ladsDetail: lads.purpleCapWickets ? `Top: ${lads.purpleCapWickets.player} ${lads.purpleCapWickets.wickets}w` : undefined,
@@ -468,23 +527,15 @@ export default function Dashboard() {
       </div>
 
       {/* ══ Fixed prize sidebars — 2xl (1536px+) — same technique as match page SidePanels ══ */}
-      <div className="fixed left-0 bottom-0 hidden 2xl:flex flex-col gap-4 items-end overflow-y-auto p-3"
+      <div className="fixed left-0 bottom-0 hidden 2xl:flex flex-col gap-4 overflow-y-auto p-4"
         style={{ top: '56px', width: 'calc((100vw - 1024px) / 2)', zIndex: 10 }}>
-        <div style={{ width: '100%', maxWidth: 256 }}>
-          <PrizeTile {...ocTile} />
-        </div>
-        <div style={{ width: '100%', maxWidth: 256 }}>
-          <PrizeTile {...stkTile} />
-        </div>
+        <PrizeTile {...ocTile} />
+        <PrizeTile {...stkTile} />
       </div>
-      <div className="fixed right-0 bottom-0 hidden 2xl:flex flex-col gap-4 items-start overflow-y-auto p-3"
+      <div className="fixed right-0 bottom-0 hidden 2xl:flex flex-col gap-4 overflow-y-auto p-4"
         style={{ top: '56px', width: 'calc((100vw - 1024px) / 2)', zIndex: 10 }}>
-        <div style={{ width: '100%', maxWidth: 256 }}>
-          <PrizeTile {...pcTile} />
-        </div>
-        <div style={{ width: '100%', maxWidth: 256 }}>
-          <PrizeTile {...phTile} />
-        </div>
+        <PrizeTile {...pcTile} />
+        <PrizeTile {...phTile} />
       </div>
 
     </div>
