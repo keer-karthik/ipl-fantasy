@@ -275,7 +275,7 @@ function PlayerTradingCard({ b, isLads }: { b: BreakdownItem; isLads: boolean })
   // ── Display mode: auto-select based on total row count ──
   const totalRows = batLines.length + bowlLines.length + (b.fieldPts !== 0 ? 1 : 0);
   const displayMode: 'full' | 'chips' | 'compact' =
-    totalRows <= 5 ? 'full' : totalRows <= 8 ? 'chips' : 'compact';
+    totalRows <= 7 ? 'full' : totalRows <= 10 ? 'chips' : 'compact';
 
   // Shorten labels for chips mode
   function chipLabel(label: string): string {
@@ -299,7 +299,7 @@ function PlayerTradingCard({ b, isLads }: { b: BreakdownItem; isLads: boolean })
 
   // Line item renderer — full mode
   const LedgerRow = ({ label, pts }: { label: string; pts: number }) => (
-    <div className="flex justify-between items-baseline" style={{ ...FONT, fontSize: 14, fontWeight: 600 }}>
+    <div className="flex justify-between items-baseline" style={{ ...FONT, fontSize: 16, fontWeight: 600 }}>
       <span className="text-gray-500 truncate pr-1">{label}</span>
       <span className={`shrink-0 font-black ${ptsCol(pts)}`}>{ptsFmt(pts)}</span>
     </div>
@@ -308,8 +308,8 @@ function PlayerTradingCard({ b, isLads }: { b: BreakdownItem; isLads: boolean })
   // Section header shared across modes
   const SectionHead = ({ title, figures }: { title: string; figures?: string }) => (
     <div className="flex items-baseline gap-1.5 mb-0.5">
-      <span className="text-black font-black uppercase tracking-widest" style={{ ...FONT, fontSize: 13 }}>{title}</span>
-      {figures && <span className="text-gray-400 font-semibold" style={{ fontSize: 12 }}>{figures}</span>}
+      <span className="text-black font-black uppercase tracking-widest" style={{ ...FONT, fontSize: 15 }}>{title}</span>
+      {figures && <span className="text-gray-400 font-semibold" style={{ fontSize: 13 }}>{figures}</span>}
     </div>
   );
 
@@ -407,7 +407,7 @@ function PlayerTradingCard({ b, isLads }: { b: BreakdownItem; isLads: boolean })
             <SectionHead title="BAT" figures={batFigs} />
             <div className="flex flex-wrap gap-x-2 gap-y-0.5">
               {(batLines.length > 0 ? batLines : [{ label: 'batting', pts: b.batPts }]).map((ln, i) => (
-                <span key={i} style={{ fontSize: 11 }}>
+                <span key={i} style={{ fontSize: 13 }}>
                   <span className="text-gray-400">{chipLabel(ln.label)}</span>{' '}
                   <span className={`font-black ${ptsCol(ln.pts)}`}>{ptsFmt(ln.pts)}</span>
                 </span>
@@ -420,7 +420,7 @@ function PlayerTradingCard({ b, isLads }: { b: BreakdownItem; isLads: boolean })
             <SectionHead title="BOWL" figures={bowlFigs} />
             <div className="flex flex-wrap gap-x-2 gap-y-0.5">
               {(bowlLines.length > 0 ? bowlLines : [{ label: 'bowling', pts: b.bowlPts }]).map((ln, i) => (
-                <span key={i} style={{ fontSize: 11 }}>
+                <span key={i} style={{ fontSize: 13 }}>
                   <span className="text-gray-400">{chipLabel(ln.label)}</span>{' '}
                   <span className={`font-black ${ptsCol(ln.pts)}`}>{ptsFmt(ln.pts)}</span>
                 </span>
@@ -431,32 +431,32 @@ function PlayerTradingCard({ b, isLads }: { b: BreakdownItem; isLads: boolean })
         {displayMode === 'chips' && b.fieldPts !== 0 && (
           <div className={`mb-1 ${(b.batPts !== 0 || b.bowlPts !== 0) ? 'pt-1 border-t border-gray-100' : ''}`}>
             <SectionHead title="FIELD" />
-            <span style={{ fontSize: 11 }}>
+            <span style={{ fontSize: 13 }}>
               <span className="text-gray-400">{b.fieldPts / 10}×catch</span>{' '}
               <span className={`font-black ${ptsCol(b.fieldPts)}`}>{ptsFmt(b.fieldPts)}</span>
             </span>
           </div>
         )}
 
-        {/* ── COMPACT mode (9+ rows): one-line per discipline, figures + total only ── */}
+        {/* ── COMPACT mode (10+ rows): one-line per discipline, figures + total only ── */}
         {displayMode === 'compact' && b.batPts !== 0 && (
-          <div className="flex justify-between items-baseline mb-0.5" style={{ ...FONT, fontSize: 12 }}>
-            <span className="text-black font-black uppercase tracking-widest" style={{ fontSize: 11 }}>BAT</span>
-            {batFigs && <span className="text-gray-400 mx-1 truncate flex-1" style={{ fontSize: 10 }}>{batFigs}</span>}
+          <div className="flex justify-between items-baseline mb-0.5" style={{ ...FONT, fontSize: 15 }}>
+            <span className="text-black font-black uppercase tracking-widest" style={{ fontSize: 14 }}>BAT</span>
+            {batFigs && <span className="text-gray-400 mx-1 truncate flex-1" style={{ fontSize: 12 }}>{batFigs}</span>}
             <span className={`font-black shrink-0 ${ptsCol(b.batPts)}`}>{ptsFmt(b.batPts)}</span>
           </div>
         )}
         {displayMode === 'compact' && b.bowlPts !== 0 && (
-          <div className={`flex justify-between items-baseline mb-0.5 ${b.batPts !== 0 ? 'pt-0.5 border-t border-gray-100' : ''}`} style={{ ...FONT, fontSize: 12 }}>
-            <span className="text-black font-black uppercase tracking-widest" style={{ fontSize: 11 }}>BOWL</span>
-            {bowlFigs && <span className="text-gray-400 mx-1 truncate flex-1" style={{ fontSize: 10 }}>{bowlFigs}</span>}
+          <div className={`flex justify-between items-baseline mb-0.5 ${b.batPts !== 0 ? 'pt-0.5 border-t border-gray-100' : ''}`} style={{ ...FONT, fontSize: 15 }}>
+            <span className="text-black font-black uppercase tracking-widest" style={{ fontSize: 14 }}>BOWL</span>
+            {bowlFigs && <span className="text-gray-400 mx-1 truncate flex-1" style={{ fontSize: 12 }}>{bowlFigs}</span>}
             <span className={`font-black shrink-0 ${ptsCol(b.bowlPts)}`}>{ptsFmt(b.bowlPts)}</span>
           </div>
         )}
         {displayMode === 'compact' && b.fieldPts !== 0 && (
-          <div className={`flex justify-between items-baseline mb-0.5 ${(b.batPts !== 0 || b.bowlPts !== 0) ? 'pt-0.5 border-t border-gray-100' : ''}`} style={{ ...FONT, fontSize: 12 }}>
-            <span className="text-black font-black uppercase tracking-widest" style={{ fontSize: 11 }}>FIELD</span>
-            <span className="text-gray-400 mx-1 flex-1" style={{ fontSize: 10 }}>{b.fieldPts / 10} catch{b.fieldPts / 10 !== 1 ? 'es' : ''}</span>
+          <div className={`flex justify-between items-baseline mb-0.5 ${(b.batPts !== 0 || b.bowlPts !== 0) ? 'pt-0.5 border-t border-gray-100' : ''}`} style={{ ...FONT, fontSize: 15 }}>
+            <span className="text-black font-black uppercase tracking-widest" style={{ fontSize: 14 }}>FIELD</span>
+            <span className="text-gray-400 mx-1 flex-1" style={{ fontSize: 12 }}>{b.fieldPts / 10} catch{b.fieldPts / 10 !== 1 ? 'es' : ''}</span>
             <span className={`font-black shrink-0 ${ptsCol(b.fieldPts)}`}>{ptsFmt(b.fieldPts)}</span>
           </div>
         )}
@@ -476,8 +476,8 @@ function PlayerTradingCard({ b, isLads }: { b: BreakdownItem; isLads: boolean })
             <div className="mt-auto pt-1.5 border-t border-gray-200 space-y-1">
               {/* Base row */}
               <div className="flex justify-between items-center">
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Base</span>
-                <span className="font-black text-gray-500" style={{ ...FONT, fontSize: 15 }}>
+                <span className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Base</span>
+                <span className="font-black text-gray-500" style={{ ...FONT, fontSize: 17 }}>
                   {rawPts > 0 ? `+${rawPts}` : rawPts}
                 </span>
               </div>
@@ -486,12 +486,12 @@ function PlayerTradingCard({ b, isLads }: { b: BreakdownItem; isLads: boolean })
                 <div className="flex justify-between items-center">
                   <span
                     className="rounded-md font-black"
-                    style={{ ...FONT, fontSize: 13, background: mc.bg, color: mc.text, padding: '2px 8px', letterSpacing: '0.06em' }}
+                    style={{ ...FONT, fontSize: 14, background: mc.bg, color: mc.text, padding: '2px 8px', letterSpacing: '0.06em' }}
                   >
                     ×{appliedX} {mc.label}
                   </span>
                   <span className={`font-black ${b.pts >= 0 ? 'text-gray-900' : 'text-red-500'}`}
-                    style={{ ...FONT, fontSize: 17 }}>
+                    style={{ ...FONT, fontSize: 19 }}>
                     {b.pts > 0 ? `+${b.pts}` : b.pts}
                   </span>
                 </div>
