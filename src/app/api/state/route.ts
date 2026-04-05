@@ -8,6 +8,10 @@ import type { SeasonState } from '@/lib/types';
 const EMPTY_STATE: SeasonState = { matches: {}, ladsAllInUsed: 0, gilsAllInUsed: 0 };
 
 async function getVerifiedUser() {
+  // In local dev, bypass auth and default to lads
+  if (process.env.NODE_ENV === 'development') {
+    return { user: { email: process.env.LADS_EMAIL ?? 'dev@localhost' }, side: 'lads' as const };
+  }
   const supabase = await createClient();
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user?.email) return null;

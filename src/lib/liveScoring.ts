@@ -98,9 +98,10 @@ export function calcLiveBatsmen(
     const sr = balls > 0 ? (runs / balls) * 100 : 0;
     const battingPos = parseInt(p.battingPosition ?? '0') || (i + 1);
 
-    // Live scoring: don't apply failure penalty while batter is still in —
+    // Live scoring: don't apply failure penalty while a top-order batter is still in —
     // they may still build a score. Penalty locks in only on dismissal.
-    const fantasyPoints = (!isOut && runs <= 10)
+    // Lower-order (pos 7+) have no penalty, so always compute their points.
+    const fantasyPoints = (!isOut && runs <= 10 && battingPos < 7)
       ? 0
       : calcBattingPoints(runs, balls, isOut, battingPos);
     const pick = findPick(p.playerName, picks);
@@ -321,8 +322,8 @@ export function autoResultFromLive(
     const isMOM = !!manOfTheMatch && nameMatches(activeName, manOfTheMatch);
     const momPoints = isMOM ? 10 : 0;
 
-    const battingPoints = calcBattingPoints(runs, balls, dismissed, battingPosition);
-    const bowlingPoints = calcBowlingPoints(wickets, overs, runsConceded, maidens);
+    const battingPoints = didBat ? calcBattingPoints(runs, balls, dismissed, battingPosition) : 0;
+    const bowlingPoints = didBowl ? calcBowlingPoints(wickets, overs, runsConceded, maidens) : 0;
     const rawTotal = battingPoints + bowlingPoints + fieldingPoints;
     const finalTotal = applyMultiplier(rawTotal, pick.multiplier);
 

@@ -221,8 +221,6 @@ function getBatBreakdown(s: NonNullable<BreakdownItem['batStats']>): BdLine[] {
 
   if (lowerOrder) {
     // Pos 7+: run points + SR bonus only, zero deductions.
-    // If batter is still in and runs ≤10 the live hold makes batPts=0 — show nothing.
-    if (!s.isOut && s.runs <= 10) return out;
     out.push({ label: `${s.runs} runs`, pts: s.runs });
     if (s.balls > 0) {
       const sr = (s.runs / s.balls) * 100;

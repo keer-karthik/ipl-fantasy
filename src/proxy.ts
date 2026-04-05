@@ -28,6 +28,11 @@ export async function proxy(request: NextRequest) {
     }
   );
 
+  // Skip auth in local development
+  if (process.env.NODE_ENV === 'development') {
+    return supabaseResponse;
+  }
+
   // Refresh the session (important — do not remove)
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -42,6 +47,13 @@ export async function proxy(request: NextRequest) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = '/login';
     return NextResponse.redirect(loginUrl);
+  }
+
+  // Redirect logged-in users away from /login to the dashboard
+  if (user && pathname.startsWith('/login')) {
+    const homeUrl = request.nextUrl.clone();
+    homeUrl.pathname = '/';
+    return NextResponse.redirect(homeUrl);
   }
 
   return supabaseResponse;
