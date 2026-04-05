@@ -259,7 +259,7 @@ function PlayerTradingCard({ b, isLads }: { b: BreakdownItem; isLads: boolean })
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2 }}
       className={`rounded-2xl overflow-hidden shadow-md bg-white ${topBorder} flex`}
-      style={{ flex: '0 0 auto', minHeight: 110, flexDirection: isLads ? 'row' : 'row-reverse' }}
+      style={{ flex: '1 1 0', minHeight: 0, flexDirection: isLads ? 'row' : 'row-reverse' }}
     >
       {/* ══ LEFT 38%: full-height photo ══ */}
       <div className="relative bg-gray-100 shrink-0 overflow-hidden" style={{ width: '38%' }}>
@@ -425,9 +425,9 @@ export function SidePanel({
     <div className={`flex-1 rounded-2xl border-2 ${borderColor} ${bgColor} flex flex-col overflow-hidden`}>
 
       {/* ── Header: label + total ── */}
-      <div className="px-5 pt-5 pb-4">
-        <div className={`uppercase ${accentText}`}
-          style={{ ...HEADER_FONT, fontSize: '22px', letterSpacing: '0.22em', marginBottom: '2px' }}>
+      <div className="px-4 pt-3 pb-2 flex items-baseline gap-3">
+        <div className={`uppercase ${accentText} shrink-0`}
+          style={{ ...HEADER_FONT, fontSize: '16px', letterSpacing: '0.22em' }}>
           {label}
         </div>
         <motion.div
@@ -435,18 +435,18 @@ export function SidePanel({
           initial={{ scale: 1.06, opacity: 0.6 }}
           animate={{ scale: 1, opacity: 1 }}
           className={`font-black leading-none ${textColor}`}
-          style={{ fontSize: 'clamp(3.5rem, 5vw, 6rem)' }}
+          style={{ fontSize: 'clamp(2rem, 3.5vw, 3.5rem)' }}
         >
           {total > 0 ? `+${total}` : total}
         </motion.div>
-        <div className="text-[13px] text-gray-400 mt-1 font-semibold tracking-widest uppercase"
+        <div className="text-[10px] text-gray-400 font-semibold tracking-widest uppercase self-end pb-0.5"
           style={{ fontFamily: 'var(--font-barlow-condensed), system-ui, sans-serif' }}>
-          pts this game
+          pts
         </div>
       </div>
 
       {/* ── Player cards — flex column so all 5 share available height equally ── */}
-      <div className={`flex-1 overflow-y-auto border-t ${dividerColor} px-3 py-3 flex flex-col gap-2`}>
+      <div className={`flex-1 overflow-hidden border-t ${dividerColor} px-3 py-2 flex flex-col gap-1.5`}>
         {breakdown.map(b => (
           <PlayerTradingCard key={b.name} b={b} isLads={isLads} />
         ))}
