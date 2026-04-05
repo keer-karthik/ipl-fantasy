@@ -194,12 +194,17 @@ function getBowlBreakdown(s: NonNullable<BreakdownItem['bowlStats']>): BdLine[] 
     const eco = s.runs / s.overs;
     if      (eco <= 4)  out.push({ label: `ECO ${eco.toFixed(2)} (≤4.00)`, pts: 80 });
     else if (eco <= 6)  out.push({ label: `ECO ${eco.toFixed(2)} (≤6.00)`, pts: 60 });
-    else if (eco <= 8)  out.push({ label: `ECO ${eco.toFixed(2)} (≤8.00)`, pts: 30 });
-    else if (eco >= 14) out.push({ label: `ECO ${eco.toFixed(2)} (≥14)`, pts: -40 });
-    else if (eco >= 12) out.push({ label: `ECO ${eco.toFixed(2)} (≥12)`, pts: -30 });
+    else if (eco <= 8)  out.push({ label: `ECO ${eco.toFixed(2)} (≤8.00)`, pts: 40 });
+    else if (eco <= 9)  out.push({ label: `ECO ${eco.toFixed(2)} (≤9.00)`, pts: 20 });
+    else if (eco >= 14) out.push({ label: `ECO ${eco.toFixed(2)} (≥14)`, pts: -60 });
+    else if (eco >= 12) out.push({ label: `ECO ${eco.toFixed(2)} (≥12)`, pts: -40 });
     else if (eco >= 10) out.push({ label: `ECO ${eco.toFixed(2)} (≥10)`, pts: -20 });
+    // Wicketless + bad economy extra penalty
+    if (s.wickets === 0) {
+      if      (eco > 12) out.push({ label: 'No wickets (eco >12)', pts: -20 });
+      else if (eco > 10) out.push({ label: 'No wickets (eco >10)', pts: -10 });
+    }
   }
-  if (s.wickets === 0 && s.overs >= 2) out.push({ label: 'No wickets', pts: -20 });
   if (s.wickets >= 5)      out.push({ label: '5-wkt haul bonus', pts: 35 });
   else if (s.wickets >= 3) out.push({ label: '3-wkt bonus', pts: 20 });
   return out;
