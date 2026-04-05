@@ -440,7 +440,7 @@ function ResultsDisplay({ match, matchId, updateMatch }: {
     updateMatch(matchId, m => {
       const isAlreadyMOM = m[clickedSide].results.some(r => r.playerName === playerName && r.isMOM);
       const clearAndSet = (results: PlayerResult[]) =>
-        results.map(r => ({ ...r, isMOM: !isAlreadyMOM && r.playerName === playerName }));
+        results.map(r => ({ ...r, isMOM: !isAlreadyMOM && r.playerName === playerName, momPoints: (!isAlreadyMOM && r.playerName === playerName) ? 10 : 0 }));
       return {
         ...m,
         lads: { ...m.lads, results: clearAndSet(m.lads.results) },
@@ -787,7 +787,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
     batPts: r.battingPoints,
     bowlPts: r.bowlingPoints,
     fieldPts: r.fieldingPoints,
-    momPts: r.momPoints,
+    momPts: r.isMOM ? 10 : 0,
     multiplier: r.multiplier,
     isSubstituted: false,
   })) : undefined;
@@ -798,7 +798,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
     batPts: r.battingPoints,
     bowlPts: r.bowlingPoints,
     fieldPts: r.fieldingPoints,
-    momPts: r.momPoints,
+    momPts: r.isMOM ? 10 : 0,
     multiplier: r.multiplier,
     isSubstituted: false,
   })) : undefined;
