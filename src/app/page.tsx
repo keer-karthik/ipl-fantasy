@@ -244,8 +244,16 @@ function MatchRow({ fixture, hasEntry, isComplete, ladsTotal, gilsTotal, winner,
         transition={{ duration: 0.15 }}
         className="rounded-xl border px-4 py-3 flex items-center gap-3 cursor-pointer transition-colors"
         style={{
-          background: today ? `${NAVY}08` : 'white',
-          borderColor: today ? `${NAVY}20` : '#f3f4f6',
+          background: isComplete && winner === 'lads'
+            ? `${LADS}0d`
+            : isComplete && winner === 'gils'
+            ? `${GILS}0d`
+            : today ? `${NAVY}08` : 'white',
+          borderColor: isComplete && winner === 'lads'
+            ? `${LADS}30`
+            : isComplete && winner === 'gils'
+            ? `${GILS}30`
+            : today ? `${NAVY}20` : '#f3f4f6',
         }}>
 
         {/* Match ID */}
