@@ -1,6 +1,13 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 
+export interface IplBall {
+  inn: number; over: number; ball: number; ballName: string;
+  batsman: string; bowler: string;
+  commentary: string; newCommentary: string;
+  runs: number; isFour: boolean; isSix: boolean; isWicket: boolean; isDot: boolean;
+}
+
 export interface LiveData {
   matchId: string;
   espnId: string;
@@ -18,6 +25,7 @@ export interface LiveData {
   actualWinner: string | null;
   manOfTheMatch: string | null;
   playerImageMap?: Record<string, string>;
+  iplt20Balls?: IplBall[];
 }
 
 export function useLiveScore(matchId: number, enabled = true) {

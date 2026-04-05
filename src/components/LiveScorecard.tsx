@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { calcLiveBatsmen, calcLiveBowlers, calcLiveFantasyTotal } from '@/lib/liveScoring';
 import { decodeSeq, seqToOverPos } from '@/lib/espnSeq';
 import type { PlayerPick, Multiplier } from '@/lib/types';
-import type { LiveData } from '@/hooks/useLiveScore';
+import type { LiveData, IplBall } from '@/hooks/useLiveScore';
 import { multiplierBadge } from '@/lib/scoring';
 import { iplImageUrl } from '@/lib/playerImage';
 
@@ -93,6 +93,56 @@ function formatOver(sequence?: number): string {
   const d = decodeSeq(sequence);
   if (!d) return '';
   return `${d.over}.${d.ball}`;
+}
+
+// ── IPLT20 ball-by-ball components ───────────────────────────────────────────
+
+// Ball circle for the OVER HEADER (small, inline)
+function HeaderBallDot({ b }: { b: IplBall }) {
+  if (b.isWicket) {
+    return (
+      <div className="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-black shrink-0 text-red-600 border-2 border-red-400 bg-red-50">W</div>
+    );
+  }
+  if (b.isSix) {
+    return (
+      <div className="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-black shrink-0 text-white bg-emerald-600">6</div>
+    );
+  }
+  if (b.isFour) {
+    return (
+      <div className="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-black shrink-0 text-white" style={{ background: 'var(--ipl-navy)' }}>4</div>
+    );
+  }
+  const label = String(b.runs);
+  return (
+    <div className="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 text-gray-500 border border-gray-300 bg-white">{label}</div>
+  );
+}
+
+// Ball circle for the BALL ROW LEFT column (slightly larger)
+function BallCircleLarge({ b }: { b: IplBall }) {
+  const label = b.isWicket ? 'W' : b.isSix ? '6' : b.isFour ? '4' : String(b.runs);
+  if (b.isWicket) return <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-black text-red-600 border-2 border-red-400 bg-red-50">{label}</div>;
+  if (b.isSix) return <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-black text-white bg-emerald-600">{label}</div>;
+  if (b.isFour) return <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-black text-white" style={{ background: 'var(--ipl-navy)' }}>{label}</div>;
+  return <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold text-gray-600 border-2 border-gray-200 bg-white">{label}</div>;
+}
+
+// Compute cumulative runs/wickets at the end of each over, keyed by "inn-overIndex"
+function computeOverScores(balls: IplBall[]): Map<string, { runs: number; wickets: number }> {
+  const scores = new Map<string, { runs: number; wickets: number }>();
+  for (const inn of [1, 2] as const) {
+    const innBalls = balls.filter(b => b.inn === inn).sort((a, b) => a.over * 10 + a.ball - (b.over * 10 + b.ball));
+    let runs = 0, wickets = 0;
+    for (let i = 0; i < innBalls.length; i++) {
+      runs += innBalls[i].runs;
+      if (innBalls[i].isWicket) wickets++;
+      const isLastOfOver = i === innBalls.length - 1 || innBalls[i + 1].over !== innBalls[i].over;
+      if (isLastOfOver) scores.set(`${inn}-${innBalls[i].over}`, { runs, wickets });
+    }
+  }
+  return scores;
 }
 
 // ─── Pick ownership dots ──────────────────────────────────────────────────────
@@ -1277,61 +1327,147 @@ export default function LiveScorecard({
             );
           })}
 
-          {/* Commentary — IPL style ball-by-ball */}
-          {commentaries.length > 0 && (
-            <div className="rounded-2xl bg-white border border-gray-200 overflow-hidden shadow-sm">
-              <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-2"
-                style={{ background: 'var(--ipl-navy)' }}>
-                <span className="text-white font-bold text-xs uppercase tracking-widest">Ball-by-Ball</span>
-              </div>
-              <div className="divide-y divide-gray-50">
-                {sortedOvers.map(([key, group]) => (
-                  <div key={key}>
-                    {/* Over header with ball summary */}
-                    {key >= 0 && (
-                      <div className="px-4 py-2 bg-gray-50 flex items-center gap-3">
-                        <span className="text-xs font-black text-gray-500 uppercase tracking-wide w-16">
-                          {group.innings === 2 ? 'Inn 2 · ' : ''}Ov {group.over}
-                        </span>
-                        <div className="flex gap-1">
-                          {[...group.balls].reverse().map((c, i) => (
-                            <BallCircle key={i} text={c.text} />
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    {/* Individual balls */}
-                    <div className="divide-y divide-gray-50">
-                      {group.balls.map((c, i) => {
-                        const over = formatOver(c.sequence);
-                        const t = c.text.toUpperCase();
-                        const isSix = t.includes(' SIX') || t.includes(', 6');
-                        const isFour = t.includes(' FOUR') || t.includes(', 4');
-                        const isWicket = t.includes(' W ') || t.includes('WICKET') || t.includes('LBW') ||
-                          t.includes('CAUGHT') || t.includes('BOWLED') || t.includes('STUMPED') || t.includes('RUN OUT');
-                        return (
-                          <div key={i} className={`flex items-start gap-3 px-4 py-2.5 ${
-                            isWicket ? 'bg-red-50' : isSix ? 'bg-green-50' : isFour ? 'bg-amber-50' : ''
-                          }`}>
-                            {over && (
-                              <span className="text-[11px] font-mono font-bold text-gray-400 w-8 shrink-0 pt-0.5">{over}</span>
-                            )}
-                            <BallCircle text={c.text} />
-                            <span className={`text-sm leading-snug ${
-                              isWicket ? 'text-red-700 font-semibold' :
-                              isSix ? 'text-green-700 font-semibold' :
-                              isFour ? 'text-amber-700 font-semibold' :
-                              'text-gray-600'
-                            }`}>{c.text}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
+          {/* Commentary — IPLT20 style ball-by-ball */}
+          {(() => {
+            const balls = liveData.iplt20Balls ?? [];
+            if (balls.length === 0 && commentaries.length === 0) return null;
+
+            // ── IPLT20 data available ────────────────────────────────────────
+            if (balls.length > 0) {
+              const overScores = computeOverScores(balls);
+
+              // Sort newest first, group by inn+over
+              const sorted = [...balls].sort((a, b) => {
+                if (a.inn !== b.inn) return b.inn - a.inn;
+                if (a.over !== b.over) return b.over - a.over;
+                return b.ball - a.ball;
+              });
+
+              type OvrGrp = { inn: number; over: number; balls: IplBall[] };
+              const groups: OvrGrp[] = [];
+              const grpMap = new Map<string, OvrGrp>();
+              for (const b of sorted) {
+                const key = `${b.inn}-${b.over}`;
+                if (!grpMap.has(key)) {
+                  const g: OvrGrp = { inn: b.inn, over: b.over, balls: [] };
+                  groups.push(g); grpMap.set(key, g);
+                }
+                grpMap.get(key)!.balls.push(b);
+              }
+
+              return (
+                <div className="rounded-2xl bg-white border border-gray-200 overflow-hidden shadow-sm">
+                  <div className="px-4 py-3 border-b border-gray-200 flex items-center gap-2" style={{ background: 'var(--ipl-navy)' }}>
+                    <span className="text-white font-bold text-xs uppercase tracking-widest">Ball-by-Ball</span>
                   </div>
-                ))}
+                  {groups.map(group => {
+                    const scoreKey = `${group.inn}-${group.over}`;
+                    const score = overScores.get(scoreKey);
+                    const chronoBalls = [...group.balls].sort((a, b) => a.ball - b.ball);
+                    return (
+                      <div key={scoreKey} className="border-b border-gray-100 last:border-0">
+                        {/* Over header */}
+                        <div className="flex items-center gap-3 px-4 py-2" style={{ background: '#e8ecf5' }}>
+                          <span className="text-[11px] font-black uppercase tracking-widest text-gray-500 shrink-0 w-16">
+                            {group.inn === 2 ? <span className="text-violet-500">Inn 2 · </span> : ''}Ov {group.over + 1}
+                          </span>
+                          <div className="flex gap-1 flex-1">
+                            {chronoBalls.map((b, i) => <HeaderBallDot key={i} b={b} />)}
+                          </div>
+                          {score && (
+                            <span className="text-xs font-black text-gray-600 tabular-nums shrink-0">{score.runs}/{score.wickets}</span>
+                          )}
+                        </div>
+                        {/* Balls — newest first */}
+                        {group.balls.map((b, i) => {
+                          const isSpecial = b.isFour || b.isSix || b.isWicket;
+                          const headline = isSpecial && b.newCommentary
+                            ? b.newCommentary
+                            : `${b.bowler} bowling to ${b.batsman}`;
+                          const rowBg = b.isWicket ? '#fff5f5' : b.isSix ? '#f0fdf4' : b.isFour ? '#fffbeb' : 'white';
+                          const headlineColor = b.isWicket ? '#b91c1c' : b.isSix ? '#15803d' : b.isFour ? '#92400e' : '#111827';
+                          return (
+                            <div key={i} className="flex items-stretch" style={{ background: rowBg }}>
+                              {/* Left: ball ref + circle */}
+                              <div className="w-14 shrink-0 flex flex-col items-center justify-start gap-1 pt-3 pb-3 border-r border-gray-100">
+                                <span className="text-[10px] font-mono text-gray-400 leading-none">{b.ballName}</span>
+                                <BallCircleLarge b={b} />
+                              </div>
+                              {/* Dashed connector */}
+                              <div className="flex flex-col items-center w-4 shrink-0">
+                                <div className="w-px flex-1 mt-4" style={{ borderLeft: '1px dashed #e5e7eb' }} />
+                              </div>
+                              {/* Content */}
+                              <div className="flex-1 px-3 py-3 min-w-0">
+                                <p className="text-sm font-bold leading-snug" style={{ color: headlineColor }}>{headline}</p>
+                                {b.commentary && (
+                                  <p className="text-[13px] text-gray-500 mt-1 leading-snug">{b.commentary}</p>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            }
+
+            // ── Fallback: ESPN commentary ────────────────────────────────────
+            return (
+              <div className="rounded-2xl bg-white border border-gray-200 overflow-hidden shadow-sm">
+                <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-2"
+                  style={{ background: 'var(--ipl-navy)' }}>
+                  <span className="text-white font-bold text-xs uppercase tracking-widest">Ball-by-Ball</span>
+                </div>
+                <div className="divide-y divide-gray-50">
+                  {sortedOvers.map(([key, group]) => (
+                    <div key={key}>
+                      {key >= 0 && (
+                        <div className="px-4 py-2 bg-gray-50 flex items-center gap-3">
+                          <span className="text-xs font-black text-gray-500 uppercase tracking-wide w-16">
+                            {group.innings === 2 ? 'Inn 2 · ' : ''}Ov {group.over}
+                          </span>
+                          <div className="flex gap-1">
+                            {[...group.balls].reverse().map((c, i) => (
+                              <BallCircle key={i} text={c.text} />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      <div className="divide-y divide-gray-50">
+                        {group.balls.map((c, i) => {
+                          const over = formatOver(c.sequence);
+                          const t = c.text.toUpperCase();
+                          const isSix = t.includes(' SIX') || t.includes(', 6');
+                          const isFour = t.includes(' FOUR') || t.includes(', 4');
+                          const isWicket = t.includes(' W ') || t.includes('WICKET') || t.includes('LBW') ||
+                            t.includes('CAUGHT') || t.includes('BOWLED') || t.includes('STUMPED') || t.includes('RUN OUT');
+                          return (
+                            <div key={i} className={`flex items-start gap-3 px-4 py-2.5 ${
+                              isWicket ? 'bg-red-50' : isSix ? 'bg-green-50' : isFour ? 'bg-amber-50' : ''
+                            }`}>
+                              {over && (
+                                <span className="text-[11px] font-mono font-bold text-gray-400 w-8 shrink-0 pt-0.5">{over}</span>
+                              )}
+                              <BallCircle text={c.text} />
+                              <span className={`text-sm leading-snug ${
+                                isWicket ? 'text-red-700 font-semibold' :
+                                isSix ? 'text-green-700 font-semibold' :
+                                isFour ? 'text-amber-700 font-semibold' :
+                                'text-gray-600'
+                              }`}>{c.text}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
         </div>
 
       {/* Legend */}

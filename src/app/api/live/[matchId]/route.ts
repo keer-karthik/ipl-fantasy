@@ -1,6 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server';
 import espnIds from '../../../../../data/espn_ids.json';
 
+// ── IPLT20 ball-by-ball types & helpers ──────────────────────────────────────
+export interface IplBall {
+  inn: number; over: number; ball: number; ballName: string;
+  batsman: string; bowler: string;
+  commentary: string; newCommentary: string;
+  runs: number; isFour: boolean; isSix: boolean; isWicket: boolean; isDot: boolean;
+}
+
+function stripRole(name: string): string {
+  return name.replace(/\s*\([^)]+\)\s*/g, '').trim();
+}
+
+function parseInnings(raw: unknown, inn: number): IplBall[] {
+  const key = `Innings${inn}`;
+  const history = ((raw as Record<string, Record<string, unknown>>)[key]?.OverHistory ?? []) as Array<Record<string, unknown>>;
+  return history.map(b => ({
+    inn,
+    over: parseInt(String(b.OverNo ?? 0)) || 0,
+    ball: parseInt(String(b.BallNo ?? 0)) || 0,
+    ballName: String(b.BallName ?? ''),
+    batsman: stripRole(String(b.BatsManName ?? '')),
+    bowler: stripRole(String(b.BowlerName ?? '')),
+    commentary: String(b.Commentry ?? ''),
+    newCommentary: String(b.NewCommentry ?? ''),
+    runs: parseInt(String(b.ActualRuns ?? 0)) || 0,
+    isFour: String(b.IsFour) === '1',
+    isSix: String(b.IsSix) === '1',
+    isWicket: String(b.IsWicket) === '1',
+    isDot: String(b.IsDotball) === '1',
+  }));
+}
+
 // Extract flat stat map from ESPN linescore categories
 function extractStats(linescores: Array<{ order: number; statistics?: { categories?: Array<{ stats?: Array<{ name: string; displayValue: string }> }> } }>): Record<string, string> | null {
   // Find the linescore entry with actual data (order > 0)
@@ -28,7 +60,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ mat
   const iplt20Url = `https://ipl-stats-sports-mechanic.s3.ap-south-1.amazonaws.com/ipl/feeds/${iplt20Id}-matchsummary.js`;
 
   try {
-    const [summaryRes, scoreboardRes, iplt20Res] = await Promise.all([
+    const [summaryRes, scoreboardRes, iplt20Res, inn1Res, inn2Res] = await Promise.all([
       fetch(`https://site.api.espn.com/apis/site/v2/sports/cricket/8048/summary?event=${espnId}`, {
         next: { revalidate: 0 },
       }),
@@ -36,6 +68,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ mat
         next: { revalidate: 0 },
       }),
       fetch(iplt20Url, { next: { revalidate: 0 } }).catch(() => null),
+      fetch(`https://ipl-stats-sports-mechanic.s3.ap-south-1.amazonaws.com/ipl/feeds/${iplt20Id}-Innings1.js`, { next: { revalidate: 0 } }).catch(() => null),
+      fetch(`https://ipl-stats-sports-mechanic.s3.ap-south-1.amazonaws.com/ipl/feeds/${iplt20Id}-Innings2.js`, { next: { revalidate: 0 } }).catch(() => null),
     ]);
 
     const summary = await summaryRes.json();
@@ -265,6 +299,11 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ mat
 
     const manOfTheMatch: string | null = iplt20MOM ?? espnMOM;
 
+    // ── IPLT20 ball-by-ball innings data ─────────────────────────────────────
+    const iplt20Balls: IplBall[] = [];
+    if (inn1Res?.ok) { try { iplt20Balls.push(...parseInnings(await inn1Res.json(), 1)); } catch { /* ignore */ } }
+    if (inn2Res?.ok) { try { iplt20Balls.push(...parseInnings(await inn2Res.json(), 2)); } catch { /* ignore */ } }
+
     // ── Commentary ────────────────────────────────────────────────────────────
     // commentaries is a dict keyed by ID, not an array
     const commDict: Record<string, { shortText?: string; sequence?: number }> = headerComp.commentaries ?? {};
@@ -293,6 +332,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ mat
       playerImageMap,
       actualWinner: (competitors as Array<{ winner?: boolean; team: { displayName: string } }>).find(c => c.winner)?.team?.displayName ?? null,
       manOfTheMatch,
+      iplt20Balls,
     });
   } catch (e) {
     return NextResponse.json({ error: 'Failed to fetch live data', detail: String(e) }, { status: 500 });
