@@ -524,18 +524,14 @@ function ResultsDisplay({ match, matchId, updateMatch }: {
                           className="hover:bg-gray-50/50 transition-colors cursor-pointer select-none"
                           onClick={() => setExpandedPlayer(prev => prev === expandKey ? null : expandKey)}>
                           <td className="px-3 py-3">
-                            <div className="flex items-center gap-1">
-                              <span className="text-gray-400 text-xs mr-0.5">{isExpanded ? '▾' : '▸'}</span>
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-gray-400 text-xs">{isExpanded ? '▾' : '▸'}</span>
+                              <span className={`text-xs px-1.5 py-0.5 rounded font-bold ${multiplierColor(r.multiplier)}`}>
+                                {multiplierBadge(r.multiplier)}
+                              </span>
                               <span className="font-semibold text-gray-800">{r.playerName}</span>
-                              {match.isComplete && (
-                                <button onClick={e => { e.stopPropagation(); handleSetMOM(side, r.playerName); }}
-                                  title="Set as Man of the Match"
-                                  className="text-amber-400 hover:text-amber-500 transition-colors leading-none text-base">
-                                  {r.isMOM ? '★' : '☆'}
-                                </button>
-                              )}
                             </div>
-                            <div className="flex gap-2 text-xs text-gray-400 mt-0.5">
+                            <div className="flex gap-2 text-xs text-gray-400 mt-0.5 ml-5">
                               {r.didBat && <span>{r.runs}r · {r.balls}b</span>}
                               {r.didBowl && <span>{r.wickets}w · {r.overs}ov</span>}
                               {!r.didBat && !r.didBowl && <span>DNP</span>}
@@ -558,13 +554,24 @@ function ResultsDisplay({ match, matchId, updateMatch }: {
                           }`}>
                             {pts(r.fieldingPoints)}
                           </td>
+                          <td className="text-center px-2 py-3">
+                            {match.isComplete ? (
+                              r.isMOM ? (
+                                <button onClick={e => { e.stopPropagation(); handleSetMOM(side, r.playerName); }}
+                                  className="text-xs px-1.5 py-0.5 rounded font-bold bg-amber-100 text-amber-700 cursor-pointer">
+                                  +10
+                                </button>
+                              ) : (
+                                <button onClick={e => { e.stopPropagation(); handleSetMOM(side, r.playerName); }}
+                                  title="Set as Man of the Match"
+                                  className="text-gray-300 hover:text-amber-400 transition-colors text-base leading-none">
+                                  ☆
+                                </button>
+                              )
+                            ) : <span className="text-gray-300">—</span>}
+                          </td>
                           <td className="text-right px-2 py-3 tabular-nums text-gray-500 font-medium">
                             {pts(raw, '0')}
-                          </td>
-                          <td className="text-center px-2 py-3">
-                            <span className={`text-xs px-1.5 py-0.5 rounded font-bold ${multiplierColor(r.multiplier)}`}>
-                              {multiplierBadge(r.multiplier)}
-                            </span>
                           </td>
                           <td className={`text-right px-3 py-3 font-bold tabular-nums text-base ${
                             displayFinal > 0 ? 'text-green-600' : displayFinal < 0 ? 'text-red-600' : 'text-gray-400'
@@ -627,18 +634,6 @@ function ResultsDisplay({ match, matchId, updateMatch }: {
                             </td>
                           </tr>
                         )}
-                        {r.isMOM && (
-                          <tr key={`${r.playerName}-mom`} className="bg-amber-50/50 border-t border-amber-100">
-                            <td className="px-3 py-2 text-amber-700 font-semibold text-sm pl-6" colSpan={4}>
-                              Man of the Match — {r.playerName}
-                            </td>
-                            <td className="text-right px-2 py-2 font-medium text-gray-500 tabular-nums">+10</td>
-                            <td className="text-center px-2 py-2">
-                              <span className="text-xs px-1.5 py-0.5 rounded font-bold bg-gray-200 text-gray-500">1×</span>
-                            </td>
-                            <td className="text-right px-3 py-2 font-bold text-amber-600 tabular-nums text-base">+10</td>
-                          </tr>
-                        )}
                       </>
                     );
                   })}
@@ -647,10 +642,8 @@ function ResultsDisplay({ match, matchId, updateMatch }: {
                       <td className="px-3 py-2.5 font-semibold text-amber-700 text-sm" colSpan={4}>
                         Correct prediction — {data.predictedWinner}
                       </td>
+                      <td />
                       <td className="text-right px-2 py-2.5 font-medium text-gray-500 tabular-nums">+50</td>
-                      <td className="text-center px-2 py-2.5">
-                        <span className="text-xs px-1.5 py-0.5 rounded font-bold bg-gray-200 text-gray-500">1×</span>
-                      </td>
                       <td className="text-right px-3 py-2.5 font-bold text-green-600 tabular-nums text-base">+50</td>
                     </tr>
                   )}
