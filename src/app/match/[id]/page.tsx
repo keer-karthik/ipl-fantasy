@@ -653,90 +653,116 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
             MATCH {fixture.match}
           </div>
 
-          {/* Teams */}
-          <div className="flex items-center gap-8 w-full justify-center">
-            <div className="flex flex-col items-center gap-2 flex-1 max-w-[140px]">
-              <div className="w-16 h-16 rounded-full bg-white shadow-lg flex items-center justify-center p-1">
-                <TeamLogo team={fixture.home} size={56} />
-              </div>
-              <span className="text-white font-extrabold text-base tracking-wide">
-                {fixture.home.split(' ').map(w => w[0]).join('')}
-              </span>
-              <span className="text-blue-300 text-xs hidden sm:block text-center">{fixture.home}</span>
-            </div>
-
-            <div className="flex flex-col items-center gap-1 shrink-0">
-              <div className="w-10 h-10 rounded-full border-2 border-white/30 flex items-center justify-center">
-                <span className="text-white font-black text-sm">vs</span>
-              </div>
-              <div className="text-xs text-blue-300 mt-2 text-center">
-                <div className="font-semibold">{formatDate(fixture.date)}</div>
-                <div>{fixture.time} IST</div>
-              </div>
-            </div>
-
-            <div className="flex flex-col items-center gap-2 flex-1 max-w-[140px]">
-              <div className="w-16 h-16 rounded-full bg-white shadow-lg flex items-center justify-center p-1">
-                <TeamLogo team={fixture.away} size={56} />
-              </div>
-              <span className="text-white font-extrabold text-base tracking-wide">
-                {fixture.away.split(' ').map(w => w[0]).join('')}
-              </span>
-              <span className="text-blue-300 text-xs hidden sm:block text-center">{fixture.away}</span>
-            </div>
-          </div>
-
-          {/* Venue */}
-          <div className="text-xs text-blue-300 text-center">
-            {fixture.venue}
-          </div>
-
-          {/* Live / completed scores */}
-          {liveData && Object.keys(liveData.innings).length > 0 && (() => {
-            // Get innings in order
+          {liveData && Object.keys(liveData.innings).length > 0 ? (() => {
+            // Scorecard layout — shown once innings data is available
             const inningsKeys = Object.keys(liveData.innings);
-            return (
-              <div className="w-full max-w-sm space-y-1">
-                {inningsKeys.map(team => {
-                  const inn = liveData.innings[team];
-                  return (
-                    <div key={team} className="flex justify-between items-center bg-white/10 rounded-lg px-3 py-1">
-                      <span className="text-white text-xs font-bold">{team.split(' ').map(w => w[0]).join('')}</span>
-                      <span className="text-white text-sm font-black">{inn.total}</span>
-                    </div>
-                  );
-                })}
+            const [t1, t2] = inningsKeys;
+            const bowlingTeam = [fixture.home, fixture.away].find(t => t !== t1) ?? fixture.away;
 
-                {/* Recent balls from last 6 commentaries */}
-                {liveData.commentaries.length > 0 && (
-                  <div className="flex gap-1 justify-center pt-1 flex-wrap">
+            function parseTotal(total: string) {
+              const score = total.split(' (')[0].trim();
+              const oversM = total.match(/\(([^)]+)\)/);
+              return { score, overs: oversM?.[1] ?? '' };
+            }
+
+            const p1 = parseTotal(liveData.innings[t1].total);
+            const p2 = t2 ? parseTotal(liveData.innings[t2].total) : null;
+
+            return (
+              <>
+                <div className="flex items-center w-full gap-3 px-2">
+                  {/* Batting-first team */}
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <div className="w-14 h-14 rounded-full bg-white shadow-lg flex items-center justify-center p-1 shrink-0">
+                      <TeamLogo team={t1} size={48} />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-white font-black text-3xl leading-none tracking-tight">{p1.score}</div>
+                      <div className="text-blue-300 text-xs mt-0.5">{p1.overs}</div>
+                    </div>
+                  </div>
+
+                  {/* vs circle */}
+                  <div className="w-10 h-10 rounded-full border-2 border-white/30 flex items-center justify-center shrink-0">
+                    <span className="text-white font-black text-xs">v/s</span>
+                  </div>
+
+                  {/* Batting-second team (or just logo if 1st innings still live) */}
+                  <div className="flex items-center gap-3 flex-1 min-w-0 justify-end">
+                    {p2 ? (
+                      <div className="min-w-0 text-right">
+                        <div className="text-white font-black text-3xl leading-none tracking-tight">{p2.score}</div>
+                        <div className="text-blue-300 text-xs mt-0.5">{p2.overs}</div>
+                      </div>
+                    ) : null}
+                    <div className="w-14 h-14 rounded-full bg-white shadow-lg flex items-center justify-center p-1 shrink-0">
+                      <TeamLogo team={t2 ?? bowlingTeam} size={48} />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Result description */}
+                {liveData.status.description && liveData.status.description !== 'Scheduled' && (
+                  <div className="text-blue-200 text-xs text-center font-semibold">{liveData.status.description}</div>
+                )}
+
+                {/* Recent balls (live only) */}
+                {liveData.status.isLive && liveData.commentaries.length > 0 && (
+                  <div className="flex gap-1 justify-center flex-wrap">
                     {liveData.commentaries.slice(-6).map((c, i) => {
                       const txt = (c.text ?? '').toLowerCase();
-                      const isWicket = txt.includes('out') || txt.includes('wicket') || txt.includes('w');
-                      const isFour = txt.includes('four') || txt.includes('4');
-                      const isSix = txt.includes('six') || txt.includes('6');
+                      const isWicket = txt.includes('out') || txt.includes('wicket');
+                      const isFour = txt.includes('four');
+                      const isSix = txt.includes('six');
                       const label = isSix ? '6' : isFour ? '4' : isWicket ? 'W' : c.text.replace(/[^0-9.W]/gi,'').trim() || '·';
                       return (
                         <span key={i} className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black ${
-                          isWicket ? 'bg-red-500 text-white' :
-                          isSix ? 'bg-purple-500 text-white' :
-                          isFour ? 'bg-orange-400 text-white' :
-                          'bg-white/20 text-white'
+                          isWicket ? 'bg-red-500 text-white' : isSix ? 'bg-purple-500 text-white' : isFour ? 'bg-orange-400 text-white' : 'bg-white/20 text-white'
                         }`}>{label}</span>
                       );
                     })}
                   </div>
                 )}
-
-                {/* Result */}
-                {liveData.status.isComplete && liveData.status.description && (
-                  <div className="bg-white/20 rounded-lg px-3 py-1 text-center">
-                    <span className="text-white text-xs font-bold">{liveData.status.description}</span>
-                  </div>
-                )}
-              </div>
+              </>
             );
-          })()}
+          })() : (
+            // Pre-match layout
+            <>
+              <div className="flex items-center gap-8 w-full justify-center">
+                <div className="flex flex-col items-center gap-2 flex-1 max-w-[140px]">
+                  <div className="w-16 h-16 rounded-full bg-white shadow-lg flex items-center justify-center p-1">
+                    <TeamLogo team={fixture.home} size={56} />
+                  </div>
+                  <span className="text-white font-extrabold text-base tracking-wide">
+                    {fixture.home.split(' ').map(w => w[0]).join('')}
+                  </span>
+                  <span className="text-blue-300 text-xs hidden sm:block text-center">{fixture.home}</span>
+                </div>
+
+                <div className="flex flex-col items-center gap-1 shrink-0">
+                  <div className="w-10 h-10 rounded-full border-2 border-white/30 flex items-center justify-center">
+                    <span className="text-white font-black text-sm">vs</span>
+                  </div>
+                  <div className="text-xs text-blue-300 mt-2 text-center">
+                    <div className="font-semibold">{formatDate(fixture.date)}</div>
+                    <div>{fixture.time} IST</div>
+                  </div>
+                </div>
+
+                <div className="flex flex-col items-center gap-2 flex-1 max-w-[140px]">
+                  <div className="w-16 h-16 rounded-full bg-white shadow-lg flex items-center justify-center p-1">
+                    <TeamLogo team={fixture.away} size={56} />
+                  </div>
+                  <span className="text-white font-extrabold text-base tracking-wide">
+                    {fixture.away.split(' ').map(w => w[0]).join('')}
+                  </span>
+                  <span className="text-blue-300 text-xs hidden sm:block text-center">{fixture.away}</span>
+                </div>
+              </div>
+
+              <div className="text-xs text-blue-300 text-center">{fixture.venue}</div>
+            </>
+          )}
         </div>
       </motion.div>
 
