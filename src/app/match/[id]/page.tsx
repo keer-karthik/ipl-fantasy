@@ -266,8 +266,8 @@ function PicksEditor({
         const cfg = MULT_CFG[pick.multiplier];
         return (
           <motion.div key={i} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
-            className="bg-white rounded-xl shadow-sm overflow-hidden"
-            style={{ border: `1.5px solid ${cfg.idle}`, borderTopColor: cfg.active }}>
+            className="rounded-xl shadow-sm overflow-hidden"
+            style={{ background: cfg.idle, border: `2px solid ${cfg.active}` }}>
             {/* Top row: player + remove */}
             <div className="flex items-center gap-2 px-3 pt-3 pb-2">
               <PlayerComboBox
@@ -305,7 +305,7 @@ function PicksEditor({
             </div>
 
             {/* Sub row */}
-            <div className="border-t border-gray-50 px-3 py-1.5 flex gap-2 items-center bg-gray-50/50">
+            <div className="border-t border-black/5 px-3 py-1.5 flex gap-2 items-center bg-black/5">
               <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest shrink-0">Sub</span>
               <PlayerComboBox
                 small
@@ -911,7 +911,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
             <SidePanel
               label="GILS" total={gilsDisplayTotal}
               breakdown={gilsBreakdown}
-              textColor={tieredPtsColor(gilsDisplayTotal)}
+              textColor={tieredTotalColor(gilsDisplayTotal)}
               borderColor="border-violet-200" bgColor="bg-violet-50"
             />
           </div>
