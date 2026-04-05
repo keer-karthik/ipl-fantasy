@@ -179,7 +179,7 @@ function buildFieldingMap(allBatsmen: LiveBatsman[]): Map<string, number> {
     const stM = d.match(/^st\s+[↑†]?(.+?)\s+b\s+/i);
     if (stM) { add(stM[1].trim()); continue; }
     const roM = d.match(/run out\s*\(([^)]+)\)/i);
-    if (roM) { add(roM[1].split('/')[0].trim()); continue; }
+    if (roM) { roM[1].split('/').forEach(n => add(n.trim())); continue; }
   }
   return map;
 }
@@ -270,7 +270,7 @@ export function autoResultFromLive(
     const stM = d.match(/^st\s+[↑†]?(.+?)\s+b\s+/i);
     if (stM) { addFielder(stM[1].trim()); continue; }
     const roM = d.match(/run out\s*\(([^)]+)\)/i);
-    if (roM) { addFielder(roM[1].split('/')[0].trim()); continue; }
+    if (roM) { roM[1].split('/').forEach(n => addFielder(n.trim())); continue; }
   }
 
   return picks.map(pick => {
