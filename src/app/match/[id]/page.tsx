@@ -341,6 +341,50 @@ function pts(n: number, fallback = '—') {
   return n > 0 ? `+${n}` : String(n);
 }
 
+function getBattingBreakdown(r: PlayerResult): Array<{ label: string; pts: number }> {
+  if (!r.didBat) return [];
+  if (r.battingPosition >= 7 && r.runs < 10) return [];
+  if (r.dismissed && r.runs === 0 && r.battingPosition < 7)
+    return [{ label: 'Duck (dismissed for 0)', pts: -30 }];
+  if (r.runs <= 10 && r.battingPosition < 7)
+    return [{ label: `${r.runs} run${r.runs !== 1 ? 's' : ''} (≤10 penalty)`, pts: -20 }];
+  const items: Array<{ label: string; pts: number }> = [];
+  items.push({ label: `${r.runs} runs`, pts: r.runs });
+  if (r.runs >= 25) items.push({ label: '25+ milestone', pts: 5 });
+  if (r.runs >= 40) items.push({ label: '40+ milestone', pts: 15 });
+  if (r.runs >= 70) items.push({ label: '70+ milestone', pts: 25 });
+  if (r.runs >= 90) items.push({ label: '90+ milestone', pts: 35 });
+  if (r.balls > 0) {
+    const sr = (r.runs / r.balls) * 100;
+    if      (sr >= 300 && r.balls >= 25) items.push({ label: `SR ${sr.toFixed(0)}% (≥300, ${r.balls}b)`, pts: 50 });
+    else if (sr >= 250 && r.balls >= 20) items.push({ label: `SR ${sr.toFixed(0)}% (≥250, ${r.balls}b)`, pts: 25 });
+    else if (sr >= 200 && r.balls >= 10) items.push({ label: `SR ${sr.toFixed(0)}% (≥200, ${r.balls}b)`, pts: 10 });
+    else if (sr <= 100 && r.balls >= 10) items.push({ label: `SR ${sr.toFixed(0)}% (≤100, ${r.balls}b)`, pts: -20 });
+  }
+  return items;
+}
+
+function getBowlingBreakdown(r: PlayerResult): Array<{ label: string; pts: number }> {
+  if (!r.didBowl || r.overs === 0) return [];
+  const items: Array<{ label: string; pts: number }> = [];
+  if (r.wickets > 0) items.push({ label: `${r.wickets} wkt${r.wickets > 1 ? 's' : ''} × 25`, pts: r.wickets * 25 });
+  if (r.maidens > 0) items.push({ label: `${r.maidens} maiden${r.maidens > 1 ? 's' : ''} × 40`, pts: r.maidens * 40 });
+  if (r.overs >= 3) {
+    const eco = r.runsConceded / r.overs;
+    const ecoLabel = `ECO ${eco.toFixed(2)} (${r.runsConceded}r / ${r.overs}ov)`;
+    if      (eco <= 4)  items.push({ label: `${ecoLabel} ≤4.0`, pts: 80 });
+    else if (eco <= 6)  items.push({ label: `${ecoLabel} ≤6.0`, pts: 60 });
+    else if (eco <= 8)  items.push({ label: `${ecoLabel} ≤8.0`, pts: 30 });
+    else if (eco >= 14) items.push({ label: `${ecoLabel} ≥14.0`, pts: -40 });
+    else if (eco >= 12) items.push({ label: `${ecoLabel} ≥12.0`, pts: -30 });
+    else if (eco >= 10) items.push({ label: `${ecoLabel} ≥10.0`, pts: -20 });
+  }
+  if (r.wickets === 0 && r.overs >= 2) items.push({ label: 'No wickets (≥2 overs)', pts: -20 });
+  if      (r.wickets >= 5) items.push({ label: '5+ wickets bonus', pts: 35 });
+  else if (r.wickets >= 3) items.push({ label: '3+ wickets bonus', pts: 20 });
+  return items;
+}
+
 function ResultsDisplay({ match, matchId, updateMatch }: {
   match: ReturnType<typeof emptyMatch>;
   matchId: number;
@@ -348,6 +392,7 @@ function ResultsDisplay({ match, matchId, updateMatch }: {
 }) {
   const winner = match.winner;
   const [refreshing, setRefreshing] = useState(false);
+  const [expandedPlayer, setExpandedPlayer] = useState<string | null>(null);
 
   // Recompute display totals from raw stats — stored finalTotal may be stale from old bugs
   function sideDisplayTotal(side: 'lads' | 'gils') {
@@ -458,14 +503,22 @@ function ResultsDisplay({ match, matchId, updateMatch }: {
                 <tbody className="divide-y divide-gray-50">
                   {data.results.map(r => {
                     const displayFinal = Math.round(applyMultiplier(r.rawTotal, r.multiplier));
+                    const expandKey = `${side}-${r.playerName}`;
+                    const isExpanded = expandedPlayer === expandKey;
+                    const batItems = getBattingBreakdown(r);
+                    const bowlItems = getBowlingBreakdown(r);
+                    const fieldDismissals = r.fieldingPoints > 0 ? r.fieldingPoints / 10 : 0;
                     return (
                       <>
-                        <tr key={r.playerName} className="hover:bg-gray-50/50 transition-colors">
+                        <tr key={r.playerName}
+                          className="hover:bg-gray-50/50 transition-colors cursor-pointer select-none"
+                          onClick={() => setExpandedPlayer(prev => prev === expandKey ? null : expandKey)}>
                           <td className="px-3 py-3">
                             <div className="flex items-center gap-1">
+                              <span className="text-gray-400 text-xs mr-0.5">{isExpanded ? '▾' : '▸'}</span>
                               <span className="font-semibold text-gray-800">{r.playerName}</span>
                               {match.isComplete && (
-                                <button onClick={() => handleSetMOM(side, r.playerName)}
+                                <button onClick={e => { e.stopPropagation(); handleSetMOM(side, r.playerName); }}
                                   title="Set as Man of the Match"
                                   className="text-amber-400 hover:text-amber-500 transition-colors leading-none text-base">
                                   {r.isMOM ? '★' : '☆'}
@@ -509,6 +562,61 @@ function ResultsDisplay({ match, matchId, updateMatch }: {
                             {pts(displayFinal, '0')}
                           </td>
                         </tr>
+                        {isExpanded && (batItems.length > 0 || bowlItems.length > 0 || fieldDismissals > 0) && (
+                          <tr key={`${r.playerName}-expand`} className="bg-slate-50 border-t border-slate-100">
+                            <td colSpan={7} className="px-5 py-3">
+                              <div className="flex flex-wrap gap-x-8 gap-y-3 text-xs">
+                                {batItems.length > 0 && (
+                                  <div className="min-w-[160px]">
+                                    <div className="text-gray-400 font-bold uppercase tracking-wider mb-1.5">Batting</div>
+                                    {batItems.map((item, i) => (
+                                      <div key={i} className="flex justify-between gap-4">
+                                        <span className="text-gray-500">{item.label}</span>
+                                        <span className={`font-semibold tabular-nums ${item.pts >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                                          {item.pts > 0 ? `+${item.pts}` : item.pts}
+                                        </span>
+                                      </div>
+                                    ))}
+                                    <div className="flex justify-between gap-4 border-t border-slate-200 mt-1 pt-1 font-bold">
+                                      <span className="text-gray-600">Subtotal</span>
+                                      <span className={r.battingPoints >= 0 ? 'text-green-700' : 'text-red-600'}>
+                                        {pts(r.battingPoints, '0')}
+                                      </span>
+                                    </div>
+                                  </div>
+                                )}
+                                {bowlItems.length > 0 && (
+                                  <div className="min-w-[200px]">
+                                    <div className="text-gray-400 font-bold uppercase tracking-wider mb-1.5">Bowling</div>
+                                    {bowlItems.map((item, i) => (
+                                      <div key={i} className="flex justify-between gap-4">
+                                        <span className="text-gray-500">{item.label}</span>
+                                        <span className={`font-semibold tabular-nums ${item.pts >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                                          {item.pts > 0 ? `+${item.pts}` : item.pts}
+                                        </span>
+                                      </div>
+                                    ))}
+                                    <div className="flex justify-between gap-4 border-t border-slate-200 mt-1 pt-1 font-bold">
+                                      <span className="text-gray-600">Subtotal</span>
+                                      <span className={r.bowlingPoints >= 0 ? 'text-green-700' : 'text-red-600'}>
+                                        {pts(r.bowlingPoints, '0')}
+                                      </span>
+                                    </div>
+                                  </div>
+                                )}
+                                {fieldDismissals > 0 && (
+                                  <div className="min-w-[160px]">
+                                    <div className="text-gray-400 font-bold uppercase tracking-wider mb-1.5">Fielding</div>
+                                    <div className="flex justify-between gap-4">
+                                      <span className="text-gray-500">{fieldDismissals} dismissal{fieldDismissals !== 1 ? 's' : ''} × 10</span>
+                                      <span className="font-semibold text-green-600 tabular-nums">+{r.fieldingPoints}</span>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        )}
                         {r.isMOM && (
                           <tr key={`${r.playerName}-mom`} className="bg-amber-50/50 border-t border-amber-100">
                             <td className="px-3 py-2 text-amber-700 font-semibold text-sm pl-6" colSpan={4}>
