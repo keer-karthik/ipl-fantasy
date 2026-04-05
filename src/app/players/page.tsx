@@ -381,6 +381,7 @@ export default function StatsPage() {
                     <th className="text-right px-3 py-3 font-medium">Avg</th>
                     <th className="text-right px-3 py-3 font-medium">Runs</th>
                     <th className="text-right px-3 py-3 font-medium">Wkts</th>
+                    <th className="text-right px-3 py-3 font-medium">MOM</th>
                     <th className="text-right px-3 py-3 font-medium">3× Used</th>
                     <th className="text-right px-4 py-3 font-medium">2× Used</th>
                   </tr>
@@ -404,6 +405,11 @@ export default function StatsPage() {
                       </td>
                       <td className="px-3 py-2.5 text-right text-gray-500">{p.totalRuns}</td>
                       <td className="px-3 py-2.5 text-right text-gray-500">{p.totalWickets}</td>
+                      <td className="px-3 py-2.5 text-right">
+                        {p.momCount > 0
+                          ? <span className="text-amber-500 font-bold">🏅 {p.momCount}</span>
+                          : <span className="text-gray-200">—</span>}
+                      </td>
                       <td className="px-3 py-2.5 text-right">
                         {p.timesAs3x > 0
                           ? <span className="text-purple-600 font-semibold">{p.timesAs3x}× <span className="text-purple-400 font-normal">({p.total3xPoints})</span></span>

@@ -27,6 +27,7 @@ export interface PlayerSeasonStat {
   timesAs2x: number;
   total3xPoints: number;
   total2xPoints: number;
+  momCount: number;
 }
 
 function completedMatches(state: SeasonState): MatchEntry[] {
@@ -121,6 +122,7 @@ export function computePlayerStats(state: SeasonState, side: 'lads' | 'gils'): P
           totalRuns: 0, totalWickets: 0,
           timesAs3x: 0, timesAs2x: 0,
           total3xPoints: 0, total2xPoints: 0,
+          momCount: 0,
         };
       }
       const p = playerMap[result.playerName];
@@ -131,6 +133,7 @@ export function computePlayerStats(state: SeasonState, side: 'lads' | 'gils'): P
       if (result.didBowl) p.totalWickets += result.wickets;
       if (result.multiplier === 'purple') { p.timesAs3x++; p.total3xPoints += playerPts; }
       if (result.multiplier === 'green')  { p.timesAs2x++; p.total2xPoints += playerPts; }
+      if (result.isMOM) p.momCount++;
     }
   }
 
