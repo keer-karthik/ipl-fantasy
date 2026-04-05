@@ -1,5 +1,6 @@
 import type { MatchEntry, SeasonState } from './types';
 import { fixtures } from './data';
+import { applyMultiplier } from './scoring';
 
 export interface SideStats {
   wins: number;
@@ -45,7 +46,14 @@ export function computeSideStats(state: SeasonState, side: 'lads' | 'gils'): Sid
 
   for (const match of done) {
     const sideData = match[side];
-    totalPoints += sideData.total;
+    // Recompute from individual results so the dashboard never shows stale stored totals
+    const hasWinnerBonus = sideData.predictedWinner !== null && sideData.predictedWinner === match.actualWinner;
+    const momBonus = sideData.results.filter(r => r.isMOM).length * 10;
+    const computedTotal = sideData.results.reduce((s, r) => {
+      const raw = r.battingPoints + r.bowlingPoints + r.fieldingPoints;
+      return s + Math.round(applyMultiplier(raw, r.multiplier));
+    }, 0) + (hasWinnerBonus ? 50 : 0) + momBonus;
+    totalPoints += computedTotal;
 
     const won = match.winner === side;
     if (won) { wins++; form.push('W'); streak++; }
