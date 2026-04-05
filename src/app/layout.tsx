@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Barlow_Condensed } from "next/font/google";
 import "./globals.css";
 import Nav from "@/components/Nav";
+import SmoothScroll from "@/components/SmoothScroll";
 import { SessionProvider } from "@/lib/session";
 
 const geist = Geist({ subsets: ["latin"] });
@@ -37,8 +38,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body className={`${geist.className} ${barlowCondensed.variable} min-h-screen`} style={{ background: 'var(--ipl-light)', color: '#1a1a2e' }}>
         <SessionProvider>
-          <Nav />
-          <main className="max-w-5xl mx-auto px-4 py-6 pb-20 sm:pb-6">{children}</main>
+          <SmoothScroll>
+            <Nav />
+            <main className="max-w-5xl mx-auto px-4 py-6 pb-20 sm:pb-6">{children}</main>
+          </SmoothScroll>
         </SessionProvider>
       </body>
     </html>
