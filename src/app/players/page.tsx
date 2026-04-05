@@ -45,6 +45,7 @@ function PlayerAvatar({ name }: { name: string }) {
 function VenueChart({ venueData }: {
   venueData: { venue: string; lads: number; gils: number }[];
 }) {
+  const [hoveredVenue, setHoveredVenue] = useState<string | null>(null);
   if (venueData.length === 0) return null;
   const max = Math.max(...venueData.flatMap(v => [v.lads, v.gils]), 1);
   const BAR_H = 160;
@@ -53,32 +54,72 @@ function VenueChart({ venueData }: {
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 overflow-x-auto">
       <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-[0.2em] mb-4">Points by Venue</h3>
       <div className="flex items-end gap-4" style={{ minWidth: venueData.length * 72 }}>
-        {venueData.map(v => (
-          <div key={v.venue} className="flex flex-col items-center gap-1 flex-1">
-            <div className="flex items-end gap-1 w-full justify-center" style={{ height: BAR_H }}>
-              {/* Lads bar */}
-              <div className="flex flex-col justify-end" style={{ height: BAR_H, flex: 1 }}>
-                <div
-                  className="rounded-t-md w-full"
-                  style={{ height: `${(v.lads / max) * BAR_H}px`, background: LADS, opacity: 0.85 }}
-                />
+        {venueData.map(v => {
+          const isHovered = hoveredVenue === v.venue;
+          return (
+            <div key={v.venue} className="flex flex-col items-center gap-1 flex-1 relative"
+              onMouseEnter={() => setHoveredVenue(v.venue)}
+              onMouseLeave={() => setHoveredVenue(null)}>
+              {/* Tooltip */}
+              {isHovered && (
+                <div className="absolute bottom-full mb-2 left-1/2 z-20 pointer-events-none shadow-xl"
+                  style={{ transform: 'translateX(-50%)', minWidth: 120 }}>
+                  <div className="bg-gray-900 text-white rounded-xl px-3 py-2.5 text-[11px]">
+                    <div className="font-bold text-[12px] mb-1.5 truncate max-w-[140px]">{v.venue}</div>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="font-semibold" style={{ color: LADS }}>Lads</span>
+                      <span className="font-bold tabular-nums">{v.lads}</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-3 mt-0.5">
+                      <span className="font-semibold" style={{ color: '#a78bfa' }}>Gils</span>
+                      <span className="font-bold tabular-nums">{v.gils}</span>
+                    </div>
+                    <div className="mt-1.5 pt-1.5 border-t border-gray-700 flex items-center justify-between gap-3">
+                      <span className="text-gray-400">Total</span>
+                      <span className="font-bold tabular-nums text-white">{v.lads + v.gils}</span>
+                    </div>
+                  </div>
+                  {/* Arrow */}
+                  <div className="w-2.5 h-2.5 bg-gray-900 rotate-45 mx-auto -mt-1.5 rounded-sm" />
+                </div>
+              )}
+              <div className="flex items-end gap-1 w-full justify-center" style={{ height: BAR_H }}>
+                {/* Lads bar */}
+                <div className="flex flex-col justify-end" style={{ height: BAR_H, flex: 1 }}>
+                  <div
+                    className="rounded-t-md w-full transition-all duration-150"
+                    style={{
+                      height: `${(v.lads / max) * BAR_H}px`,
+                      background: LADS,
+                      opacity: isHovered ? 1 : 0.75,
+                      transform: isHovered ? 'scaleY(1.02)' : 'scaleY(1)',
+                      transformOrigin: 'bottom',
+                    }}
+                  />
+                </div>
+                {/* Gils bar */}
+                <div className="flex flex-col justify-end" style={{ height: BAR_H, flex: 1 }}>
+                  <div
+                    className="rounded-t-md w-full transition-all duration-150"
+                    style={{
+                      height: `${(v.gils / max) * BAR_H}px`,
+                      background: GILS,
+                      opacity: isHovered ? 1 : 0.75,
+                      transform: isHovered ? 'scaleY(1.02)' : 'scaleY(1)',
+                      transformOrigin: 'bottom',
+                    }}
+                  />
+                </div>
               </div>
-              {/* Gils bar */}
-              <div className="flex flex-col justify-end" style={{ height: BAR_H, flex: 1 }}>
-                <div
-                  className="rounded-t-md w-full"
-                  style={{ height: `${(v.gils / max) * BAR_H}px`, background: GILS, opacity: 0.85 }}
-                />
-              </div>
+              {/* Value labels */}
+              <div className="text-[9px] font-bold tabular-nums transition-opacity" style={{ color: LADS, opacity: isHovered ? 1 : 0.7 }}>{v.lads}</div>
+              <div className="text-[9px] font-bold tabular-nums transition-opacity" style={{ color: GILS, opacity: isHovered ? 1 : 0.7 }}>{v.gils}</div>
+              {/* Venue label */}
+              <div className={`text-[9px] font-medium text-center leading-tight max-w-[60px] transition-colors ${isHovered ? 'text-gray-700' : 'text-gray-400'}`}
+                style={{ wordBreak: 'break-word' }}>{v.venue}</div>
             </div>
-            {/* Value labels */}
-            <div className="text-[9px] font-bold tabular-nums" style={{ color: LADS }}>{v.lads}</div>
-            <div className="text-[9px] font-bold tabular-nums" style={{ color: GILS }}>{v.gils}</div>
-            {/* Venue label */}
-            <div className="text-[9px] text-gray-400 font-medium text-center leading-tight max-w-[60px]"
-              style={{ wordBreak: 'break-word' }}>{v.venue}</div>
-          </div>
-        ))}
+          );
+        })}
       </div>
       {/* Legend */}
       <div className="flex gap-4 mt-4 text-[10px] font-semibold text-gray-500">
@@ -97,6 +138,7 @@ function VenueChart({ venueData }: {
 function PerMatchChart({ matchData }: {
   matchData: { matchId: number; lads: number; gils: number }[];
 }) {
+  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
   if (matchData.length < 2) return null;
 
   const W = 560, H = 180, PAD = { l: 44, r: 16, t: 16, b: 28 };
@@ -123,11 +165,18 @@ function PerMatchChart({ matchData }: {
   for (let t = step; t <= rawMax + step; t += step) if (t <= rawMax + 5) yTicks.push(t);
   for (let t = -step; t >= rawMin - step; t -= step) if (t >= rawMin - 5) yTicks.push(t);
 
+  const hovered = hoveredIdx !== null ? matchData[hoveredIdx] : null;
+  // Tooltip X position as percent of SVG width — clamp so it doesn't overflow
+  const tooltipXPct = hoveredIdx !== null
+    ? Math.min(Math.max(toX(hoveredIdx) / W * 100, 12), 80)
+    : 0;
+
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 overflow-x-auto">
       <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-[0.2em] mb-3">Cumulative Points</h3>
-      <div style={{ minWidth: 400 }}>
-        <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: 200 }}>
+      <div style={{ minWidth: 400, position: 'relative' }}>
+        <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: 200 }}
+          onMouseLeave={() => setHoveredIdx(null)}>
           {/* Y gridlines */}
           {yTicks.map(v => (
             <g key={v}>
@@ -152,16 +201,78 @@ function PerMatchChart({ matchData }: {
           <path d={path('lads')} fill="none" stroke={LADS} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
           <path d={path('gils')} fill="none" stroke={GILS} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
 
+          {/* Hover vertical line */}
+          {hoveredIdx !== null && (
+            <line
+              x1={toX(hoveredIdx)} y1={PAD.t} x2={toX(hoveredIdx)} y2={H - PAD.b}
+              stroke="#cbd5e1" strokeWidth={1.2} strokeDasharray="3,2"
+            />
+          )}
+
+          {/* Data point dots (always drawn, show/highlight on hover) */}
+          {matchData.map((m, i) => (
+            <g key={m.matchId}>
+              <circle cx={toX(i)} cy={toY(m.lads)} r={hoveredIdx === i ? 4.5 : 2.5}
+                fill={LADS} opacity={hoveredIdx === i ? 1 : 0.35}
+                style={{ transition: 'r 0.1s, opacity 0.1s' }} />
+              <circle cx={toX(i)} cy={toY(m.gils)} r={hoveredIdx === i ? 4.5 : 2.5}
+                fill={GILS} opacity={hoveredIdx === i ? 1 : 0.35}
+                style={{ transition: 'r 0.1s, opacity 0.1s' }} />
+            </g>
+          ))}
+
           {/* Match labels on x-axis */}
           {matchData.map((m, i) => (
             (i === 0 || i === matchData.length - 1 || i % Math.ceil(matchData.length / 8) === 0) && (
               <text key={m.matchId} x={toX(i)} y={H - 6} textAnchor="middle"
-                style={{ fontSize: 9, fill: '#94a3b8', fontWeight: 600 }}>
+                style={{ fontSize: 9, fill: hoveredIdx === i ? '#475569' : '#94a3b8', fontWeight: 600 }}>
                 M{m.matchId}
               </text>
             )
           ))}
+
+          {/* Invisible hit areas for hover */}
+          {matchData.map((m, i) => {
+            const x = toX(i);
+            const prevX = i > 0 ? toX(i - 1) : x;
+            const nextX = i < matchData.length - 1 ? toX(i + 1) : x;
+            const left = i === 0 ? PAD.l : (x + prevX) / 2;
+            const right = i === matchData.length - 1 ? W - PAD.r : (x + nextX) / 2;
+            return (
+              <rect key={`hit-${m.matchId}`}
+                x={left} y={PAD.t} width={right - left} height={inner.h}
+                fill="transparent"
+                style={{ cursor: 'crosshair' }}
+                onMouseEnter={() => setHoveredIdx(i)}
+              />
+            );
+          })}
         </svg>
+
+        {/* Tooltip */}
+        {hovered && hoveredIdx !== null && (
+          <div className="absolute top-0 z-20 pointer-events-none"
+            style={{ left: `${tooltipXPct}%`, transform: 'translateX(-50%)' }}>
+            <div className="bg-gray-900 text-white rounded-xl px-3 py-2.5 shadow-xl text-[11px]" style={{ minWidth: 130 }}>
+              <div className="font-bold text-[12px] mb-1.5 text-gray-200">Match {hovered.matchId}</div>
+              <div className="flex items-center justify-between gap-4">
+                <span className="font-semibold" style={{ color: LADS }}>Lads</span>
+                <span className="font-bold tabular-nums">{hovered.lads}</span>
+              </div>
+              <div className="flex items-center justify-between gap-4 mt-0.5">
+                <span className="font-semibold" style={{ color: '#a78bfa' }}>Gils</span>
+                <span className="font-bold tabular-nums">{hovered.gils}</span>
+              </div>
+              <div className="mt-1.5 pt-1.5 border-t border-gray-700 flex items-center justify-between gap-4">
+                <span className="text-gray-400">Lead</span>
+                <span className={`font-bold tabular-nums ${hovered.lads >= hovered.gils ? 'text-amber-400' : 'text-purple-400'}`}>
+                  {hovered.lads >= hovered.gils ? 'Lads' : 'Gils'} +{Math.abs(hovered.lads - hovered.gils)}
+                </span>
+              </div>
+            </div>
+            <div className="w-2.5 h-2.5 bg-gray-900 rotate-45 mx-auto -mt-1.5 rounded-sm" />
+          </div>
+        )}
       </div>
       {/* Legend */}
       <div className="flex gap-4 mt-1 text-[10px] font-semibold text-gray-500">
