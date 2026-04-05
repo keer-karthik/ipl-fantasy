@@ -1,4 +1,4 @@
-import type { PlayerStats, PlayerResult, Multiplier } from './types';
+import type { Multiplier } from './types';
 
 export function calcBattingPoints(
   runs: number,
@@ -103,37 +103,6 @@ export function applyMultiplier(rawTotal: number, multiplier: Multiplier): numbe
   }
 }
 
-export function calcPlayerResult(
-  stats: PlayerStats,
-  multiplier: Multiplier,
-  winnersChoiceCorrect: boolean
-): PlayerResult {
-  const battingPoints = stats.didBat
-    ? calcBattingPoints(stats.runs, stats.balls, stats.dismissed, stats.battingPosition)
-    : 0;
-
-  const bowlingPoints = stats.didBowl
-    ? calcBowlingPoints(stats.wickets, stats.overs, stats.runsConceded, stats.maidens)
-    : 0;
-
-  const fieldingPoints = calcFieldingPoints(stats.catches, stats.stumpings, stats.runOuts);
-  const momPoints = stats.isMOM ? 10 : 0;
-  const winnersChoicePoints = winnersChoiceCorrect ? 50 : 0;
-
-  const rawTotal = battingPoints + bowlingPoints + fieldingPoints + momPoints + winnersChoicePoints;
-  const finalTotal = applyMultiplier(rawTotal, multiplier);
-
-  return {
-    ...stats,
-    battingPoints,
-    bowlingPoints,
-    fieldingPoints,
-    momPoints,
-    rawTotal,
-    multiplier,
-    finalTotal,
-  };
-}
 
 export function multiplierLabel(m: Multiplier): string {
   return { yellow: 'Yellow (1×)', green: 'Green (2×)', purple: 'Purple (3×)', allin: 'All-in (5×)' }[m];

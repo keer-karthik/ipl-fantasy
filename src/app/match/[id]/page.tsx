@@ -729,9 +729,6 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
     const mom = liveData.manOfTheMatch ?? null;
     const ladsResults = autoResultFromLive(liveData.innings, ladsPicks, liveData.playingEleven ?? [], mom);
     const gilsResults = autoResultFromLive(liveData.innings, gilsPicks, liveData.playingEleven ?? [], mom);
-    const ladsTotal = ladsResults.reduce((s, r) => s + r.finalTotal, 0) + (ladsCorrect ? 50 : 0);
-    const gilsTotal = gilsResults.reduce((s, r) => s + r.finalTotal, 0) + (gilsCorrect ? 50 : 0);
-    const winner = ladsTotal > gilsTotal ? 'lads' : gilsTotal > ladsTotal ? 'gils' : null;
     const ladsAllin = ladsPicks.some(p => p.multiplier === 'allin');
     const gilsAllin = gilsPicks.some(p => p.multiplier === 'allin');
 
@@ -745,13 +742,16 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
       const gilsResultsFinal = gilsResults.map(r => ({ ...r, isMOM: gilsMomSet.has(r.playerName) || r.isMOM }));
       const ladsMomBonus = ladsResultsFinal.filter(r => r.isMOM).length * 10;
       const gilsMomBonus = gilsResultsFinal.filter(r => r.isMOM).length * 10;
+      const ladsTotal = ladsResultsFinal.reduce((s, r) => s + r.finalTotal, 0) + (ladsCorrect ? 50 : 0) + ladsMomBonus;
+      const gilsTotal = gilsResultsFinal.reduce((s, r) => s + r.finalTotal, 0) + (gilsCorrect ? 50 : 0) + gilsMomBonus;
+      const winner = ladsTotal > gilsTotal ? 'lads' : gilsTotal > ladsTotal ? 'gils' : null;
       return {
         ...m,
         isComplete: true,
         actualWinner,
         winner,
-        lads: { ...m.lads, picks: ladsPicks, stats: [], results: ladsResultsFinal, total: ladsTotal + ladsMomBonus, predictedWinner: ladsPrediction as TeamName || null, allInUsed: ladsAllin },
-        gils: { ...m.gils, picks: gilsPicks, stats: [], results: gilsResultsFinal, total: gilsTotal + gilsMomBonus, predictedWinner: gilsPrediction as TeamName || null, allInUsed: gilsAllin },
+        lads: { ...m.lads, picks: ladsPicks, stats: [], results: ladsResultsFinal, total: ladsTotal, predictedWinner: ladsPrediction as TeamName || null, allInUsed: ladsAllin },
+        gils: { ...m.gils, picks: gilsPicks, stats: [], results: gilsResultsFinal, total: gilsTotal, predictedWinner: gilsPrediction as TeamName || null, allInUsed: gilsAllin },
       };
     });
 
