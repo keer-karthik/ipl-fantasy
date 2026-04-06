@@ -5,12 +5,36 @@
   --ipl-orange: #e84611;
   --ipl-light: #eef2f8;
   --ipl-card: #ffffff;
+  --ease-sharp: cubic-bezier(0.65, 0.05, 0, 1);
 }
 
 body {
   background: var(--ipl-light);
   color: #1a1a2e;
   font-family: system-ui, -apple-system, sans-serif;
+}
+
+/* IPL design tokens as utilities */
+@utility bg-navy {
+  background-color: var(--ipl-navy);
+}
+@utility bg-ipl-orange {
+  background-color: var(--ipl-orange);
+}
+@utility text-ipl-orange {
+  color: var(--ipl-orange);
+}
+@utility border-ipl-orange {
+  border-color: var(--ipl-orange);
+}
+@utility ease-sharp {
+  transition-timing-function: var(--ease-sharp);
+}
+@utility text-stat {
+  font-family: var(--font-barlow-condensed), system-ui, sans-serif;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  line-height: 1;
 }
 
 @keyframes pulse-live {
