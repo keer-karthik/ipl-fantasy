@@ -1,15 +1,21 @@
 import { NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
 import { createServiceClient } from '@/lib/supabase/service';
+import { sideForEmail } from '@/lib/auth';
 import type { SeasonState } from '@/lib/types';
 
 // One-time migration: rename a player across all stored picks and results.
 // POST /api/admin/migrate-name  { from: "Old Name", to: "New Name" }
-// Protected by ADMIN_SECRET env var.
+// Requires an authenticated session (same as state route).
 
 export async function POST(request: Request) {
-  const secret = request.headers.get('x-admin-secret');
-  if (!secret || secret !== process.env.ADMIN_SECRET) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  // Auth check — must be a recognised user
+  if (process.env.NODE_ENV !== 'development') {
+    const supabase = await createClient();
+    const { data: { user }, error } = await supabase.auth.getUser();
+    if (error || !user?.email || !sideForEmail(user.email)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
   }
 
   const { from: oldName, to: newName } = await request.json() as { from: string; to: string };
