@@ -34,7 +34,7 @@ export async function POST(request: Request) {
 
       const lads = computeSideTotal(match, 'lads');
       const gils = computeSideTotal(match, 'gils');
-      const newWinner = lads > gils ? 'lads' : gils > lads ? 'gils' : null;
+      const newWinner = (lads > gils ? 'lads' : gils > lads ? 'gils' : null) as 'lads' | 'gils' | null;
 
       if (newWinner !== match.winner) {
         fixes.push({ matchId: mid, old: match.winner ?? null, new: newWinner });
