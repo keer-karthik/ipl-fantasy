@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useSeasonState } from '@/lib/store';
 import { computePlayerStats, computeSideTotal, computeSideStats } from '@/lib/stats';
-import { fixtures } from '@/lib/data';
+import { fixtures, parseMatchDate } from '@/lib/data';
 import { iplImageUrl } from '@/lib/playerImage';
 
 const LADS = '#f59e0b';
@@ -134,46 +134,64 @@ function VenueChart({ venueData }: {
   );
 }
 
-// ─── Points per match line chart ──────────────────────────────────────────────
-function PerMatchChart({ matchData }: {
-  matchData: { matchId: number; lads: number; gils: number }[];
+// ─── Season Race — cumulative points over calendar time ───────────────────────
+function SeasonRaceChart({ raceData }: {
+  raceData: { date: Date; lads: number; gils: number; matchId: number }[];
 }) {
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
-  if (matchData.length < 2) return null;
+  if (raceData.length === 0) return null;
 
   const W = 560, H = 180, PAD = { l: 44, r: 16, t: 16, b: 28 };
   const inner = { w: W - PAD.l - PAD.r, h: H - PAD.t - PAD.b };
 
-  const allVals = matchData.flatMap(m => [m.lads, m.gils]);
+  const today = new Date();
+  // Pad the left edge one day before the first match so the first dot isn't flush against the axis
+  const startDate = new Date(raceData[0].date.getTime() - 86_400_000);
+  const totalMs = today.getTime() - startDate.getTime() || 1;
+
+  const toX = (d: Date) => PAD.l + ((d.getTime() - startDate.getTime()) / totalMs) * inner.w;
+  const toY = (v: number) => PAD.t + (1 - (v - minV) / range) * inner.h;
+
+  const allVals = raceData.flatMap(m => [m.lads, m.gils]);
   const rawMin = Math.min(...allVals, 0);
-  const rawMax = Math.max(...allVals, 0);
+  const rawMax = Math.max(...allVals, 1);
   const vPad = Math.max((rawMax - rawMin) * 0.15, 30);
   const minV = rawMin - vPad, maxV = rawMax + vPad;
   const range = maxV - minV || 1;
-
-  const toX = (i: number) => PAD.l + (i / (matchData.length - 1)) * inner.w;
-  const toY = (v: number) => PAD.t + (1 - (v - minV) / range) * inner.h;
   const zeroY = toY(0);
 
-  function path(key: 'lads' | 'gils') {
-    return matchData.map((m, i) => `${i === 0 ? 'M' : 'L'}${toX(i).toFixed(1)},${toY(m[key]).toFixed(1)}`).join(' ');
+  const ySpan = rawMax - rawMin;
+  const yStep = ySpan > 400 ? 100 : ySpan > 200 ? 50 : 25;
+  const yTicks: number[] = [0];
+  for (let t = yStep; t <= rawMax + yStep; t += yStep) if (t <= rawMax + 5) yTicks.push(t);
+  for (let t = -yStep; t >= rawMin - yStep; t -= yStep) if (t >= rawMin - 5) yTicks.push(t);
+
+  // Step-function path: flat between matches, jumps at each match date
+  function buildStepPath(key: 'lads' | 'gils') {
+    const rightX = toX(today).toFixed(1);
+    let d = `M${PAD.l},${zeroY.toFixed(1)}`;
+    for (const pt of raceData) {
+      d += ` H${toX(pt.date).toFixed(1)} V${toY(pt[key]).toFixed(1)}`;
+    }
+    d += ` H${rightX}`;
+    return d;
   }
 
-  const ySpan = rawMax - rawMin;
-  const step = ySpan > 400 ? 100 : ySpan > 200 ? 50 : 25;
-  const yTicks: number[] = [0];
-  for (let t = step; t <= rawMax + step; t += step) if (t <= rawMax + 5) yTicks.push(t);
-  for (let t = -step; t >= rawMin - step; t -= step) if (t >= rawMin - 5) yTicks.push(t);
+  // 5 evenly-spaced date labels across the x-axis
+  const xLabels = [0, 0.25, 0.5, 0.75, 1].map(pct => ({
+    x: PAD.l + pct * inner.w,
+    label: new Date(startDate.getTime() + totalMs * pct)
+      .toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
+  }));
 
-  const hovered = hoveredIdx !== null ? matchData[hoveredIdx] : null;
-  // Tooltip X position as percent of SVG width — clamp so it doesn't overflow
+  const hovered = hoveredIdx !== null ? raceData[hoveredIdx] : null;
   const tooltipXPct = hoveredIdx !== null
-    ? Math.min(Math.max(toX(hoveredIdx) / W * 100, 12), 80)
+    ? Math.min(Math.max(toX(raceData[hoveredIdx].date) / W * 100, 12), 80)
     : 0;
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 overflow-x-auto">
-      <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-[0.2em] mb-3">Cumulative Points</h3>
+      <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-[0.2em] mb-3">Season Race</h3>
       <div style={{ minWidth: 400, position: 'relative' }}>
         <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: 200 }}
           onMouseLeave={() => setHoveredIdx(null)}>
@@ -192,59 +210,57 @@ function PerMatchChart({ matchData }: {
           ))}
 
           {/* Area fills */}
-          <path d={`${path('lads')} L${toX(matchData.length - 1)},${zeroY} L${toX(0)},${zeroY} Z`}
+          <path d={`${buildStepPath('lads')} V${zeroY.toFixed(1)} H${PAD.l} Z`}
             fill={LADS} opacity="0.08" />
-          <path d={`${path('gils')} L${toX(matchData.length - 1)},${zeroY} L${toX(0)},${zeroY} Z`}
+          <path d={`${buildStepPath('gils')} V${zeroY.toFixed(1)} H${PAD.l} Z`}
             fill={GILS} opacity="0.08" />
 
-          {/* Lines */}
-          <path d={path('lads')} fill="none" stroke={LADS} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-          <path d={path('gils')} fill="none" stroke={GILS} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+          {/* Step lines */}
+          <path d={buildStepPath('lads')} fill="none" stroke={LADS} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+          <path d={buildStepPath('gils')} fill="none" stroke={GILS} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
 
-          {/* Hover vertical line */}
+          {/* Hover line */}
           {hoveredIdx !== null && (
-            <line
-              x1={toX(hoveredIdx)} y1={PAD.t} x2={toX(hoveredIdx)} y2={H - PAD.b}
-              stroke="#cbd5e1" strokeWidth={1.2} strokeDasharray="3,2"
-            />
+            <line x1={toX(raceData[hoveredIdx].date)} y1={PAD.t}
+              x2={toX(raceData[hoveredIdx].date)} y2={H - PAD.b}
+              stroke="#cbd5e1" strokeWidth={1.2} strokeDasharray="3,2" />
           )}
 
-          {/* Data point dots (always drawn, show/highlight on hover) */}
-          {matchData.map((m, i) => (
+          {/* Data dots */}
+          {raceData.map((m, i) => (
             <g key={m.matchId}>
-              <circle cx={toX(i)} cy={toY(m.lads)} r={hoveredIdx === i ? 4.5 : 2.5}
+              <circle cx={toX(m.date)} cy={toY(m.lads)} r={hoveredIdx === i ? 4.5 : 2.5}
                 fill={LADS} opacity={hoveredIdx === i ? 1 : 0.35}
                 style={{ transition: 'r 0.1s, opacity 0.1s' }} />
-              <circle cx={toX(i)} cy={toY(m.gils)} r={hoveredIdx === i ? 4.5 : 2.5}
+              <circle cx={toX(m.date)} cy={toY(m.gils)} r={hoveredIdx === i ? 4.5 : 2.5}
                 fill={GILS} opacity={hoveredIdx === i ? 1 : 0.35}
                 style={{ transition: 'r 0.1s, opacity 0.1s' }} />
             </g>
           ))}
 
-          {/* Match labels on x-axis */}
-          {matchData.map((m, i) => (
-            (i === 0 || i === matchData.length - 1 || i % Math.ceil(matchData.length / 8) === 0) && (
-              <text key={m.matchId} x={toX(i)} y={H - 6} textAnchor="middle"
-                style={{ fontSize: 9, fill: hoveredIdx === i ? '#475569' : '#94a3b8', fontWeight: 600 }}>
-                M{m.matchId}
-              </text>
-            )
+          {/* Today marker */}
+          <line x1={toX(today)} y1={PAD.t} x2={toX(today)} y2={H - PAD.b}
+            stroke="#e2e8f0" strokeWidth="1" strokeDasharray="4,3" />
+
+          {/* X-axis date labels */}
+          {xLabels.map((lbl, i) => (
+            <text key={i} x={lbl.x} y={H - 6} textAnchor="middle"
+              style={{ fontSize: 9, fill: '#94a3b8', fontWeight: 600 }}>
+              {lbl.label}
+            </text>
           ))}
 
-          {/* Invisible hit areas for hover */}
-          {matchData.map((m, i) => {
-            const x = toX(i);
-            const prevX = i > 0 ? toX(i - 1) : x;
-            const nextX = i < matchData.length - 1 ? toX(i + 1) : x;
-            const left = i === 0 ? PAD.l : (x + prevX) / 2;
-            const right = i === matchData.length - 1 ? W - PAD.r : (x + nextX) / 2;
+          {/* Invisible hit areas for hover — one segment per match */}
+          {raceData.map((m, i) => {
+            const x = toX(m.date);
+            const prevX = i > 0 ? toX(raceData[i - 1].date) : PAD.l;
+            const nextX = i < raceData.length - 1 ? toX(raceData[i + 1].date) : toX(today);
             return (
               <rect key={`hit-${m.matchId}`}
-                x={left} y={PAD.t} width={right - left} height={inner.h}
-                fill="transparent"
-                style={{ cursor: 'crosshair' }}
-                onMouseEnter={() => setHoveredIdx(i)}
-              />
+                x={(x + prevX) / 2} y={PAD.t}
+                width={(x + nextX) / 2 - (x + prevX) / 2} height={inner.h}
+                fill="transparent" style={{ cursor: 'crosshair' }}
+                onMouseEnter={() => setHoveredIdx(i)} />
             );
           })}
         </svg>
@@ -253,15 +269,17 @@ function PerMatchChart({ matchData }: {
         {hovered && hoveredIdx !== null && (
           <div className="absolute top-0 z-20 pointer-events-none"
             style={{ left: `${tooltipXPct}%`, transform: 'translateX(-50%)' }}>
-            <div className="bg-gray-900 text-white rounded-xl px-3 py-2.5 shadow-xl text-[11px]" style={{ minWidth: 130 }}>
-              <div className="font-bold text-[12px] mb-1.5 text-gray-200">Match {hovered.matchId}</div>
+            <div className="bg-gray-900 text-white rounded-xl px-3 py-2.5 shadow-xl text-[11px]" style={{ minWidth: 145 }}>
+              <div className="font-bold text-[12px] mb-1.5 text-gray-200">
+                M{hovered.matchId} · {hovered.date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+              </div>
               <div className="flex items-center justify-between gap-4">
                 <span className="font-semibold" style={{ color: LADS }}>Lads</span>
-                <span className="font-bold tabular-nums">{hovered.lads}</span>
+                <span className="font-bold tabular-nums">{hovered.lads > 0 ? `+${hovered.lads}` : hovered.lads}</span>
               </div>
               <div className="flex items-center justify-between gap-4 mt-0.5">
                 <span className="font-semibold" style={{ color: '#a78bfa' }}>Gils</span>
-                <span className="font-bold tabular-nums">{hovered.gils}</span>
+                <span className="font-bold tabular-nums">{hovered.gils > 0 ? `+${hovered.gils}` : hovered.gils}</span>
               </div>
               <div className="mt-1.5 pt-1.5 border-t border-gray-700 flex items-center justify-between gap-4">
                 <span className="text-gray-400">Lead</span>
@@ -274,7 +292,6 @@ function PerMatchChart({ matchData }: {
           </div>
         )}
       </div>
-      {/* Legend */}
       <div className="flex gap-4 mt-1 text-[10px] font-semibold text-gray-500">
         <span className="flex items-center gap-1.5">
           <span className="w-4 h-0.5 inline-block rounded" style={{ background: LADS }} /> Lads
@@ -310,14 +327,17 @@ export default function StatsPage() {
     .map(([venue, pts]) => ({ venue, ...pts }))
     .sort((a, b) => (b.lads + b.gils) - (a.lads + a.gils));
 
-  // Build cumulative points data
-  const matchData = Object.values(state.matches)
+  // Build cumulative points over calendar time for Season Race chart
+  const raceData = Object.values(state.matches)
     .filter(m => m.isComplete)
     .sort((a, b) => a.matchId - b.matchId)
-    .reduce<{ matchId: number; lads: number; gils: number }[]>((acc, m) => {
+    .reduce<{ matchId: number; date: Date; lads: number; gils: number }[]>((acc, m) => {
+      const fixture = fixtures.find(f => f.match === m.matchId);
+      if (!fixture) return acc;
       const prev = acc[acc.length - 1];
       return [...acc, {
         matchId: m.matchId,
+        date: parseMatchDate(fixture.date),
         lads: (prev?.lads ?? 0) + computeSideTotal(m, 'lads'),
         gils: (prev?.gils ?? 0) + computeSideTotal(m, 'gils'),
       }];
@@ -334,9 +354,9 @@ export default function StatsPage() {
       </motion.div>
 
       {/* Charts */}
-      {matchData.length > 0 ? (
+      {raceData.length > 0 ? (
         <>
-          <PerMatchChart matchData={matchData} />
+          <SeasonRaceChart raceData={raceData} />
           <VenueChart venueData={venueData} />
         </>
       ) : (
