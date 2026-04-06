@@ -30,6 +30,12 @@ body {
 @utility ease-sharp {
   transition-timing-function: var(--ease-sharp);
 }
+@utility text-stat {
+  font-family: var(--font-barlow-condensed), system-ui, sans-serif;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
 
 @keyframes pulse-live {
   0%, 100% { opacity: 1; }
