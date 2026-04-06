@@ -36,8 +36,8 @@ export function useSeasonState() {
   const [loaded, setLoaded] = useState(false);
   const { side, setSide } = useSession();
 
-  useEffect(() => {
-    fetch('/api/state')
+  async function fetchState() {
+    return fetch('/api/state')
       .then(r => {
         if (r.status === 401) {
           window.location.href = '/login';
@@ -51,10 +51,10 @@ export function useSeasonState() {
         setSide(data.side ?? null);
         setLoaded(true);
       })
-      .catch(() => {
-        // Network error — stay on loading state
-      });
-  }, []);
+      .catch(() => {});
+  }
+
+  useEffect(() => { fetchState(); }, []);
 
   function setState(updater: (prev: SeasonState) => SeasonState) {
     setStateRaw(prev => {
@@ -88,5 +88,5 @@ export function useSeasonState() {
     }));
   }
 
-  return { state, setState, getMatch, updateMatch, loaded, side };
+  return { state, setState, getMatch, updateMatch, loaded, side, reload: fetchState };
 }
