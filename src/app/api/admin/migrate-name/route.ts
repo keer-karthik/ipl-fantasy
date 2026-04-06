@@ -1,0 +1,55 @@
+import { NextResponse } from 'next/server';
+import { createServiceClient } from '@/lib/supabase/service';
+import type { SeasonState } from '@/lib/types';
+
+// One-time migration: rename a player across all stored picks and results.
+// POST /api/admin/migrate-name  { from: "Old Name", to: "New Name" }
+// Protected by ADMIN_SECRET env var.
+
+export async function POST(request: Request) {
+  const secret = request.headers.get('x-admin-secret');
+  if (!secret || secret !== process.env.ADMIN_SECRET) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
+  const { from: oldName, to: newName } = await request.json() as { from: string; to: string };
+  if (!oldName || !newName) return NextResponse.json({ error: 'from and to required' }, { status: 400 });
+
+  const service = createServiceClient();
+  const { data, error } = await service.from('season_state').select('state').eq('id', 1).single();
+  if (error || !data) return NextResponse.json({ error: 'Failed to load state' }, { status: 500 });
+
+  const state = data.state as SeasonState;
+  let changes = 0;
+
+  const rename = (name: string) => {
+    if (name === oldName) { changes++; return newName; }
+    return name;
+  };
+
+  const newMatches = Object.fromEntries(
+    Object.entries(state.matches).map(([id, match]) => {
+      const patchSide = (side: 'lads' | 'gils') => ({
+        ...match[side],
+        picks: match[side].picks.map(p => ({
+          ...p,
+          playerName: rename(p.playerName),
+          substituteName: p.substituteName ? rename(p.substituteName) : p.substituteName,
+        })),
+        results: match[side].results.map(r => ({
+          ...r,
+          playerName: rename(r.playerName),
+        })),
+      });
+      return [id, { ...match, lads: patchSide('lads'), gils: patchSide('gils') }];
+    })
+  );
+
+  const newState: SeasonState = { ...state, matches: newMatches };
+  const { error: saveErr } = await service
+    .from('season_state')
+    .upsert({ id: 1, state: newState, updated_at: new Date().toISOString() });
+
+  if (saveErr) return NextResponse.json({ error: 'Failed to save' }, { status: 500 });
+  return NextResponse.json({ ok: true, changes });
+}
