@@ -412,7 +412,7 @@ export default function Dashboard() {
       {(() => {
         const recent = fixtures
           .filter(f => state.matches[f.match]?.isComplete)
-          .slice(-5).reverse();
+          .slice(-2).reverse();
         if (recent.length === 0) return null;
         return (
           <section>
