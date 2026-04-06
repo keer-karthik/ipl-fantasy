@@ -65,6 +65,7 @@ function normalizeName(name: string): string {
 // Both directions are checked so either form can appear in either position.
 const NAME_ALIASES: Record<string, string> = {
   'lungingidi': 'lungisaningidi',  // ESPN: "Lungi Ngidi" ↔ pick: "Lungisani Ngidi"
+  'mohammedshami': 'mohammadshami', // ESPN: "Mohammed Shami" ↔ pick: "Mohammad Shami"
 };
 
 function nameMatches(a: string, b: string): boolean {
