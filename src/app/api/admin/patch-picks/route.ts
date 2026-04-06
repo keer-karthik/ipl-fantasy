@@ -9,6 +9,7 @@ import type { SeasonState, PlayerPick } from '@/lib/types';
 // Body: {
 //   matchId: number,
 //   lads?: PlayerPick[],           // full replacement, or omit to leave unchanged
+//   gils?: PlayerPick[],           // full replacement, or omit to leave unchanged
 //   gilsPatches?: {                // per-player patches; other picks left unchanged
 //     playerName: string;
 //     multiplier?: string;
@@ -28,9 +29,10 @@ export async function POST(request: Request) {
   const body = await request.json() as {
     matchId: number;
     lads?: PlayerPick[];
+    gils?: PlayerPick[];
     gilsPatches?: { playerName: string; multiplier?: string; substituteName?: string | null }[];
   };
-  const { matchId, lads: newLadsPicks, gilsPatches } = body;
+  const { matchId, lads: newLadsPicks, gils: newGilsPicks, gilsPatches } = body;
   if (!matchId) return NextResponse.json({ error: 'matchId required' }, { status: 400 });
 
   const service = createServiceClient();
@@ -46,9 +48,9 @@ export async function POST(request: Request) {
     ? { ...match.lads, picks: newLadsPicks }
     : match.lads;
 
-  // Apply gils patches (per-player multiplier/sub changes)
-  let updatedGilsPicks = match.gils.picks;
-  if (gilsPatches) {
+  // Apply gils picks replacement or patches
+  let updatedGilsPicks = newGilsPicks ?? match.gils.picks;
+  if (!newGilsPicks && gilsPatches) {
     updatedGilsPicks = match.gils.picks.map(p => {
       const patch = gilsPatches.find(g => g.playerName === p.playerName);
       if (!patch) return p;
