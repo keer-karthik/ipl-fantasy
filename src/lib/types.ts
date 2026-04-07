@@ -89,4 +89,5 @@ export interface SeasonState {
   matches: Record<number, MatchEntry>;
   ladsAllInUsed: number; // count of all-in uses this season
   gilsAllInUsed: number;
+  discountedMatches?: number[]; // match IDs excluded from season totals/standings
 }

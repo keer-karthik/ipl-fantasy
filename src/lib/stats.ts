@@ -33,7 +33,8 @@ export interface PlayerSeasonStat {
 }
 
 function completedMatches(state: SeasonState): MatchEntry[] {
-  return Object.values(state.matches).filter(m => m.isComplete);
+  const discounted = new Set(state.discountedMatches ?? []);
+  return Object.values(state.matches).filter(m => m.isComplete && !discounted.has(m.matchId));
 }
 
 // Single source of truth: recompute a side's total from stored PlayerResult[].

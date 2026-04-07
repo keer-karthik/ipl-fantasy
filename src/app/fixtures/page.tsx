@@ -9,14 +9,41 @@ import { computeSideTotal } from '@/lib/stats';
 import { TeamLogo } from '@/components/TeamBadge';
 import type { TeamName } from '@/lib/types';
 
+function DiscountToggle({ matchId, discounted, onToggle }: { matchId: number; discounted: boolean; onToggle: (id: number) => void }) {
+  return (
+    <button
+      onClick={e => { e.preventDefault(); e.stopPropagation(); onToggle(matchId); }}
+      title={discounted ? 'Click to include in season totals' : 'Click to exclude from season totals'}
+      className={`shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full border transition-colors duration-150 ${
+        discounted
+          ? 'bg-gray-100 border-gray-300 text-gray-400'
+          : 'bg-white border-gray-200 text-gray-400 hover:border-red-300 hover:text-red-400'
+      }`}
+    >
+      {discounted ? 'excluded' : '✕'}
+    </button>
+  );
+}
+
 type FilterTab = 'all' | 'upcoming' | 'completed';
 
 const LADS_COLOR = '#f59e0b';
 const GILS_COLOR = '#7c3aed';
 
 export default function FixturesPage() {
-  const { state, loaded } = useSeasonState();
+  const { state, setState, loaded } = useSeasonState();
   const [tab, setTab] = useState<FilterTab>('all');
+
+  const discountedSet = useMemo(() => new Set(state.discountedMatches ?? []), [state.discountedMatches]);
+
+  function toggleDiscount(matchId: number) {
+    setState(prev => {
+      const current = new Set(prev.discountedMatches ?? []);
+      if (current.has(matchId)) current.delete(matchId);
+      else current.add(matchId);
+      return { ...prev, discountedMatches: Array.from(current) };
+    });
+  }
 
   const counts = useMemo(() => {
     let upcoming = 0, completed = 0;
@@ -143,6 +170,7 @@ export default function FixturesPage() {
                     const isPast = !today && !upcoming;
                     const noPicks = !m?.lads.picks.length && !m?.gils.picks.length;
                     const skipped = isPast && !done && noPicks;
+                    const isDiscounted = discountedSet.has(f.match);
 
                     const homeColor = getTeamColor(f.home as TeamName);
                     const awayColor = getTeamColor(f.away as TeamName);
@@ -158,7 +186,7 @@ export default function FixturesPage() {
                         initial={{ opacity: 0, x: -6, y: 2 }}
                         animate={{ opacity: 1, x: 0, y: 0 }}
                         transition={{ delay: Math.min(idx * 0.012, 0.18), duration: 0.25, ease: [0.65, 0.05, 0, 1] }}
-                        style={skipped ? { opacity: 0.35, filter: 'grayscale(1)' } : undefined}
+                        style={(skipped || isDiscounted) ? { opacity: 0.35, filter: 'grayscale(1)' } : undefined}
                       >
                         <Link
                           href={`/match/${f.match}`}
@@ -235,6 +263,7 @@ export default function FixturesPage() {
                                   style={m.winner === 'gils' ? { color: GILS_COLOR } : undefined}>
                                   {gilsTotal}
                                 </span>
+                                <DiscountToggle matchId={f.match} discounted={isDiscounted} onToggle={toggleDiscount} />
                               </div>
                               {m.winner && (
                                 <p className="text-[10px] text-gray-400 mt-0.5 pl-12">

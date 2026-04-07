@@ -166,8 +166,9 @@ function SeasonRaceChart({ state, reload }: { state: SeasonState; reload: () => 
   // Build season points from chartHistory + completed matches
   const points = useMemo<SeasonPt[]>(() => {
     const chartHistory = ((state as unknown) as Record<string, unknown>).chartHistory as Record<string, ChartPt[]> | undefined ?? {};
+    const discounted = new Set(state.discountedMatches ?? []);
     const completed = Object.values(state.matches)
-      .filter(m => m.isComplete)
+      .filter(m => m.isComplete && !discounted.has(m.matchId))
       .sort((a, b) => a.matchId - b.matchId);
 
     const pts: SeasonPt[] = [{ xRatio: 0, lads: 0, gils: 0 }];
