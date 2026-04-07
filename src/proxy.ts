@@ -40,6 +40,7 @@ export async function proxy(request: NextRequest) {
   const isPublic =
     pathname.startsWith('/login') ||
     pathname.startsWith('/api/auth') ||
+    pathname.startsWith('/api/cron-finalise') ||
     pathname.startsWith('/_next') ||
     pathname === '/favicon.ico';
 
