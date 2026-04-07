@@ -1,5 +1,5 @@
 /**
- * GET /api/cron/finalise-matches
+ * GET /api/cron-finalise
  *
  * Called every 15 minutes by cron-job.org.
  * Finds matches that have been over for 4+ hours, checks ESPN for completion,
@@ -11,14 +11,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSeasonStateRow, upsertSeasonState } from '@/lib/supabase-server';
 import { autoResultFromLive } from '@/lib/liveScoring';
-import { computeSideTotal } from '@/lib/stats';
+import { applyMultiplier } from '@/lib/scoring';
 import { fixtures, getMatchStartIST } from '@/lib/data';
-import type { SeasonState, PlayerPick, TeamName } from '@/lib/types';
+import type { SeasonState, PlayerPick, MatchEntry, TeamName } from '@/lib/types';
 
 function isAuthorised(req: NextRequest): boolean {
   const secret = process.env.CRON_SECRET;
-  if (!secret) return true; // dev — no secret configured
+  if (!secret) return true;
   return req.headers.get('authorization') === `Bearer ${secret}`;
+}
+
+function computeTotal(match: MatchEntry, side: 'lads' | 'gils'): number {
+  const sideData = match[side];
+  const hasWinnerBonus = sideData.predictedWinner !== null && sideData.predictedWinner === match.actualWinner;
+  const momBonus = sideData.results.filter(r => r.isMOM).length * 10;
+  return sideData.results.reduce((s, r) => {
+    const raw = r.battingPoints + r.bowlingPoints + r.fieldingPoints;
+    return s + Math.round(applyMultiplier(raw, r.multiplier));
+  }, 0) + (hasWinnerBonus ? 50 : 0) + momBonus;
 }
 
 export async function GET(req: NextRequest) {
@@ -33,18 +43,16 @@ export async function GET(req: NextRequest) {
   const now = Date.now();
   const FOUR_HOURS = 4 * 60 * 60 * 1000;
 
-  // Find matches that started 4+ hours ago, aren't complete yet, and have picks on at least one side
   const candidates = fixtures.filter(f => {
     const start = getMatchStartIST(f).getTime();
-    if (now < start + FOUR_HOURS) return false; // too early
+    if (now < start + FOUR_HOURS) return false;
     const m = state.matches?.[f.match];
-    if (m?.isComplete) return false; // already done
-    const hasPicks = (m?.lads?.picks?.length ?? 0) > 0 || (m?.gils?.picks?.length ?? 0) > 0;
-    return hasPicks;
+    if (m?.isComplete) return false;
+    return (m?.lads?.picks?.length ?? 0) > 0 || (m?.gils?.picks?.length ?? 0) > 0;
   });
 
   if (candidates.length === 0) {
-    return NextResponse.json({ ok: true, finalised: [] });
+    return NextResponse.json({ ok: true, finalised: [], skipped: {} });
   }
 
   const base = process.env.VERCEL_URL
@@ -53,6 +61,7 @@ export async function GET(req: NextRequest) {
 
   const finalised: number[] = [];
   const skipped: Record<number, string> = {};
+  let changed = false;
 
   for (const fixture of candidates) {
     const matchId = fixture.match;
@@ -67,7 +76,6 @@ export async function GET(req: NextRequest) {
       const ladsPicks: PlayerPick[] = m?.lads?.picks ?? [];
       const gilsPicks: PlayerPick[] = m?.gils?.picks ?? [];
 
-      // Need picks on at least one side to finalise
       if (ladsPicks.length === 0 && gilsPicks.length === 0) { skipped[matchId] = 'no picks'; continue; }
 
       const innings = liveData.innings ?? {};
@@ -77,38 +85,48 @@ export async function GET(req: NextRequest) {
 
       const ladsResults = ladsPicks.length > 0
         ? autoResultFromLive(innings, ladsPicks, playingEleven, manOfTheMatch)
-        : m?.lads?.results ?? [];
+        : (m?.lads?.results ?? []);
       const gilsResults = gilsPicks.length > 0
         ? autoResultFromLive(innings, gilsPicks, playingEleven, manOfTheMatch)
-        : m?.gils?.results ?? [];
+        : (m?.gils?.results ?? []);
 
-      // Build updated match entry
-      const updatedMatch = {
-        ...(m ?? { matchId, isPicksLocked: true, lads: { picks: [], stats: [], results: [], predictedWinner: null, allInUsed: false, total: 0 }, gils: { picks: [], stats: [], results: [], predictedWinner: null, allInUsed: false, total: 0 }, winner: null, actualWinner: null }),
+      const updatedMatch: MatchEntry = {
+        matchId,
+        isPicksLocked: true,
         isComplete: true,
         actualWinner,
-        lads: { ...(m?.lads ?? {}), picks: ladsPicks, stats: [], results: ladsResults },
-        gils: { ...(m?.gils ?? {}), picks: gilsPicks, stats: [], results: gilsResults },
+        winner: null,
+        lads: {
+          picks: ladsPicks,
+          stats: [],
+          results: ladsResults,
+          predictedWinner: m?.lads?.predictedWinner ?? null,
+          allInUsed: m?.lads?.allInUsed ?? false,
+          total: 0,
+        },
+        gils: {
+          picks: gilsPicks,
+          stats: [],
+          results: gilsResults,
+          predictedWinner: m?.gils?.predictedWinner ?? null,
+          allInUsed: m?.gils?.allInUsed ?? false,
+          total: 0,
+        },
       };
 
-      // Compute winner from fresh results
-      const tempState = { ...state, matches: { ...state.matches, [matchId]: updatedMatch } } as SeasonState;
-      const ladsTotal = computeSideTotal(tempState.matches[matchId], 'lads');
-      const gilsTotal = computeSideTotal(tempState.matches[matchId], 'gils');
-      const winner = ladsTotal > gilsTotal ? 'lads' : gilsTotal > ladsTotal ? 'gils' : null;
+      const ladsTotal = computeTotal(updatedMatch, 'lads');
+      const gilsTotal = computeTotal(updatedMatch, 'gils');
+      updatedMatch.winner = ladsTotal > gilsTotal ? 'lads' : gilsTotal > ladsTotal ? 'gils' : null;
 
-      state.matches = {
-        ...state.matches,
-        [matchId]: { ...updatedMatch, winner } as typeof updatedMatch & { winner: typeof winner },
-      };
-
+      state.matches = { ...state.matches, [matchId]: updatedMatch };
       finalised.push(matchId);
+      changed = true;
     } catch (e) {
       skipped[matchId] = `error: ${String(e)}`;
     }
   }
 
-  if (finalised.length > 0) {
+  if (changed) {
     await upsertSeasonState(state as unknown as Record<string, unknown>);
   }
 
