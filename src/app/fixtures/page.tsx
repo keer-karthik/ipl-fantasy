@@ -186,6 +186,7 @@ export default function FixturesPage() {
                         initial={{ opacity: 0, x: -6, y: 2 }}
                         animate={{ opacity: 1, x: 0, y: 0 }}
                         transition={{ delay: Math.min(idx * 0.012, 0.18), duration: 0.25, ease: [0.65, 0.05, 0, 1] }}
+                        className="relative"
                         style={(skipped || isDiscounted) ? { opacity: 0.35, filter: 'grayscale(1)' } : undefined}
                       >
                         <Link
@@ -263,7 +264,6 @@ export default function FixturesPage() {
                                   style={m.winner === 'gils' ? { color: GILS_COLOR } : undefined}>
                                   {gilsTotal}
                                 </span>
-                                <DiscountToggle matchId={f.match} discounted={isDiscounted} onToggle={toggleDiscount} />
                               </div>
                               {m.winner && (
                                 <p className="text-[10px] text-gray-400 mt-0.5 pl-12">
@@ -273,6 +273,11 @@ export default function FixturesPage() {
                             </div>
                           )}
                         </Link>
+                        {done && (
+                          <div className="absolute bottom-3 right-3 z-10" style={{ pointerEvents: 'auto' }}>
+                            <DiscountToggle matchId={f.match} discounted={isDiscounted} onToggle={toggleDiscount} />
+                          </div>
+                        )}
                       </motion.div>
                     );
                   })}
